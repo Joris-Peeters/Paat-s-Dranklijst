@@ -1,5 +1,5 @@
 name: paats_dranklijst
-description: "A new Flutter project."
+description: "A touchscreen fridge application that tracks consumption and finances for a youth movement."
 publish_to: 'none'
 version: 0.1.0+1
 
