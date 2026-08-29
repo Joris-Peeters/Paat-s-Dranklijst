@@ -91,19 +91,28 @@ euro — but the code must not assume that divisor is universal. Most currencies
 
 Money is always formatted through `AppSettings.of(context).formatMoney(minorUnits)`
 — never inline `NumberFormat`, never hand-roll `/ 100` or a `'€'` literal at a call
-site. `AppSettings` is an `InheritedWidget` (defined in `main.dart`, see rule 5) that
-mirrors the `AppLocalizations.of(context)` pattern: it carries the active currency
-code and reads the active locale via `Localizations.localeOf(context)` internally, so
-callers never pass locale or currency by hand.
+site. `AppSettings` lives in `lib/app_settings.dart` (see rule 5) and mirrors the
+`AppLocalizations.of(context)` pattern: it carries the active currency code and reads
+the active locale via `Localizations.localeOf(context)` internally, so callers never
+pass locale or currency by hand.
 
 ```dart
 String formatMoney(int minorUnits) {
   final locale = Localizations.localeOf(_context).toString();
-  final format = NumberFormat.currency(locale: locale, name: _settings.currencyCode);
+  final format = NumberFormat.simpleCurrency(
+    locale: locale,
+    name: _settings.currencyCode,
+  );
   final divisor = pow(10, format.decimalDigits ?? 2);
   return format.format(minorUnits / divisor);
 }
 ```
+
+It must be `simpleCurrency`, **not** `currency`. `NumberFormat.currency` fills the
+pattern's `¤` placeholder with the currency *code* unless an explicit `symbol:` is
+passed, so it renders `EUR 12,50` instead of `€ 12,50`. `simpleCurrency` resolves the
+symbol from the code via intl's own lookup table, which keeps the symbol derived from
+data rather than hardcoded.
 
 `currencyCode` is currently always `'EUR'` — there is no UI to change it — but it
 flows through `AppSettings` as data, not a hardcoded symbol, so adding real
@@ -159,15 +168,31 @@ comma decimal separator; `en_US` writes `€12.50`). Always go through
 `'€${x.toStringAsFixed(2)}'`, and never assume symbol placement, spacing, or
 decimal-digit count.
 
-**`AppSettings`** is a small `InheritedWidget` (currently defined in `main.dart`,
-alongside the rest of the localization wiring — no separate file needed at this
-size) that carries settings a widget needs to read anywhere in the tree, currently
-just `currencyCode`. It's provided via `MaterialApp`'s `builder:` parameter, which is
-what makes `Localizations.localeOf(context)` reachable from inside it — providing it
-*above* `MaterialApp` instead would put it outside the tree that publishes locale.
-`AppSettings.of(context)` returns a small accessor bound to the calling context, so
-`AppSettings.of(context).formatMoney(1250)` reads exactly like
-`AppLocalizations.of(context)`.
+**`AppSettings`** (in `lib/app_settings.dart`) carries the settings a widget needs to
+read anywhere in the tree — currently `locale` and `currencyCode`. It is a plain
+widget wrapping a private `_AppSettingsScope` `InheritedWidget`, the same shape
+Flutter's own `Theme` uses. `AppSettings.of(context)` returns a small accessor bound
+to the calling context, so `AppSettings.of(context).formatMoney(1250)` reads exactly
+like `AppLocalizations.of(context)`.
+
+**It is placed above `MaterialApp`**, in `runApp`. `MaterialApp`'s own arguments are
+themselves settings — `locale:` now, `theme:`/`themeMode:` under rule 4 — and a widget
+can only read an `InheritedWidget` that is its ancestor, so anything feeding those
+arguments must sit above it. The database seam is therefore in exactly one place:
+`AppSettings.build`.
+
+That placement does not strand `formatMoney`, which is the natural worry. An
+`InheritedWidget` lookup walks up from the **calling** widget's context, not from
+wherever the widget was provided. Real callers are screens *below* `MaterialApp`, so
+walking up from them passes through the `Localizations` widget inside `MaterialApp`
+before reaching `AppSettings` above it — both resolve. Only a call from above
+`MaterialApp` would fail, and none exists.
+
+`formatMoney` deliberately reads `Localizations.localeOf(context)` rather than
+`AppSettings`' own `locale` field. `MaterialApp.locale` is a *preference* that gets
+resolved against `supportedLocales`; if the stored setting names a locale this build
+doesn't ship, the UI falls back but the raw setting doesn't. Using the resolved locale
+keeps money formatted in the same language as the text around it.
 
 ### 6. Avatars
 
@@ -184,6 +209,9 @@ the future camera feature needs no migration.
 
 ## Known gotchas
 
+- **`lib/l10n/app_localizations*.dart` are gitignored**, so a fresh clone has broken
+  imports and a red `flutter analyze` until codegen has run once. `flutter run`/`build`
+  generate them; `flutter gen-l10n` forces it. Run it before analyzing a fresh clone.
 - **Color emoji do not render on Linux desktop by default** — they appear monochrome.
   A color emoji font must be bundled as an app asset and set via `fontFamilyFallback`.
   This also makes avatars render identically across Android, iOS, and Linux.
@@ -202,15 +230,19 @@ the future camera feature needs no migration.
   phase and no deployments have been done, migrations are not needed.
 - Not every currency has 100 minor units — don't assume `/ 100` when formatting
   money, even though EUR (the only currency currently supported) happens to use it.
-  Get the divisor from `NumberFormat.currency(...).decimalDigits` via the
+  Get the divisor from `NumberFormat.simpleCurrency(...).decimalDigits` via the
   `formatMoney` helper.
+- `NumberFormat.currency(name: 'EUR')` renders the string `EUR`, not `€` — it only
+  looks up the symbol when given an explicit `symbol:`. Use `NumberFormat.simpleCurrency`
+  (see rule 2).
 
 ## Layout
 
 ```txt
 lib/
   main.dart
-  l10n/                 # ARB files + generated localizations
+  app_settings.dart     # ambient settings InheritedWidget; sits above MaterialApp
+  l10n/                 # ARB files (committed) + generated localizations (gitignored)
   data/
     database.dart       # AppDatabase, schemaVersion, migrations
     tables/             # drift table definitions
@@ -224,15 +256,38 @@ lib/
 
 ## Current state
 
-Fresh project. The scaffold from `flutter create` is still in place. Nothing
-in the architecture above is implemented yet — treat it as the target design.
+Early. Only rule 5 (localization) and the `AppSettings` half of rule 2 (money
+formatting) are implemented — `l10n.yaml`, `lib/l10n/app_en.arb` + `app_nl.arb`,
+`lib/app_settings.dart`, and `main.dart` wiring `MaterialApp` below it. Locale (`nl`)
+and currency (`EUR`) are hardcoded in `AppSettings.build`, which is the single `TODO`
+where the database settings will plug in; `MaterialApp.locale` already reads from
+there rather than being hardcoded separately.
+
+`main.dart` also holds a throwaway `PlaceholderScreen` that exercises a plain string,
+an ICU plural, and `formatMoney` — it is scaffolding, to be deleted once real screens
+exist.
+
+Everything else in the architecture above — the database, the ledger, theming,
+avatars, the screens — is still target design, not code.
 
 ## Working preferences
 
 - The repo owner is new to Flutter. Explain non-obvious Flutter idioms briefly when
   introducing them; don't assume familiarity with Dart conventions.
+- **Keep comments short.** One line for a simple point. Don't spend three lines on
+  something a clause covers, don't restate what the code already says, and don't
+  justify every routine choice. A short paragraph is for reasoning that is genuinely
+  non-obvious *and* not already written down here — architectural rationale lives in
+  this file, so link to it (`see rule 2`) instead of duplicating it at each site.
+  "Explain briefly" above means one or two lines, not a doc-comment essay.
 - Prefer small, verifiable steps. After changes, run `flutter analyze` and
   `flutter run -d linux` to confirm the app still builds.
+- `analysis_options.yaml` goes beyond `flutter_lints` — strict type checking
+  (`strict-casts`/`strict-inference`/`strict-raw-types`) plus extra rules. `analyze`
+  is expected to be **zero issues**, so treat lint findings as build failures. Two
+  that bite most often: imports within `lib/` must be **relative**
+  (`prefer_relative_imports` — `package:` is for external packages only), and every
+  `Future` must be awaited or explicitly wrapped in `unawaited(...)`.
 - Do not add dependencies without flagging the tradeoff first. The dependency list
   above is deliberate and minimal.
 - Do not add networking, telemetry, analytics, crash reporting, or cloud sync.

@@ -1,0 +1,36 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Paat's Dranklijst",
+  "@appTitle": {
+    "description": "Application name, shown in the app bar and task switcher"
+  },
+
+  "chooseYourName": "Choose your name",
+  "@chooseYourName": {
+    "description": "Prompt on the home screen where a member taps their own name"
+  },
+
+  "balance": "Balance",
+  "@balance": {
+    "description": "Label for a member's running tab"
+  },
+
+  "drinksTaken": "{count, plural, =0{No drinks} =1{1 drink} other{{count} drinks}}",
+  "@drinksTaken": {
+    "description": "Count of drinks a member has taken",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "settings": "Settings",
+  "@settings": {
+    "description": "Admin settings screen title"
+  },
+
+  "language": "Language",
+  "@language": {
+    "description": "Admin setting for the app UI language"
+  }
+}

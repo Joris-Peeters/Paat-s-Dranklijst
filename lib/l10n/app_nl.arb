@@ -1,0 +1,9 @@
+{
+  "@@locale": "nl",
+  "appTitle": "Paat's Dranklijst",
+  "chooseYourName": "Kies je naam",
+  "balance": "Saldo",
+  "drinksTaken": "{count, plural, =0{Geen drankjes} =1{1 drankje} other{{count} drankjes}}",
+  "settings": "Instellingen",
+  "language": "Taal"
+}
