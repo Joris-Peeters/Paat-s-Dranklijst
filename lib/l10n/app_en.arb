@@ -32,5 +32,10 @@
   "language": "Language",
   "@language": {
     "description": "Admin setting for the app UI language"
+  },
+
+  "loading": "Loading…",
+  "@loading": {
+    "description": "Shown on the splash screen while settings load from the database"
   }
 }

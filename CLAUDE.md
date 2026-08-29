@@ -47,8 +47,8 @@ assume an iOS build can be run locally.
 flutter run -d linux
 
 # Drift codegen — required after ANY change to table definitions
-dart run build_runner build --delete-conflicting-outputs
-dart run build_runner watch --delete-conflicting-outputs   # leave running while working
+dart run build_runner build
+dart run build_runner watch   # leave running while working
 
 # Localization codegen runs automatically on run/build; to force it:
 flutter gen-l10n
@@ -156,14 +156,29 @@ to day (the group is Dutch-speaking) — English exists as the template because 
 the language the code and this document are written in. Code, comments, and
 identifiers are in English regardless of which ARB file is the template.
 
-The active locale comes from the **database setting**, not the system locale — a
-kiosk tablet's system locale is fixed and often wrong.
+The active language comes from the **database setting**, not the system locale — a
+kiosk tablet's system locale is fixed and often wrong. It is never seeded from the
+device either: a fresh database starts at `en` and the first-run wizard is where that
+gets changed.
+
+**Language only — no regional locales.** The stored `languageCode` is `en` or `nl`,
+nothing more. Regional variants (`en-GB`, `nl-BE`) were tried and removed: they bought
+number-grouping conventions nobody notices in a fridge, and cost a derivation layer
+over intl's internal tables, a region name per locale in every ARB file, and a
+conditional dropdown. Do not reintroduce them without a concrete need.
+
+The list of offered languages is **`AppLocalizations.supportedLocales`**, which
+`gen-l10n` derives from the ARB files present. There is no hand-maintained language
+list to keep in sync — adding `app_de.arb` is all it takes to offer German. Their
+display names live in the ARB files like any other UI string, each language named in
+its own language (`English`, `Nederlands`), so the label does not change with the
+active locale.
 
 **Item names and user names are user data, not UI strings.** They never appear in ARB
 files.
 
-Money and dates must be formatted locale-aware (`nl_BE` writes `€ 12,50`, with a
-comma decimal separator; `en_US` writes `€12.50`). Always go through
+Money and dates must be formatted locale-aware (`nl` writes `€ 12,50`, with a
+comma decimal separator; `en` writes `€12.50`). Always go through
 `AppSettings.of(context).formatMoney(minorUnits)` (see rule 2) — never hand-roll
 `'€${x.toStringAsFixed(2)}'`, and never assume symbol placement, spacing, or
 decimal-digit count.
@@ -188,11 +203,10 @@ walking up from them passes through the `Localizations` widget inside `MaterialA
 before reaching `AppSettings` above it — both resolve. Only a call from above
 `MaterialApp` would fail, and none exists.
 
-`formatMoney` deliberately reads `Localizations.localeOf(context)` rather than
-`AppSettings`' own `locale` field. `MaterialApp.locale` is a *preference* that gets
-resolved against `supportedLocales`; if the stored setting names a locale this build
-doesn't ship, the UI falls back but the raw setting doesn't. Using the resolved locale
-keeps money formatted in the same language as the text around it.
+`formatMoney` formats with the stored `languageCode` directly. Because that value is
+always one of the languages this build ships, `MaterialApp` resolves it to itself and
+the requested and resolved locales can never disagree — the distinction that matters
+when regional locales are in play does not arise here.
 
 ### 6. Avatars
 
@@ -225,9 +239,22 @@ the future camera feature needs no migration.
 - Plugins without Linux implementations (e.g. `image_picker`'s camera path) throw
   `MissingPluginException` at runtime, not compile time. Guard with
   `Platform.isAndroid || Platform.isIOS`.
+- `--delete-conflicting-outputs` was removed in build_runner 2.16 — passing it now
+  just prints a warning.
 - Drift schema changes require re-running `build_runner` **and** bumping
   `schemaVersion` with a matching migration step. As long as we are int the development
   phase and no deployments have been done, migrations are not needed.
+- **Drift's `.watch()` streams only see writes made through the same `AppDatabase`
+  instance.** Editing the database file with the `sqlite3` CLI while the app runs
+  changes nothing on screen until a restart — drift tracks table updates in Dart, it
+  does not poll the file. In-app writes (the settings UI, once it exists) do stream
+  live. This is a property of drift, not a bug to fix.
+- The database file is `paats_dranklijst.sqlite` in the **application support**
+  directory (`~/.local/share/xyz.jpsystems.paats_dranklijst/` on Linux), set explicitly
+  via `DriftNativeOptions.databaseDirectory`. drift_flutter's own default is the
+  *documents* directory, which on Linux is the user's real `~/Documents`.
+- `path_provider` is a direct dependency only because that directory override needs it;
+  it already came in transitively with `drift_flutter`.
 - Not every currency has 100 minor units — don't assume `/ 100` when formatting
   money, even though EUR (the only currency currently supported) happens to use it.
   Get the divisor from `NumberFormat.simpleCurrency(...).decimalDigits` via the
@@ -241,34 +268,47 @@ the future camera feature needs no migration.
 ```txt
 lib/
   main.dart
-  app_settings.dart     # ambient settings InheritedWidget; sits above MaterialApp
-  l10n/                 # ARB files (committed) + generated localizations (gitignored)
+  app_settings.dart          # ambient settings InheritedWidget; sits above MaterialApp
+  l10n/                      # ARB files (committed) + generated localizations (gitignored)
   data/
-    database.dart       # AppDatabase, schemaVersion, migrations
-    tables/             # drift table definitions
-    daos/               # queries, grouped by concern
+    database.dart            # AppDatabase, schemaVersion, migrations
+    database_provider.dart   # Database InheritedWidget; owns the AppDatabase instance
+    tables/                  # drift table definitions
+    daos/                    # queries, grouped by concern
   theme/
-    palette.dart        # curated color list
-    app_theme.dart      # ColorScheme.fromSeed helpers
+    palette.dart             # curated color list
+    app_theme.dart           # ColorScheme.fromSeed helpers
+    dark_mode_schedule.dart  # pure wall-clock schedule function
   screens/
   widgets/
+test/                        # unit tests; no widget tests yet
 ```
 
 ## Current state
 
-Early. Only rule 5 (localization) and the `AppSettings` half of rule 2 (money
-formatting) are implemented — `l10n.yaml`, `lib/l10n/app_en.arb` + `app_nl.arb`,
-`lib/app_settings.dart`, and `main.dart` wiring `MaterialApp` below it. Locale (`nl`)
-and currency (`EUR`) are hardcoded in `AppSettings.build`, which is the single `TODO`
-where the database settings will plug in; `MaterialApp.locale` already reads from
-there rather than being hardcoded separately.
+Implemented: rule 5 (localization), rule 2 (money formatting), rule 3's foundation
+(the database as the source of truth), and rule 4's global half (seed color, light/dark
+themes, scheduled dark mode).
 
-`main.dart` also holds a throwaway `PlaceholderScreen` that exercises a plain string,
-an ICU plural, and `formatMoney` — it is scaffolding, to be deleted once real screens
-exist.
+The tree is `Database` -> `AppSettings` -> `MaterialApp`. `Database`
+(`lib/data/database_provider.dart`) owns the `AppDatabase` and is stateful so the
+connection opens and closes exactly once. `AppSettings` watches the settings row and
+feeds `MaterialApp`'s `locale:`, `theme:`, `darkTheme:` and `themeMode:`.
 
-Everything else in the architecture above — the database, the ledger, theming,
-avatars, the screens — is still target design, not code.
+The database has **one table**: a single-row `settings` table with typed columns
+(`lib/data/tables/settings_table.dart`), a `CHECK (id = 1)` constraint, and the row
+inserted in `onCreate` so no code anywhere handles "settings is null". `schemaVersion`
+is 1; the `onUpgrade` scaffolding is in place but empty.
+
+Nothing is seeded from the device. A fresh database takes every value from the schema
+defaults — `en`, `EUR`, teal, scheduled dark mode. There is no settings UI yet, so
+changing a setting means editing the row with `sqlite3` and restarting.
+
+`main.dart` still holds a throwaway `PlaceholderScreen`, now also dumping the live
+settings row — scaffolding, to be deleted once real screens exist.
+
+Still target design, not code: users, items and the transaction ledger; per-user
+theming; avatars; the first-run setup wizard; every real screen.
 
 ## Working preferences
 
