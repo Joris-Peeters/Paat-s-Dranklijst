@@ -1,16 +1,18 @@
+import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:paats_dranklijst/data/tables/settings_table.dart';
-import 'package:paats_dranklijst/theme/dark_mode_schedule.dart';
+import 'package:paats_dranklijst/app_settings.dart';
+import 'package:paats_dranklijst/data/converters.dart';
 
-int at(int hour, [int minute = 0]) => hour * 60 + minute;
+TimeOfDay at(int hour, [int minute = 0]) =>
+    TimeOfDay(hour: hour, minute: minute);
 
 void main() {
-  group('isDarkAtMinute', () {
+  group('isDarkAt', () {
     group('window wrapping midnight (20:00 - 07:00)', () {
-      const start = 20 * 60;
-      const end = 7 * 60;
+      final start = at(20);
+      final end = at(7);
 
-      bool dark(int minute) => isDarkAtMinute(minute, start: start, end: end);
+      bool dark(TimeOfDay now) => isDarkAt(now: now, start: start, end: end);
 
       test('is light in the middle of the day', () {
         expect(dark(at(12)), isFalse);
@@ -32,10 +34,10 @@ void main() {
     });
 
     group('window within one day (07:00 - 20:00)', () {
-      const start = 7 * 60;
-      const end = 20 * 60;
+      final start = at(7);
+      final end = at(20);
 
-      bool dark(int minute) => isDarkAtMinute(minute, start: start, end: end);
+      bool dark(TimeOfDay now) => isDarkAt(now: now, start: start, end: end);
 
       test('is dark inside the window', () {
         expect(dark(at(7)), isTrue);
@@ -52,36 +54,29 @@ void main() {
     });
 
     test('a zero-length window is never dark', () {
-      const noon = 12 * 60;
-      expect(isDarkAtMinute(at(0), start: noon, end: noon), isFalse);
-      expect(isDarkAtMinute(noon, start: noon, end: noon), isFalse);
-      expect(isDarkAtMinute(at(23, 59), start: noon, end: noon), isFalse);
+      final noon = at(12);
+      bool dark(TimeOfDay now) => isDarkAt(now: now, start: noon, end: noon);
+
+      expect(dark(at(0)), isFalse);
+      expect(dark(noon), isFalse);
+      expect(dark(at(23, 59)), isFalse);
     });
   });
 
-  group('resolveBrightness', () {
-    AppBrightness resolve(AppThemeMode mode, DateTime now) => resolveBrightness(
-      mode: mode,
-      now: now,
-      darkStartMinutes: 20 * 60,
-      darkEndMinutes: 7 * 60,
-    );
+  group('TimeOfDayConverter', () {
+    const converter = TimeOfDayConverter();
 
-    final noon = DateTime(2026, 8, 29, 12);
-    final night = DateTime(2026, 8, 29, 22, 30);
-
-    test('fixed modes ignore the clock', () {
-      expect(resolve(AppThemeMode.light, night), AppBrightness.light);
-      expect(resolve(AppThemeMode.dark, noon), AppBrightness.dark);
+    test('stores minutes since midnight', () {
+      expect(converter.toSql(at(0)), 0);
+      expect(converter.toSql(at(7)), 7 * 60);
+      expect(converter.toSql(at(20, 30)), 20 * 60 + 30);
+      expect(converter.toSql(at(23, 59)), 24 * 60 - 1);
     });
 
-    test('scheduled follows the wall clock', () {
-      expect(resolve(AppThemeMode.scheduled, noon), AppBrightness.light);
-      expect(resolve(AppThemeMode.scheduled, night), AppBrightness.dark);
+    test('round-trips every minute of the day', () {
+      for (var minutes = 0; minutes < 24 * 60; minutes++) {
+        expect(converter.toSql(converter.fromSql(minutes)), minutes);
+      }
     });
-  });
-
-  test('minutesSinceMidnight ignores seconds and the date', () {
-    expect(minutesSinceMidnight(DateTime(2026, 8, 29, 20, 30, 59)), at(20, 30));
   });
 }

@@ -29,30 +29,26 @@ class $SettingsTable extends Settings
         requiredDuringInsert: false,
         defaultValue: const Constant('scheduled'),
       ).withConverter<AppThemeMode>($SettingsTable.$converterthemeMode);
-  static const VerificationMeta _darkStartMinutesMeta = const VerificationMeta(
-    'darkStartMinutes',
-  );
   @override
-  late final GeneratedColumn<int> darkStartMinutes = GeneratedColumn<int>(
-    'dark_start_minutes',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(20 * 60),
-  );
-  static const VerificationMeta _darkEndMinutesMeta = const VerificationMeta(
-    'darkEndMinutes',
-  );
+  late final GeneratedColumnWithTypeConverter<TimeOfDay, int> darkStart =
+      GeneratedColumn<int>(
+        'dark_start',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(20 * 60),
+      ).withConverter<TimeOfDay>($SettingsTable.$converterdarkStart);
   @override
-  late final GeneratedColumn<int> darkEndMinutes = GeneratedColumn<int>(
-    'dark_end_minutes',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(7 * 60),
-  );
+  late final GeneratedColumnWithTypeConverter<TimeOfDay, int> darkEnd =
+      GeneratedColumn<int>(
+        'dark_end',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(7 * 60),
+      ).withConverter<TimeOfDay>($SettingsTable.$converterdarkEnd);
   static const VerificationMeta _seedColorArgbMeta = const VerificationMeta(
     'seedColorArgb',
   );
@@ -141,16 +137,6 @@ class $SettingsTable extends Settings
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  @override
-  late final GeneratedColumnWithTypeConverter<StartupPage, String> startupPage =
-      GeneratedColumn<String>(
-        'startup_page',
-        aliasedName,
-        false,
-        type: DriftSqlType.string,
-        requiredDuringInsert: false,
-        defaultValue: const Constant('start'),
-      ).withConverter<StartupPage>($SettingsTable.$converterstartupPage);
   static const VerificationMeta _setupCompletedAtMeta = const VerificationMeta(
     'setupCompletedAt',
   );
@@ -167,8 +153,8 @@ class $SettingsTable extends Settings
   List<GeneratedColumn> get $columns => [
     id,
     themeMode,
-    darkStartMinutes,
-    darkEndMinutes,
+    darkStart,
+    darkEnd,
     seedColorArgb,
     languageCode,
     currencyCode,
@@ -176,7 +162,6 @@ class $SettingsTable extends Settings
     allowSelfRegistration,
     payeeName,
     payeeIban,
-    startupPage,
     setupCompletedAt,
   ];
   @override
@@ -193,24 +178,6 @@ class $SettingsTable extends Settings
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
-    if (data.containsKey('dark_start_minutes')) {
-      context.handle(
-        _darkStartMinutesMeta,
-        darkStartMinutes.isAcceptableOrUnknown(
-          data['dark_start_minutes']!,
-          _darkStartMinutesMeta,
-        ),
-      );
-    }
-    if (data.containsKey('dark_end_minutes')) {
-      context.handle(
-        _darkEndMinutesMeta,
-        darkEndMinutes.isAcceptableOrUnknown(
-          data['dark_end_minutes']!,
-          _darkEndMinutesMeta,
-        ),
-      );
     }
     if (data.containsKey('seed_color_argb')) {
       context.handle(
@@ -294,14 +261,18 @@ class $SettingsTable extends Settings
           data['${effectivePrefix}theme_mode'],
         )!,
       ),
-      darkStartMinutes: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}dark_start_minutes'],
-      )!,
-      darkEndMinutes: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}dark_end_minutes'],
-      )!,
+      darkStart: $SettingsTable.$converterdarkStart.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}dark_start'],
+        )!,
+      ),
+      darkEnd: $SettingsTable.$converterdarkEnd.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}dark_end'],
+        )!,
+      ),
       seedColorArgb: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}seed_color_argb'],
@@ -330,12 +301,6 @@ class $SettingsTable extends Settings
         DriftSqlType.string,
         data['${effectivePrefix}payee_iban'],
       ),
-      startupPage: $SettingsTable.$converterstartupPage.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.string,
-          data['${effectivePrefix}startup_page'],
-        )!,
-      ),
       setupCompletedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}setup_completed_at'],
@@ -350,41 +315,36 @@ class $SettingsTable extends Settings
 
   static JsonTypeConverter2<AppThemeMode, String, String> $converterthemeMode =
       const EnumNameConverter<AppThemeMode>(AppThemeMode.values);
-  static JsonTypeConverter2<StartupPage, String, String> $converterstartupPage =
-      const EnumNameConverter<StartupPage>(StartupPage.values);
+  static JsonTypeConverter2<TimeOfDay, int, int> $converterdarkStart =
+      const TimeOfDayConverter();
+  static JsonTypeConverter2<TimeOfDay, int, int> $converterdarkEnd =
+      const TimeOfDayConverter();
 }
 
 class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   final int id;
   final AppThemeMode themeMode;
-  final int darkStartMinutes;
-  final int darkEndMinutes;
-
-  /// Resolved ARGB, not an index into the palette. See CLAUDE.md rule 4.
+  final TimeOfDay darkStart;
+  final TimeOfDay darkEnd;
   final int seedColorArgb;
 
-  /// The UI language, one of `supportedLanguageCodes`. Language only — no
-  /// regional variants.
+  /// The UI language, one of `supportedLanguageCodes`.
   final String languageCode;
 
-  /// ISO 4217. Independent of [languageCode]: the language says how numbers
-  /// look, this says what money is in the tin.
+  /// ISO 4217 Currency code.
   final String currencyCode;
 
-  /// Plaintext. This is an honour-system app with no per-user login; the PIN
-  /// only stops casual tampering. Recovery is reading the database off the
-  /// tablet.
+  /// Plaintext. Doesn't have to be secure.
   final String? adminPin;
   final bool allowSelfRegistration;
   final String? payeeName;
   final String? payeeIban;
-  final StartupPage startupPage;
   final DateTime? setupCompletedAt;
   const SettingsRow({
     required this.id,
     required this.themeMode,
-    required this.darkStartMinutes,
-    required this.darkEndMinutes,
+    required this.darkStart,
+    required this.darkEnd,
     required this.seedColorArgb,
     required this.languageCode,
     required this.currencyCode,
@@ -392,7 +352,6 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     required this.allowSelfRegistration,
     this.payeeName,
     this.payeeIban,
-    required this.startupPage,
     this.setupCompletedAt,
   });
   @override
@@ -404,8 +363,16 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
         $SettingsTable.$converterthemeMode.toSql(themeMode),
       );
     }
-    map['dark_start_minutes'] = Variable<int>(darkStartMinutes);
-    map['dark_end_minutes'] = Variable<int>(darkEndMinutes);
+    {
+      map['dark_start'] = Variable<int>(
+        $SettingsTable.$converterdarkStart.toSql(darkStart),
+      );
+    }
+    {
+      map['dark_end'] = Variable<int>(
+        $SettingsTable.$converterdarkEnd.toSql(darkEnd),
+      );
+    }
     map['seed_color_argb'] = Variable<int>(seedColorArgb);
     map['language_code'] = Variable<String>(languageCode);
     map['currency_code'] = Variable<String>(currencyCode);
@@ -419,11 +386,6 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     if (!nullToAbsent || payeeIban != null) {
       map['payee_iban'] = Variable<String>(payeeIban);
     }
-    {
-      map['startup_page'] = Variable<String>(
-        $SettingsTable.$converterstartupPage.toSql(startupPage),
-      );
-    }
     if (!nullToAbsent || setupCompletedAt != null) {
       map['setup_completed_at'] = Variable<DateTime>(setupCompletedAt);
     }
@@ -434,8 +396,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     return SettingsCompanion(
       id: Value(id),
       themeMode: Value(themeMode),
-      darkStartMinutes: Value(darkStartMinutes),
-      darkEndMinutes: Value(darkEndMinutes),
+      darkStart: Value(darkStart),
+      darkEnd: Value(darkEnd),
       seedColorArgb: Value(seedColorArgb),
       languageCode: Value(languageCode),
       currencyCode: Value(currencyCode),
@@ -449,7 +411,6 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       payeeIban: payeeIban == null && nullToAbsent
           ? const Value.absent()
           : Value(payeeIban),
-      startupPage: Value(startupPage),
       setupCompletedAt: setupCompletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(setupCompletedAt),
@@ -466,8 +427,12 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       themeMode: $SettingsTable.$converterthemeMode.fromJson(
         serializer.fromJson<String>(json['themeMode']),
       ),
-      darkStartMinutes: serializer.fromJson<int>(json['darkStartMinutes']),
-      darkEndMinutes: serializer.fromJson<int>(json['darkEndMinutes']),
+      darkStart: $SettingsTable.$converterdarkStart.fromJson(
+        serializer.fromJson<int>(json['darkStart']),
+      ),
+      darkEnd: $SettingsTable.$converterdarkEnd.fromJson(
+        serializer.fromJson<int>(json['darkEnd']),
+      ),
       seedColorArgb: serializer.fromJson<int>(json['seedColorArgb']),
       languageCode: serializer.fromJson<String>(json['languageCode']),
       currencyCode: serializer.fromJson<String>(json['currencyCode']),
@@ -477,9 +442,6 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       ),
       payeeName: serializer.fromJson<String?>(json['payeeName']),
       payeeIban: serializer.fromJson<String?>(json['payeeIban']),
-      startupPage: $SettingsTable.$converterstartupPage.fromJson(
-        serializer.fromJson<String>(json['startupPage']),
-      ),
       setupCompletedAt: serializer.fromJson<DateTime?>(
         json['setupCompletedAt'],
       ),
@@ -493,8 +455,12 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'themeMode': serializer.toJson<String>(
         $SettingsTable.$converterthemeMode.toJson(themeMode),
       ),
-      'darkStartMinutes': serializer.toJson<int>(darkStartMinutes),
-      'darkEndMinutes': serializer.toJson<int>(darkEndMinutes),
+      'darkStart': serializer.toJson<int>(
+        $SettingsTable.$converterdarkStart.toJson(darkStart),
+      ),
+      'darkEnd': serializer.toJson<int>(
+        $SettingsTable.$converterdarkEnd.toJson(darkEnd),
+      ),
       'seedColorArgb': serializer.toJson<int>(seedColorArgb),
       'languageCode': serializer.toJson<String>(languageCode),
       'currencyCode': serializer.toJson<String>(currencyCode),
@@ -502,9 +468,6 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'allowSelfRegistration': serializer.toJson<bool>(allowSelfRegistration),
       'payeeName': serializer.toJson<String?>(payeeName),
       'payeeIban': serializer.toJson<String?>(payeeIban),
-      'startupPage': serializer.toJson<String>(
-        $SettingsTable.$converterstartupPage.toJson(startupPage),
-      ),
       'setupCompletedAt': serializer.toJson<DateTime?>(setupCompletedAt),
     };
   }
@@ -512,8 +475,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   SettingsRow copyWith({
     int? id,
     AppThemeMode? themeMode,
-    int? darkStartMinutes,
-    int? darkEndMinutes,
+    TimeOfDay? darkStart,
+    TimeOfDay? darkEnd,
     int? seedColorArgb,
     String? languageCode,
     String? currencyCode,
@@ -521,13 +484,12 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     bool? allowSelfRegistration,
     Value<String?> payeeName = const Value.absent(),
     Value<String?> payeeIban = const Value.absent(),
-    StartupPage? startupPage,
     Value<DateTime?> setupCompletedAt = const Value.absent(),
   }) => SettingsRow(
     id: id ?? this.id,
     themeMode: themeMode ?? this.themeMode,
-    darkStartMinutes: darkStartMinutes ?? this.darkStartMinutes,
-    darkEndMinutes: darkEndMinutes ?? this.darkEndMinutes,
+    darkStart: darkStart ?? this.darkStart,
+    darkEnd: darkEnd ?? this.darkEnd,
     seedColorArgb: seedColorArgb ?? this.seedColorArgb,
     languageCode: languageCode ?? this.languageCode,
     currencyCode: currencyCode ?? this.currencyCode,
@@ -535,7 +497,6 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     allowSelfRegistration: allowSelfRegistration ?? this.allowSelfRegistration,
     payeeName: payeeName.present ? payeeName.value : this.payeeName,
     payeeIban: payeeIban.present ? payeeIban.value : this.payeeIban,
-    startupPage: startupPage ?? this.startupPage,
     setupCompletedAt: setupCompletedAt.present
         ? setupCompletedAt.value
         : this.setupCompletedAt,
@@ -544,12 +505,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     return SettingsRow(
       id: data.id.present ? data.id.value : this.id,
       themeMode: data.themeMode.present ? data.themeMode.value : this.themeMode,
-      darkStartMinutes: data.darkStartMinutes.present
-          ? data.darkStartMinutes.value
-          : this.darkStartMinutes,
-      darkEndMinutes: data.darkEndMinutes.present
-          ? data.darkEndMinutes.value
-          : this.darkEndMinutes,
+      darkStart: data.darkStart.present ? data.darkStart.value : this.darkStart,
+      darkEnd: data.darkEnd.present ? data.darkEnd.value : this.darkEnd,
       seedColorArgb: data.seedColorArgb.present
           ? data.seedColorArgb.value
           : this.seedColorArgb,
@@ -565,9 +522,6 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           : this.allowSelfRegistration,
       payeeName: data.payeeName.present ? data.payeeName.value : this.payeeName,
       payeeIban: data.payeeIban.present ? data.payeeIban.value : this.payeeIban,
-      startupPage: data.startupPage.present
-          ? data.startupPage.value
-          : this.startupPage,
       setupCompletedAt: data.setupCompletedAt.present
           ? data.setupCompletedAt.value
           : this.setupCompletedAt,
@@ -579,8 +533,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     return (StringBuffer('SettingsRow(')
           ..write('id: $id, ')
           ..write('themeMode: $themeMode, ')
-          ..write('darkStartMinutes: $darkStartMinutes, ')
-          ..write('darkEndMinutes: $darkEndMinutes, ')
+          ..write('darkStart: $darkStart, ')
+          ..write('darkEnd: $darkEnd, ')
           ..write('seedColorArgb: $seedColorArgb, ')
           ..write('languageCode: $languageCode, ')
           ..write('currencyCode: $currencyCode, ')
@@ -588,7 +542,6 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('allowSelfRegistration: $allowSelfRegistration, ')
           ..write('payeeName: $payeeName, ')
           ..write('payeeIban: $payeeIban, ')
-          ..write('startupPage: $startupPage, ')
           ..write('setupCompletedAt: $setupCompletedAt')
           ..write(')'))
         .toString();
@@ -598,8 +551,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   int get hashCode => Object.hash(
     id,
     themeMode,
-    darkStartMinutes,
-    darkEndMinutes,
+    darkStart,
+    darkEnd,
     seedColorArgb,
     languageCode,
     currencyCode,
@@ -607,7 +560,6 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     allowSelfRegistration,
     payeeName,
     payeeIban,
-    startupPage,
     setupCompletedAt,
   );
   @override
@@ -616,8 +568,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       (other is SettingsRow &&
           other.id == this.id &&
           other.themeMode == this.themeMode &&
-          other.darkStartMinutes == this.darkStartMinutes &&
-          other.darkEndMinutes == this.darkEndMinutes &&
+          other.darkStart == this.darkStart &&
+          other.darkEnd == this.darkEnd &&
           other.seedColorArgb == this.seedColorArgb &&
           other.languageCode == this.languageCode &&
           other.currencyCode == this.currencyCode &&
@@ -625,15 +577,14 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.allowSelfRegistration == this.allowSelfRegistration &&
           other.payeeName == this.payeeName &&
           other.payeeIban == this.payeeIban &&
-          other.startupPage == this.startupPage &&
           other.setupCompletedAt == this.setupCompletedAt);
 }
 
 class SettingsCompanion extends UpdateCompanion<SettingsRow> {
   final Value<int> id;
   final Value<AppThemeMode> themeMode;
-  final Value<int> darkStartMinutes;
-  final Value<int> darkEndMinutes;
+  final Value<TimeOfDay> darkStart;
+  final Value<TimeOfDay> darkEnd;
   final Value<int> seedColorArgb;
   final Value<String> languageCode;
   final Value<String> currencyCode;
@@ -641,13 +592,12 @@ class SettingsCompanion extends UpdateCompanion<SettingsRow> {
   final Value<bool> allowSelfRegistration;
   final Value<String?> payeeName;
   final Value<String?> payeeIban;
-  final Value<StartupPage> startupPage;
   final Value<DateTime?> setupCompletedAt;
   const SettingsCompanion({
     this.id = const Value.absent(),
     this.themeMode = const Value.absent(),
-    this.darkStartMinutes = const Value.absent(),
-    this.darkEndMinutes = const Value.absent(),
+    this.darkStart = const Value.absent(),
+    this.darkEnd = const Value.absent(),
     this.seedColorArgb = const Value.absent(),
     this.languageCode = const Value.absent(),
     this.currencyCode = const Value.absent(),
@@ -655,14 +605,13 @@ class SettingsCompanion extends UpdateCompanion<SettingsRow> {
     this.allowSelfRegistration = const Value.absent(),
     this.payeeName = const Value.absent(),
     this.payeeIban = const Value.absent(),
-    this.startupPage = const Value.absent(),
     this.setupCompletedAt = const Value.absent(),
   });
   SettingsCompanion.insert({
     this.id = const Value.absent(),
     this.themeMode = const Value.absent(),
-    this.darkStartMinutes = const Value.absent(),
-    this.darkEndMinutes = const Value.absent(),
+    this.darkStart = const Value.absent(),
+    this.darkEnd = const Value.absent(),
     this.seedColorArgb = const Value.absent(),
     this.languageCode = const Value.absent(),
     this.currencyCode = const Value.absent(),
@@ -670,14 +619,13 @@ class SettingsCompanion extends UpdateCompanion<SettingsRow> {
     this.allowSelfRegistration = const Value.absent(),
     this.payeeName = const Value.absent(),
     this.payeeIban = const Value.absent(),
-    this.startupPage = const Value.absent(),
     this.setupCompletedAt = const Value.absent(),
   });
   static Insertable<SettingsRow> custom({
     Expression<int>? id,
     Expression<String>? themeMode,
-    Expression<int>? darkStartMinutes,
-    Expression<int>? darkEndMinutes,
+    Expression<int>? darkStart,
+    Expression<int>? darkEnd,
     Expression<int>? seedColorArgb,
     Expression<String>? languageCode,
     Expression<String>? currencyCode,
@@ -685,14 +633,13 @@ class SettingsCompanion extends UpdateCompanion<SettingsRow> {
     Expression<bool>? allowSelfRegistration,
     Expression<String>? payeeName,
     Expression<String>? payeeIban,
-    Expression<String>? startupPage,
     Expression<DateTime>? setupCompletedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (themeMode != null) 'theme_mode': themeMode,
-      if (darkStartMinutes != null) 'dark_start_minutes': darkStartMinutes,
-      if (darkEndMinutes != null) 'dark_end_minutes': darkEndMinutes,
+      if (darkStart != null) 'dark_start': darkStart,
+      if (darkEnd != null) 'dark_end': darkEnd,
       if (seedColorArgb != null) 'seed_color_argb': seedColorArgb,
       if (languageCode != null) 'language_code': languageCode,
       if (currencyCode != null) 'currency_code': currencyCode,
@@ -701,7 +648,6 @@ class SettingsCompanion extends UpdateCompanion<SettingsRow> {
         'allow_self_registration': allowSelfRegistration,
       if (payeeName != null) 'payee_name': payeeName,
       if (payeeIban != null) 'payee_iban': payeeIban,
-      if (startupPage != null) 'startup_page': startupPage,
       if (setupCompletedAt != null) 'setup_completed_at': setupCompletedAt,
     });
   }
@@ -709,8 +655,8 @@ class SettingsCompanion extends UpdateCompanion<SettingsRow> {
   SettingsCompanion copyWith({
     Value<int>? id,
     Value<AppThemeMode>? themeMode,
-    Value<int>? darkStartMinutes,
-    Value<int>? darkEndMinutes,
+    Value<TimeOfDay>? darkStart,
+    Value<TimeOfDay>? darkEnd,
     Value<int>? seedColorArgb,
     Value<String>? languageCode,
     Value<String>? currencyCode,
@@ -718,14 +664,13 @@ class SettingsCompanion extends UpdateCompanion<SettingsRow> {
     Value<bool>? allowSelfRegistration,
     Value<String?>? payeeName,
     Value<String?>? payeeIban,
-    Value<StartupPage>? startupPage,
     Value<DateTime?>? setupCompletedAt,
   }) {
     return SettingsCompanion(
       id: id ?? this.id,
       themeMode: themeMode ?? this.themeMode,
-      darkStartMinutes: darkStartMinutes ?? this.darkStartMinutes,
-      darkEndMinutes: darkEndMinutes ?? this.darkEndMinutes,
+      darkStart: darkStart ?? this.darkStart,
+      darkEnd: darkEnd ?? this.darkEnd,
       seedColorArgb: seedColorArgb ?? this.seedColorArgb,
       languageCode: languageCode ?? this.languageCode,
       currencyCode: currencyCode ?? this.currencyCode,
@@ -734,7 +679,6 @@ class SettingsCompanion extends UpdateCompanion<SettingsRow> {
           allowSelfRegistration ?? this.allowSelfRegistration,
       payeeName: payeeName ?? this.payeeName,
       payeeIban: payeeIban ?? this.payeeIban,
-      startupPage: startupPage ?? this.startupPage,
       setupCompletedAt: setupCompletedAt ?? this.setupCompletedAt,
     );
   }
@@ -750,11 +694,15 @@ class SettingsCompanion extends UpdateCompanion<SettingsRow> {
         $SettingsTable.$converterthemeMode.toSql(themeMode.value),
       );
     }
-    if (darkStartMinutes.present) {
-      map['dark_start_minutes'] = Variable<int>(darkStartMinutes.value);
+    if (darkStart.present) {
+      map['dark_start'] = Variable<int>(
+        $SettingsTable.$converterdarkStart.toSql(darkStart.value),
+      );
     }
-    if (darkEndMinutes.present) {
-      map['dark_end_minutes'] = Variable<int>(darkEndMinutes.value);
+    if (darkEnd.present) {
+      map['dark_end'] = Variable<int>(
+        $SettingsTable.$converterdarkEnd.toSql(darkEnd.value),
+      );
     }
     if (seedColorArgb.present) {
       map['seed_color_argb'] = Variable<int>(seedColorArgb.value);
@@ -779,11 +727,6 @@ class SettingsCompanion extends UpdateCompanion<SettingsRow> {
     if (payeeIban.present) {
       map['payee_iban'] = Variable<String>(payeeIban.value);
     }
-    if (startupPage.present) {
-      map['startup_page'] = Variable<String>(
-        $SettingsTable.$converterstartupPage.toSql(startupPage.value),
-      );
-    }
     if (setupCompletedAt.present) {
       map['setup_completed_at'] = Variable<DateTime>(setupCompletedAt.value);
     }
@@ -795,8 +738,8 @@ class SettingsCompanion extends UpdateCompanion<SettingsRow> {
     return (StringBuffer('SettingsCompanion(')
           ..write('id: $id, ')
           ..write('themeMode: $themeMode, ')
-          ..write('darkStartMinutes: $darkStartMinutes, ')
-          ..write('darkEndMinutes: $darkEndMinutes, ')
+          ..write('darkStart: $darkStart, ')
+          ..write('darkEnd: $darkEnd, ')
           ..write('seedColorArgb: $seedColorArgb, ')
           ..write('languageCode: $languageCode, ')
           ..write('currencyCode: $currencyCode, ')
@@ -804,7 +747,6 @@ class SettingsCompanion extends UpdateCompanion<SettingsRow> {
           ..write('allowSelfRegistration: $allowSelfRegistration, ')
           ..write('payeeName: $payeeName, ')
           ..write('payeeIban: $payeeIban, ')
-          ..write('startupPage: $startupPage, ')
           ..write('setupCompletedAt: $setupCompletedAt')
           ..write(')'))
         .toString();
@@ -826,8 +768,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   Value<int> id,
   Value<AppThemeMode> themeMode,
-  Value<int> darkStartMinutes,
-  Value<int> darkEndMinutes,
+  Value<TimeOfDay> darkStart,
+  Value<TimeOfDay> darkEnd,
   Value<int> seedColorArgb,
   Value<String> languageCode,
   Value<String> currencyCode,
@@ -835,14 +777,13 @@ typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   Value<bool> allowSelfRegistration,
   Value<String?> payeeName,
   Value<String?> payeeIban,
-  Value<StartupPage> startupPage,
   Value<DateTime?> setupCompletedAt,
 });
 typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<int> id,
   Value<AppThemeMode> themeMode,
-  Value<int> darkStartMinutes,
-  Value<int> darkEndMinutes,
+  Value<TimeOfDay> darkStart,
+  Value<TimeOfDay> darkEnd,
   Value<int> seedColorArgb,
   Value<String> languageCode,
   Value<String> currencyCode,
@@ -850,7 +791,6 @@ typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<bool> allowSelfRegistration,
   Value<String?> payeeName,
   Value<String?> payeeIban,
-  Value<StartupPage> startupPage,
   Value<DateTime?> setupCompletedAt,
 });
 
@@ -874,15 +814,17 @@ class $$SettingsTableFilterComposer
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
-  ColumnFilters<int> get darkStartMinutes => $composableBuilder(
-    column: $table.darkStartMinutes,
-    builder: (column) => ColumnFilters(column),
-  );
+  ColumnWithTypeConverterFilters<TimeOfDay, TimeOfDay, int> get darkStart =>
+      $composableBuilder(
+        column: $table.darkStart,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
-  ColumnFilters<int> get darkEndMinutes => $composableBuilder(
-    column: $table.darkEndMinutes,
-    builder: (column) => ColumnFilters(column),
-  );
+  ColumnWithTypeConverterFilters<TimeOfDay, TimeOfDay, int> get darkEnd =>
+      $composableBuilder(
+        column: $table.darkEnd,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   ColumnFilters<int> get seedColorArgb => $composableBuilder(
     column: $table.seedColorArgb,
@@ -919,12 +861,6 @@ class $$SettingsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnWithTypeConverterFilters<StartupPage, StartupPage, String>
-  get startupPage => $composableBuilder(
-    column: $table.startupPage,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-
   ColumnFilters<DateTime> get setupCompletedAt => $composableBuilder(
     column: $table.setupCompletedAt,
     builder: (column) => ColumnFilters(column),
@@ -950,13 +886,13 @@ class $$SettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get darkStartMinutes => $composableBuilder(
-    column: $table.darkStartMinutes,
+  ColumnOrderings<int> get darkStart => $composableBuilder(
+    column: $table.darkStart,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get darkEndMinutes => $composableBuilder(
-    column: $table.darkEndMinutes,
+  ColumnOrderings<int> get darkEnd => $composableBuilder(
+    column: $table.darkEnd,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -995,11 +931,6 @@ class $$SettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get startupPage => $composableBuilder(
-    column: $table.startupPage,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<DateTime> get setupCompletedAt => $composableBuilder(
     column: $table.setupCompletedAt,
     builder: (column) => ColumnOrderings(column),
@@ -1021,15 +952,11 @@ class $$SettingsTableAnnotationComposer
   GeneratedColumnWithTypeConverter<AppThemeMode, String> get themeMode =>
       $composableBuilder(column: $table.themeMode, builder: (column) => column);
 
-  GeneratedColumn<int> get darkStartMinutes => $composableBuilder(
-    column: $table.darkStartMinutes,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<TimeOfDay, int> get darkStart =>
+      $composableBuilder(column: $table.darkStart, builder: (column) => column);
 
-  GeneratedColumn<int> get darkEndMinutes => $composableBuilder(
-    column: $table.darkEndMinutes,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<TimeOfDay, int> get darkEnd =>
+      $composableBuilder(column: $table.darkEnd, builder: (column) => column);
 
   GeneratedColumn<int> get seedColorArgb => $composableBuilder(
     column: $table.seedColorArgb,
@@ -1059,12 +986,6 @@ class $$SettingsTableAnnotationComposer
 
   GeneratedColumn<String> get payeeIban =>
       $composableBuilder(column: $table.payeeIban, builder: (column) => column);
-
-  GeneratedColumnWithTypeConverter<StartupPage, String> get startupPage =>
-      $composableBuilder(
-        column: $table.startupPage,
-        builder: (column) => column,
-      );
 
   GeneratedColumn<DateTime> get setupCompletedAt => $composableBuilder(
     column: $table.setupCompletedAt,
@@ -1105,8 +1026,8 @@ class $$SettingsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<AppThemeMode> themeMode = const Value.absent(),
-                Value<int> darkStartMinutes = const Value.absent(),
-                Value<int> darkEndMinutes = const Value.absent(),
+                Value<TimeOfDay> darkStart = const Value.absent(),
+                Value<TimeOfDay> darkEnd = const Value.absent(),
                 Value<int> seedColorArgb = const Value.absent(),
                 Value<String> languageCode = const Value.absent(),
                 Value<String> currencyCode = const Value.absent(),
@@ -1114,13 +1035,12 @@ class $$SettingsTableTableManager
                 Value<bool> allowSelfRegistration = const Value.absent(),
                 Value<String?> payeeName = const Value.absent(),
                 Value<String?> payeeIban = const Value.absent(),
-                Value<StartupPage> startupPage = const Value.absent(),
                 Value<DateTime?> setupCompletedAt = const Value.absent(),
               }) => SettingsCompanion(
                 id: id,
                 themeMode: themeMode,
-                darkStartMinutes: darkStartMinutes,
-                darkEndMinutes: darkEndMinutes,
+                darkStart: darkStart,
+                darkEnd: darkEnd,
                 seedColorArgb: seedColorArgb,
                 languageCode: languageCode,
                 currencyCode: currencyCode,
@@ -1128,15 +1048,14 @@ class $$SettingsTableTableManager
                 allowSelfRegistration: allowSelfRegistration,
                 payeeName: payeeName,
                 payeeIban: payeeIban,
-                startupPage: startupPage,
                 setupCompletedAt: setupCompletedAt,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 Value<AppThemeMode> themeMode = const Value.absent(),
-                Value<int> darkStartMinutes = const Value.absent(),
-                Value<int> darkEndMinutes = const Value.absent(),
+                Value<TimeOfDay> darkStart = const Value.absent(),
+                Value<TimeOfDay> darkEnd = const Value.absent(),
                 Value<int> seedColorArgb = const Value.absent(),
                 Value<String> languageCode = const Value.absent(),
                 Value<String> currencyCode = const Value.absent(),
@@ -1144,13 +1063,12 @@ class $$SettingsTableTableManager
                 Value<bool> allowSelfRegistration = const Value.absent(),
                 Value<String?> payeeName = const Value.absent(),
                 Value<String?> payeeIban = const Value.absent(),
-                Value<StartupPage> startupPage = const Value.absent(),
                 Value<DateTime?> setupCompletedAt = const Value.absent(),
               }) => SettingsCompanion.insert(
                 id: id,
                 themeMode: themeMode,
-                darkStartMinutes: darkStartMinutes,
-                darkEndMinutes: darkEndMinutes,
+                darkStart: darkStart,
+                darkEnd: darkEnd,
                 seedColorArgb: seedColorArgb,
                 languageCode: languageCode,
                 currencyCode: currencyCode,
@@ -1158,7 +1076,6 @@ class $$SettingsTableTableManager
                 allowSelfRegistration: allowSelfRegistration,
                 payeeName: payeeName,
                 payeeIban: payeeIban,
-                startupPage: startupPage,
                 setupCompletedAt: setupCompletedAt,
               ),
           withReferenceMapper: (p0) => p0

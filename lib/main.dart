@@ -4,6 +4,10 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'app_settings.dart';
 import 'data/database_provider.dart';
 import 'l10n/app_localizations.dart';
+import 'screens/setup_wizard.dart';
+import 'screens/start_screen.dart';
+import 'screens/stats_screen.dart';
+import 'screens/users_screen.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -24,74 +28,64 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = AppSettings.of(context);
+    final seedColor = settings.seedColorArgb;
 
     return MaterialApp(
-      locale: settings.locale,
+      // Always one of `supportedLocales`, so Flutter resolves it to itself.
+      locale: Locale(settings.languageCode),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       // Localizes the OS task-switcher label too
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
-      theme: appTheme(settings.settings.seedColorArgb, Brightness.light),
-      darkTheme: appTheme(settings.settings.seedColorArgb, Brightness.dark),
-      themeMode: settings.themeMode,
-      home: const PlaceholderScreen(),
+      theme: appTheme(seedColor, Brightness.light),
+      darkTheme: appTheme(seedColor, Brightness.dark),
+      themeMode: AppSettings.themeModeOf(context),
+      // The wizard writes setupCompletedAt in its closing transaction, which
+      // re-emits the settings row and swaps this over to the shell.
+      home: settings.setupCompletedAt == null
+          ? const SetupWizard()
+          : const AppShell(),
     );
   }
 }
 
-/// Throwaway scaffolding: a plain string, an ICU plural, formatMoney, and a
-/// read-out of the live settings row while there is no settings UI.
-class PlaceholderScreen extends StatelessWidget {
-  const PlaceholderScreen({super.key});
+class AppShell extends StatefulWidget {
+  const AppShell({super.key});
+
+  @override
+  State<AppShell> createState() => AppShellState();
+}
+
+class AppShellState extends State<AppShell> {
+  int _index = 0;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final settings = AppSettings.of(context);
-    final row = settings.settings;
-    final textTheme = Theme.of(context).textTheme;
-
-    String time(int minutes) =>
-        '${(minutes ~/ 60).toString().padLeft(2, '0')}:'
-        '${(minutes % 60).toString().padLeft(2, '0')}';
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  l10n.chooseYourName,
-                  style: textTheme.displaySmall,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                Text(l10n.drinksTaken(3), style: textTheme.headlineSmall),
-                const SizedBox(height: 16),
-                Text(
-                  '${l10n.balance}: ${settings.formatMoney(1250)}',
-                  style: textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 32),
-                const Divider(),
-                const SizedBox(height: 16),
-                Text(
-                  'language ${row.languageCode}\n'
-                  'currency ${row.currencyCode}\n'
-                  'theme ${row.themeMode.name} -> ${settings.themeMode.name}\n'
-                  'dark ${time(row.darkStartMinutes)} - '
-                  '${time(row.darkEndMinutes)}\n'
-                  'seed #${row.seedColorArgb.toRadixString(16).toUpperCase()}',
-                  style: textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+      // IndexedStack so each tab keeps its scroll position and state.
+      body: IndexedStack(
+        index: _index,
+        children: const [StartScreen(), UsersScreen(), StatsScreen()],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (i) => setState(() => _index = i),
+        destinations: [
+          NavigationDestination(
+            icon: const Icon(Icons.home_rounded),
+            label: l10n.navStart,
           ),
-        ),
+          NavigationDestination(
+            icon: const Icon(Icons.people_rounded),
+            label: l10n.navUsers,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.bar_chart_rounded),
+            label: l10n.navStats,
+          ),
+        ],
       ),
     );
   }

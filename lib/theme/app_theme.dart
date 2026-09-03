@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 /// brightness, so the palette stays coherent across the switch.
 ThemeData appTheme(int seedColorArgb, Brightness brightness) => ThemeData(
   colorScheme: ColorScheme.fromSeed(
+    dynamicSchemeVariant: DynamicSchemeVariant.rainbow,
     seedColor: Color(seedColorArgb),
     brightness: brightness,
   ),

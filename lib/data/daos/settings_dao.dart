@@ -7,7 +7,8 @@ part 'settings_dao.g.dart';
 
 /// Queries against the single settings row.
 @DriftAccessor(tables: [Settings])
-class SettingsDao extends DatabaseAccessor<AppDatabase> with _$SettingsDaoMixin {
+class SettingsDao extends DatabaseAccessor<AppDatabase>
+    with _$SettingsDaoMixin {
   SettingsDao(super.db);
 
   /// Always emits: the row is created in `onCreate`, so it is never missing.

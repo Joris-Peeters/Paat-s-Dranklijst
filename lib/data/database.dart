@@ -1,7 +1,11 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+// The generated part below is a `part of` this file, so it has no imports of
+// its own: every converter and every type one surfaces has to be in scope here.
+import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:path_provider/path_provider.dart';
 
+import 'converters.dart';
 import 'daos/settings_dao.dart';
 import 'tables/settings_table.dart';
 
@@ -12,16 +16,15 @@ part 'database.g.dart';
 @DriftDatabase(tables: [Settings], daos: [SettingsDao])
 class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor})
-    : super(executor ?? driftDatabase(name: _databaseName, native: _location));
-
-  /// drift_flutter defaults to the *documents* directory, which on Linux is the
-  /// user's own `~/Documents`. The application support directory is app-scoped
-  /// on all three target platforms, which is where an internal file belongs.
-  static const _location = DriftNativeOptions(
-    databaseDirectory: getApplicationSupportDirectory,
-  );
-
-  static const _databaseName = 'paats_dranklijst';
+    : super(
+        executor ??
+            driftDatabase(
+              name: 'paats_dranklijst',
+              native: const DriftNativeOptions(
+                databaseDirectory: getApplicationSupportDirectory,
+              ),
+            ),
+      );
 
   @override
   int get schemaVersion => 1;

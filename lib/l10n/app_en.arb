@@ -1,6 +1,8 @@
 {
   "@@locale": "en",
 
+  "languageName": "English",
+
   "appTitle": "Paat's Dranklijst",
   "@appTitle": {
     "description": "Application name, shown in the app bar and task switcher"
@@ -29,13 +31,217 @@
     "description": "Admin settings screen title"
   },
 
+  "search": "Search",
+  "@search": {
+    "description": "Search tooltip"
+  },
+
   "language": "Language",
   "@language": {
     "description": "Admin setting for the app UI language"
   },
 
-  "loading": "Loading…",
-  "@loading": {
-    "description": "Shown on the splash screen while settings load from the database"
-  }
+  "navStart": "Start",
+  "@navStart": { "description": "Navigation bar label for the overview page" },
+
+  "navUsers": "Members",
+  "@navUsers": { "description": "Navigation bar label for the member list page" },
+
+  "navStats": "Stats",
+  "@navStats": { "description": "Navigation bar label for the statistics page" },
+
+  "startPlaceholder": "Summary and recent activity will appear here",
+  "@startPlaceholder": { "description": "Empty state on the not-yet-built Start page" },
+
+  "statsPlaceholder": "Statistics will appear here",
+  "@statsPlaceholder": { "description": "Empty state on the not-yet-built Stats page" },
+
+  "noMembersYet": "No members yet",
+  "@noMembersYet": { "description": "Empty state on the member list" },
+
+  "addMember": "Add member",
+  "@addMember": { "description": "Tooltip on the button that adds a new member" },
+
+  "sectionManagement": "Management",
+  "@sectionManagement": { "description": "Settings section heading for the CRUD areas" },
+
+  "sectionAppearance": "Appearance",
+  "@sectionAppearance": { "description": "Settings section heading for the theme colour and light/dark options" },
+
+  "sectionAdmin": "Admin",
+  "@sectionAdmin": { "description": "Settings section heading for the PIN, language, currency and self-registration options" },
+
+  "sectionSettlingUp": "Settling up",
+  "@sectionSettlingUp": { "description": "Settings section heading for the bank details behind the payment QR code" },
+
+  "manageMembers": "Members",
+  "@manageMembers": { "description": "Management card leading to member administration" },
+
+  "manageMembersSubtitle": "Add, edit and remove members",
+  "@manageMembersSubtitle": { "description": "Subtitle of the members management card" },
+
+  "manageGroups": "Groups",
+  "@manageGroups": { "description": "Management card leading to group administration" },
+
+  "manageGroupsSubtitle": "Organise members into groups",
+  "@manageGroupsSubtitle": { "description": "Subtitle of the groups management card" },
+
+  "manageItems": "Items",
+  "@manageItems": { "description": "Management card leading to item administration" },
+
+  "manageItemsSubtitle": "Drinks and snacks, and what they cost",
+  "@manageItemsSubtitle": { "description": "Subtitle of the items management card" },
+
+  "noGroupsYet": "No groups yet",
+  "@noGroupsYet": { "description": "Empty state on the group management screen" },
+
+  "noItemsYet": "No items yet",
+  "@noItemsYet": { "description": "Empty state on the item management screen" },
+
+  "themeColor": "Theme color",
+  "@themeColor": { "description": "Setting for the colour the whole app palette is generated from" },
+
+  "chooseColor": "Choose a color",
+  "@chooseColor": { "description": "Title of the colour picker dialog" },
+
+  "themeMode": "Theme",
+  "@themeMode": { "description": "Setting choosing between light, dark and scheduled" },
+
+  "themeModeLight": "Light",
+  "@themeModeLight": { "description": "Theme mode option: always light" },
+
+  "themeModeDark": "Dark",
+  "@themeModeDark": { "description": "Theme mode option: always dark" },
+
+  "themeModeScheduled": "Scheduled",
+  "@themeModeScheduled": { "description": "Theme mode option: dark between two times of day" },
+
+  "darkStart": "Dark mode starts",
+  "@darkStart": { "description": "Setting for the time of day dark mode begins" },
+
+  "darkEnd": "Dark mode ends",
+  "@darkEnd": { "description": "Setting for the time of day dark mode ends" },
+
+  "darkSchedulePreview": "Dark from {start} to {end}",
+  "@darkSchedulePreview": {
+    "description": "Plain-language summary of the dark mode window, which may wrap past midnight",
+    "placeholders": {
+      "start": { "type": "String" },
+      "end": { "type": "String" }
+    }
+  },
+
+  "currency": "Currency",
+  "@currency": { "description": "Setting for the currency the tab is kept in" },
+
+  "currencyInvalid": "Use a three-letter code, like EUR",
+  "@currencyInvalid": { "description": "Validation message for a malformed currency code" },
+
+  "allowSelfRegistration": "Anyone can add members",
+  "@allowSelfRegistration": { "description": "Setting controlling whether non-admins may add members" },
+
+  "allowSelfRegistrationOn": "A button on the members page adds a new member",
+  "@allowSelfRegistrationOn": { "description": "Subtitle when self-registration is enabled" },
+
+  "allowSelfRegistrationOff": "Members can only be added here in settings",
+  "@allowSelfRegistrationOff": { "description": "Subtitle when self-registration is disabled" },
+
+  "adminPin": "Admin PIN",
+  "@adminPin": { "description": "Setting for the PIN protecting the settings screen" },
+
+  "adminPinNotSet": "No PIN set — anyone can change these settings",
+  "@adminPinNotSet": { "description": "Subtitle making it plain that settings are unprotected" },
+
+  "adminPinSet": "These settings are behind a PIN",
+  "@adminPinSet": { "description": "Subtitle shown when a PIN is configured" },
+
+  "enterPin": "Enter the admin PIN",
+  "@enterPin": { "description": "Title of the PIN entry dialog" },
+
+  "pinIncorrect": "That PIN is not right",
+  "@pinIncorrect": { "description": "Error shown when the entered PIN does not match" },
+
+  "pinChooseTitle": "Choose a 4-digit PIN",
+  "@pinChooseTitle": { "description": "Title of the first stage of the PIN set dialog" },
+
+  "pinConfirmTitle": "Enter the PIN again",
+  "@pinConfirmTitle": { "description": "Title of the confirmation stage of the PIN set dialog" },
+
+  "pinMismatch": "The two PINs are not the same",
+  "@pinMismatch": { "description": "Error when the confirmation PIN differs from the first one" },
+
+  "pinSet": "Set a PIN",
+  "@pinSet": { "description": "Button that opens the PIN set dialog when no PIN exists" },
+
+  "pinChange": "Change the PIN",
+  "@pinChange": { "description": "Button that opens the PIN set dialog when a PIN exists" },
+
+  "pinRemove": "Remove the PIN",
+  "@pinRemove": { "description": "Button that clears the admin PIN" },
+
+  "pinRemoveConfirm": "Without a PIN, anyone can open the settings.",
+  "@pinRemoveConfirm": { "description": "Warning in the dialog confirming PIN removal" },
+
+  "remove": "Remove",
+  "@remove": { "description": "Confirms a removal in a dialog" },
+
+  "payeeName": "Account holder",
+  "@payeeName": { "description": "Setting for the name money is transferred to" },
+
+  "payeeIban": "IBAN",
+  "@payeeIban": { "description": "Setting for the bank account number money is transferred to" },
+
+  "payeeHelp": "These details are used for the settle-up QR code.",
+  "@payeeHelp": { "description": "Note above the payee fields, explaining what both of them are for" },
+
+  "ibanInvalid": "That IBAN is not valid",
+  "@ibanInvalid": { "description": "Validation message when the IBAN checksum fails" },
+
+  "cancel": "Cancel",
+  "@cancel": { "description": "Dismisses a dialog without acting" },
+
+  "ok": "OK",
+  "@ok": { "description": "Confirms a dialog" },
+
+  "setupWelcomeTitle": "Welcome",
+  "@setupWelcomeTitle": { "description": "Title of the first wizard step" },
+
+  "setupWelcomeBody": "A few quick choices to get started. Skip any of them — everything here can be changed later in settings.",
+  "@setupWelcomeBody": { "description": "Introduction on the first wizard step" },
+
+  "setupCurrencyTitle": "Currency",
+  "@setupCurrencyTitle": { "description": "Title of the wizard's currency step" },
+
+  "setupCurrencyBody": "Which currency is the tab kept in?",
+  "@setupCurrencyBody": { "description": "Explanation on the wizard's currency step" },
+
+  "setupColorTitle": "Theme color",
+  "@setupColorTitle": { "description": "Title of the wizard's colour step" },
+
+  "setupColorBody": "The rest of the app's colors are generated from this one.",
+  "@setupColorBody": { "description": "Explanation on the wizard's colour step" },
+
+  "setupPinTitle": "Admin PIN",
+  "@setupPinTitle": { "description": "Title of the wizard's PIN step" },
+
+  "setupPinBody": "An optional 4-digit PIN keeps members out of the settings. Without one, anyone can change them.",
+  "@setupPinBody": { "description": "Explanation on the wizard's PIN step" },
+
+  "setupPayeeTitle": "Settling up",
+  "@setupPayeeTitle": { "description": "Title of the wizard's payment details step" },
+
+  "setupPayeeBody": "Bank details for the payment QR code. Without them, no QR code is shown.",
+  "@setupPayeeBody": { "description": "Explanation on the wizard's payment details step" },
+
+  "setupSkip": "Skip",
+  "@setupSkip": { "description": "Leaves the wizard, keeping the defaults" },
+
+  "setupBack": "Back",
+  "@setupBack": { "description": "Returns to the previous wizard step" },
+
+  "setupNext": "Next",
+  "@setupNext": { "description": "Advances to the next wizard step" },
+
+  "setupFinish": "Finish",
+  "@setupFinish": { "description": "Saves the wizard's choices and opens the app" }
 }

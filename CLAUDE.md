@@ -92,15 +92,13 @@ euro — but the code must not assume that divisor is universal. Most currencies
 Money is always formatted through `AppSettings.of(context).formatMoney(minorUnits)`
 — never inline `NumberFormat`, never hand-roll `/ 100` or a `'€'` literal at a call
 site. `AppSettings` lives in `lib/app_settings.dart` (see rule 5) and mirrors the
-`AppLocalizations.of(context)` pattern: it carries the active currency code and reads
-the active locale via `Localizations.localeOf(context)` internally, so callers never
-pass locale or currency by hand.
+`AppLocalizations.of(context)` pattern: it carries the stored language and currency
+code, so callers never pass either by hand.
 
 ```dart
 String formatMoney(int minorUnits) {
-  final locale = Localizations.localeOf(_context).toString();
   final format = NumberFormat.simpleCurrency(
-    locale: locale,
+    locale: _settings.languageCode,
     name: _settings.currencyCode,
   );
   final divisor = pow(10, format.decimalDigits ?? 2);
@@ -108,16 +106,18 @@ String formatMoney(int minorUnits) {
 }
 ```
 
+`name:` is always passed explicitly. Without it the currency is derived from the
+locale, which would ignore the setting whenever the two disagree.
+
 It must be `simpleCurrency`, **not** `currency`. `NumberFormat.currency` fills the
 pattern's `¤` placeholder with the currency *code* unless an explicit `symbol:` is
 passed, so it renders `EUR 12,50` instead of `€ 12,50`. `simpleCurrency` resolves the
 symbol from the code via intl's own lookup table, which keeps the symbol derived from
 data rather than hardcoded.
 
-`currencyCode` is currently always `'EUR'` — there is no UI to change it — but it
-flows through `AppSettings` as data, not a hardcoded symbol, so adding real
-multi-currency support later means adding a currency-code setting, not touching call
-sites.
+`currencyCode` defaults to `'EUR'` and is set from the settings screen or the
+first-run wizard. It flows through `AppSettings` as data rather than a hardcoded
+symbol, so nothing at a call site assumes euros.
 
 ### 3. The database is the single source of truth for all state
 
@@ -133,7 +133,9 @@ Consequences:
   `BlobColumn`, not a directory.
 - No separate state-management package (`provider`, `riverpod`, `bloc`) is used for
   app state. Drift's `.watch()` streams + `StreamBuilder` are the mechanism. Local
-  ephemeral widget state uses `setState`.
+  ephemeral widget state uses `setState`. The one exception is `AppSettings`, which
+  subscribes to its stream directly because it has to merge it with a timer — see
+  rule 4.
 
 ### 4. Theming
 
@@ -147,6 +149,20 @@ colors, rendered as a hand-rolled grid of circular swatches. No color-picker pac
 
 Colors are stored as ARGB `int` (the resolved color, **not** an index into the
 palette, so retiring a palette color doesn't silently recolor users).
+
+Light/dark is a stored `AppThemeMode` — `light`, `dark`, or `scheduled` between two
+wall-clock times. There is deliberately no "follow system": a kiosk tablet's system
+theme is fixed and irrelevant. `AppSettings` resolves it to a real `ThemeMode`, so
+`ThemeMode.system` is never produced. It re-resolves on every settings emission, once
+a minute, and on app resume — the clock crossing a boundary is not something the
+database stream can tell it about.
+
+The two window bounds (`darkStart`, `darkEnd`) are **stored as minutes since
+midnight** — comparable with integer arithmetic and never malformed — but surfaced as
+`TimeOfDay` by `TimeOfDayConverter` (`lib/data/converters.dart`), so no call site
+does `~/ 60` or `* 60` by hand and `showTimePicker` needs no conversion in either
+direction. The window logic itself is the top-level `isDarkAt` in
+`lib/app_settings.dart`: pure, and unit-tested without a widget harness.
 
 ### 5. Localization
 
@@ -183,12 +199,16 @@ comma decimal separator; `en` writes `€12.50`). Always go through
 `'€${x.toStringAsFixed(2)}'`, and never assume symbol placement, spacing, or
 decimal-digit count.
 
-**`AppSettings`** (in `lib/app_settings.dart`) carries the settings a widget needs to
-read anywhere in the tree — currently `locale` and `currencyCode`. It is a plain
-widget wrapping a private `_AppSettingsScope` `InheritedWidget`, the same shape
-Flutter's own `Theme` uses. `AppSettings.of(context)` returns a small accessor bound
-to the calling context, so `AppSettings.of(context).formatMoney(1250)` reads exactly
-like `AppLocalizations.of(context)`.
+**`AppSettings`** (in `lib/app_settings.dart`) publishes the settings row to the whole
+tree. It is a plain widget wrapping a private `_AppSettingsScope` `InheritedWidget`,
+the same shape Flutter's own `Theme` uses. `AppSettings.of(context)` returns the
+`SettingsRow` itself — no accessor object in between — and
+`AppSettings.themeModeOf(context)` returns the schedule-resolved `ThemeMode`, the one
+value that is not a column.
+
+`formatMoney` is an extension on `SettingsRow` in the same file, so
+`AppSettings.of(context).formatMoney(1250)` reads exactly like
+`AppLocalizations.of(context)` while staying a plain method on the row.
 
 **It is placed above `MaterialApp`**, in `runApp`. `MaterialApp`'s own arguments are
 themselves settings — `locale:` now, `theme:`/`themeMode:` under rule 4 — and a widget
@@ -241,6 +261,11 @@ the future camera feature needs no migration.
   `Platform.isAndroid || Platform.isIOS`.
 - `--delete-conflicting-outputs` was removed in build_runner 2.16 — passing it now
   just prints a warning.
+- **A `TypeConverter` used by a table must be imported by `lib/data/database.dart`,
+  along with the Dart type it produces** — importing it in the table file is not
+  enough. `database.g.dart` is a `part of` `database.dart` and so has no imports of
+  its own; codegen succeeds either way and the failure only shows up as
+  `'X' isn't a type` in the generated file at analyze time.
 - Drift schema changes require re-running `build_runner` **and** bumping
   `schemaVersion` with a matching migration step. As long as we are int the development
   phase and no deployments have been done, migrations are not needed.
@@ -269,46 +294,92 @@ the future camera feature needs no migration.
 lib/
   main.dart
   app_settings.dart          # ambient settings InheritedWidget; sits above MaterialApp
+                             # also resolves the dark-mode schedule and formatMoney
   l10n/                      # ARB files (committed) + generated localizations (gitignored)
   data/
     database.dart            # AppDatabase, schemaVersion, migrations
     database_provider.dart   # Database InheritedWidget; owns the AppDatabase instance
+    converters.dart          # drift TypeConverters; TimeOfDay <-> minutes so far
     tables/                  # drift table definitions
     daos/                    # queries, grouped by concern
   theme/
-    palette.dart             # curated color list
     app_theme.dart           # ColorScheme.fromSeed helpers
-    dark_mode_schedule.dart  # pure wall-clock schedule function
+  utils/
+    banking.dart             # IBAN mod-97 and currency-code checks; EPC QR payload
   screens/
+    app_shell.dart           # NavigationBar frame; owns the selected tab
+    settings_screen.dart     # admin settings; openSettings() is the PIN gate
+    setup_wizard.dart        # first-run wizard
+    management_screens.dart  # CRUD stubs behind the management cards
+    start_screen.dart        # } the three tabs; empty states for now
+    users_screen.dart        # }
+    stats_screen.dart        # }
   widgets/
+    palette_picker.dart      # curated color lists, inline picker + swatch grid dialog
+    pin_dialog.dart          # keypad, and the enter/set dialogs around it
+    settings_text_field.dart # commit-on-blur field bound to one settings column
+    empty_state.dart         # centred icon and message
+    member_row.dart          # member list row shape; not rendered yet
 test/                        # unit tests; no widget tests yet
 ```
 
 ## Current state
 
-Implemented: rule 5 (localization), rule 2 (money formatting), rule 3's foundation
-(the database as the source of truth), and rule 4's global half (seed color, light/dark
-themes, scheduled dark mode).
+Implemented: rules 2, 4 and 5 in full for the app's own settings, and rule 3's
+foundation. Every setting has a control that writes straight to the database and takes
+effect immediately.
+
+The settings screen groups its controls into three cards — Appearance, Admin, Settling
+up — under section headers, below the management cards. The section header, the group
+card and the note line are private widgets in `settings_screen.dart`, its only consumer.
+`SettingsTextField` is not: the wizard needs the same field, so it lives in
+`widgets/`.
 
 The tree is `Database` -> `AppSettings` -> `MaterialApp`. `Database`
 (`lib/data/database_provider.dart`) owns the `AppDatabase` and is stateful so the
 connection opens and closes exactly once. `AppSettings` watches the settings row and
-feeds `MaterialApp`'s `locale:`, `theme:`, `darkTheme:` and `themeMode:`.
+feeds `MaterialApp`'s `locale:`, `theme:`, `darkTheme:` and `themeMode:`. It renders
+nothing for the frame or two before the first row arrives — the native launch screen
+covers that gap, so there is no splash screen.
+
+`MainApp.home` is the wizard while `setupCompletedAt` is null, and `AppShell`
+afterwards. The wizard writes that column on its last step, so finishing it swaps
+`home` over with no navigation.
+
+The wizard holds **no pending state**: every step writes straight to the database like
+the settings screen, and reuses the same controls, so the app re-themes and
+re-localizes as the choices are made. Only `setupCompletedAt` waits for the end — an
+interrupted wizard reappears with what was already chosen still in place. It needs no
+`Theme` or `Localizations` override to preview a choice, because the real ones above
+`MaterialApp` already follow the database.
+
+`AppShell` owns the selected tab as `State` seeded once in `didChangeDependencies`.
+Deriving it from the settings row on every build would throw whoever is using the app
+back to the resting page on every unrelated settings change. `AppShellState
+.goToRestingPage()` is the single call the consumption flow will make once a drink has
+been logged.
+
+The admin PIN is exactly `pinLength` (4) digits. `widgets/pin_dialog.dart` holds the
+lock-screen-style keypad and both dialogs around it — `PinEnterDialog` for the gate,
+`PinSetDialog` for choose-then-confirm — so no other screen builds PIN UI or handles a
+raw PIN string. The wizard and the settings row both go through `showPinSetDialog`.
 
 The database has **one table**: a single-row `settings` table with typed columns
 (`lib/data/tables/settings_table.dart`), a `CHECK (id = 1)` constraint, and the row
 inserted in `onCreate` so no code anywhere handles "settings is null". `schemaVersion`
-is 1; the `onUpgrade` scaffolding is in place but empty.
+is 1; the `onUpgrade` scaffolding is in place but empty. Two of its columns go through
+a converter: `themeMode` (drift's own `textEnum`) and `darkStart`/`darkEnd`
+(`TimeOfDayConverter`, see rule 4).
 
 Nothing is seeded from the device. A fresh database takes every value from the schema
-defaults — `en`, `EUR`, teal, scheduled dark mode. There is no settings UI yet, so
-changing a setting means editing the row with `sqlite3` and restarting.
-
-`main.dart` still holds a throwaway `PlaceholderScreen`, now also dumping the live
-settings row — scaffolding, to be deleted once real screens exist.
+defaults — `en`, `EUR`, teal, scheduled dark mode — and the wizard is where an admin
+changes them.
 
 Still target design, not code: users, items and the transaction ledger; per-user
-theming; avatars; the first-run setup wizard; every real screen.
+theming; avatars. The Start, Members and Stats pages are empty states, and the three
+management cards lead to stubs. `widgets/member_row.dart` carries the member row's two
+tap targets (avatar opens the account page, name starts a consumption) but nothing
+renders it yet.
 
 ## Working preferences
 
