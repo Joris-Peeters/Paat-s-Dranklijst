@@ -319,6 +319,7 @@ lib/
     pin_dialog.dart          # keypad, and the enter/set dialogs around it
     settings_text_field.dart # commit-on-blur field bound to one settings column
     empty_state.dart         # centred icon and message
+    epc_qr_code.dart         # SEPA payment QR code; byte-mode wrapper over buildEpcPayload
     member_row.dart          # member list row shape; not rendered yet
 test/                        # unit tests; no widget tests yet
 ```

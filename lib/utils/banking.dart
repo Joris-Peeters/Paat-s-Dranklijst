@@ -42,11 +42,12 @@ const epcMaxAmountMinorUnits = 99999999999;
 /// The whole payload must stay within this many UTF-8 bytes.
 const epcMaxPayloadBytes = 331;
 
-/// Builds the text encoded in a SEPA Credit Transfer QR code, per the EPC's
+/// Builds the payload encoded in a SEPA Credit Transfer QR code, per the EPC's
 /// "Quick Response Code Guidelines" (EPC069-12, version 002).
 ///
-/// The result is a plain string of newline-separated fields; feeding it to
-/// `QrImageView` is all the settle-up screen has to do. Banking apps scan it to
+/// The result is the UTF-8 bytes of the newline-separated fields, which
+/// `EpcQrCode` encodes in QR byte mode — the standard declares its own charset
+/// in field 3, so the bytes are what the reader decodes. Banking apps scan it to
 /// prefill a transfer, so a malformed payload is worse than none — every
 /// constraint below is validated rather than silently truncated.
 ///

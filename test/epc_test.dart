@@ -1,5 +1,11 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/utils/banking.dart';
+
+/// Decoding here also asserts the payload really is valid UTF-8.
+List<String> fieldsOf(Uint8List payload) => utf8.decode(payload).split('\n');
 
 void main() {
   group('buildEpcPayload', () {
@@ -11,7 +17,7 @@ void main() {
         unstructuredMessage: 'Dranklijst Joris',
       );
 
-      expect(payload.split('\n'), <String>[
+      expect(fieldsOf(payload), <String>[
         'BCD',
         '002',
         '1',
@@ -27,11 +33,13 @@ void main() {
     });
 
     test('pads and scales the amount without floating point', () {
-      String amountOf(int minorUnits) => buildEpcPayload(
-        beneficiaryName: 'Chiro Paat',
-        iban: 'BE71096123456769',
-        amountMinorUnits: minorUnits,
-      ).split('\n')[7];
+      String amountOf(int minorUnits) => fieldsOf(
+        buildEpcPayload(
+          beneficiaryName: 'Chiro Paat',
+          iban: 'BE71096123456769',
+          amountMinorUnits: minorUnits,
+        ),
+      )[7];
 
       expect(amountOf(1), 'EUR0.01');
       expect(amountOf(105), 'EUR1.05');
@@ -45,7 +53,7 @@ void main() {
         iban: 'BE71096123456769',
         amountMinorUnits: 0,
       );
-      expect(payload.split('\n')[7], '');
+      expect(fieldsOf(payload)[7], '');
     });
 
     test('omits the message field when there is none', () {
@@ -55,8 +63,8 @@ void main() {
         amountMinorUnits: 1250,
       );
       // Trailing empties are dropped, so the message line is just blank.
-      expect(payload.split('\n').last, '');
-      expect(payload.split('\n').length, 11);
+      expect(fieldsOf(payload).last, '');
+      expect(fieldsOf(payload).length, 11);
     });
 
     test('collapses whitespace so nothing forges a field separator', () {
@@ -66,8 +74,19 @@ void main() {
         amountMinorUnits: 0,
         unstructuredMessage: 'line\none\tand two',
       );
-      expect(payload.split('\n')[5], 'Chiro Paat');
-      expect(payload.split('\n').last, 'line one and two');
+      expect(fieldsOf(payload)[5], 'Chiro Paat');
+      expect(fieldsOf(payload).last, 'line one and two');
+    });
+
+    test('returns UTF-8 bytes, not code units', () {
+      final payload = buildEpcPayload(
+        beneficiaryName: 'Café',
+        iban: 'BE71096123456769',
+        amountMinorUnits: 0,
+      );
+
+      expect(fieldsOf(payload)[5], 'Café');
+      expect(payload.length, utf8.decode(payload).length + 1); // é is two bytes
     });
 
     test('rejects a missing or invalid IBAN', () {
