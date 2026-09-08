@@ -18,6 +18,8 @@ enum TransactionType { consumption, topUp, adjustment }
   columns: {#userId, #voidedAt},
 )
 @TableIndex(name: 'transactions_created_at', columns: {#createdAt})
+// For per-day counts and, later, the stats page's group-by-day aggregations.
+@TableIndex(name: 'transactions_logical_date', columns: {#logicalDate})
 class Transactions extends Table {
   IntColumn get id => integer().autoIncrement()();
 
@@ -47,6 +49,11 @@ class Transactions extends Table {
   TextColumn get note => text().nullable()();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  /// The 07:00 -> 07:00 day this row belongs to, as `YYYY-MM-DD`. Frozen at
+  /// insert from [createdAt] like the item snapshots, and stored rather than
+  /// derived because a `localtime` expression can never be indexed.
+  TextColumn get logicalDate => text()();
 
   /// One-way: null -> timestamp, never cleared. The row itself is never
   /// rewritten, and voided rows still render in history, just struck through.

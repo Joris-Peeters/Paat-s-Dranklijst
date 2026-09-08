@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/data/errors.dart';
+import 'package:paats_dranklijst/data/logical_day.dart';
 import 'package:paats_dranklijst/data/tables/transactions_table.dart';
 
 /// The seeded group every fixture hangs off. `onCreate` inserts exactly one of
@@ -78,6 +79,7 @@ void main() {
                 type: TransactionType.consumption,
                 amountMinorUnits: -150,
                 quantity: const Value(0),
+                logicalDate: logicalDayKey(DateTime.now()),
               ),
             ),
         throwsA(
@@ -319,6 +321,126 @@ void main() {
       final users = await db.usersDao.watchUsers().first;
       expect(users.map((u) => u.name), ['C', 'A', 'B']);
       expect(users.map((u) => u.sortOrder), [0, 1, 2]);
+    });
+  });
+
+  group('logical day', () {
+    // The DAO reads its own clock, so rows at a chosen instant go in directly.
+    // The write path's own stamping is covered by the test below it, and the
+    // 07:00 rule itself by test/logical_day_test.dart.
+    Future<void> addConsumptionAt(
+      DateTime at, {
+      required int userId,
+      required int itemId,
+      bool voided = false,
+    }) async {
+      await db
+          .into(db.transactions)
+          .insert(
+            TransactionsCompanion.insert(
+              userId: userId,
+              type: TransactionType.consumption,
+              amountMinorUnits: -150,
+              itemId: Value(itemId),
+              createdAt: Value(at),
+              logicalDate: logicalDayKey(at),
+              voidedAt: Value(voided ? at : null),
+            ),
+          );
+    }
+
+    test('a logged consumption stamps the day its timestamp falls in', () async {
+      final user = await addMember();
+      final cola = await addItem();
+      final id = await db.transactionsDao.logConsumption(
+        userId: user,
+        item: cola,
+      );
+
+      final row = await db.transactionsDao.readTransaction(id);
+      expect(row!.logicalDate, logicalDayKey(row.createdAt));
+    });
+
+    test('rows either side of 07:00 land on different days', () async {
+      final user = await addMember();
+      final cola = await addItem();
+      final evening = DateTime(2026, 9, 7, 23);
+      final afterMidnight = DateTime(2026, 9, 8, 1);
+      final nextMorning = DateTime(2026, 9, 8, 8);
+
+      await addConsumptionAt(evening, userId: user, itemId: cola.id);
+      await addConsumptionAt(afterMidnight, userId: user, itemId: cola.id);
+      await addConsumptionAt(nextMorning, userId: user, itemId: cola.id);
+
+      // 23:00 and 01:00 are the same night; 08:00 is a new day.
+      expect(
+        await db.transactionsDao.watchConsumptionCount(at: evening).first,
+        2,
+      );
+      expect(
+        await db.transactionsDao.watchConsumptionCount(at: afterMidnight).first,
+        2,
+      );
+      expect(
+        await db.transactionsDao.watchConsumptionCount(at: nextMorning).first,
+        1,
+      );
+    });
+
+    test('the count ignores voided rows, top-ups and adjustments', () async {
+      final user = await addMember();
+      final cola = await addItem();
+      final at = DateTime(2026, 9, 8, 20);
+
+      await addConsumptionAt(at, userId: user, itemId: cola.id);
+      await addConsumptionAt(at, userId: user, itemId: cola.id, voided: true);
+      await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
+      await db.transactionsDao.logAdjustment(
+        userId: user,
+        amountMinorUnits: -50,
+        note: 'Broke a glass',
+      );
+
+      expect(await db.transactionsDao.watchConsumptionCount(at: at).first, 1);
+    });
+
+    test('the count can be narrowed to one member', () async {
+      final jonas = await addMember(name: 'Jonas');
+      final marie = await addMember(name: 'Marie');
+      final cola = await addItem();
+      final at = DateTime(2026, 9, 8, 20);
+
+      await addConsumptionAt(at, userId: jonas, itemId: cola.id);
+      await addConsumptionAt(at, userId: jonas, itemId: cola.id);
+      await addConsumptionAt(at, userId: marie, itemId: cola.id);
+
+      expect(await db.transactionsDao.watchConsumptionCount(at: at).first, 3);
+      expect(
+        await db.transactionsDao
+            .watchConsumptionCount(at: at, userId: jonas)
+            .first,
+        2,
+      );
+    });
+
+    test('watchTransactionsForDay returns the night, newest first', () async {
+      final user = await addMember();
+      final cola = await addItem();
+      final evening = DateTime(2026, 9, 7, 23);
+      final afterMidnight = DateTime(2026, 9, 8, 1);
+
+      await addConsumptionAt(evening, userId: user, itemId: cola.id);
+      await addConsumptionAt(afterMidnight, userId: user, itemId: cola.id);
+      await addConsumptionAt(
+        DateTime(2026, 9, 8, 8),
+        userId: user,
+        itemId: cola.id,
+      );
+
+      final rows = await db.transactionsDao
+          .watchTransactionsForDay(at: evening)
+          .first;
+      expect(rows.map((t) => t.createdAt), [afterMidnight, evening]);
     });
   });
 }

@@ -1351,17 +1351,8 @@ class $UsersTable extends Users with TableInfo<$UsersTable, UserRow> {
 class UserRow extends DataClass implements Insertable<UserRow> {
   final int id;
   final String name;
-
-  /// Always set: the create screen picks a random one, so there is no
-  /// initials fallback to render. See rule 6.
   final String avatarEmoji;
-
-  /// Reserved for the camera feature; here now so it needs no migration later.
   final Uint8List? avatarImage;
-
-  /// Always set, likewise — every member gets their own accent colour rather
-  /// than falling back to the global seed. Resolved ARGB, not a palette index,
-  /// see rule 4.
   final int seedColorArgb;
   final int groupId;
   final int sortOrder;
@@ -2237,8 +2228,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
   final int id;
   final String name;
 
-  /// Always set: the create screen picks a random one. Group emoji stay
-  /// nullable, an item's does not.
+  /// Always set: the create screen picks a random one.
   final String emoji;
   final int groupId;
 
@@ -2637,6 +2627,17 @@ class $TransactionsTable extends Transactions
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _logicalDateMeta = const VerificationMeta(
+    'logicalDate',
+  );
+  @override
+  late final GeneratedColumn<String> logicalDate = GeneratedColumn<String>(
+    'logical_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _voidedAtMeta = const VerificationMeta(
     'voidedAt',
   );
@@ -2671,6 +2672,7 @@ class $TransactionsTable extends Transactions
     itemUnitPriceSnapshot,
     note,
     createdAt,
+    logicalDate,
     voidedAt,
     voidedNote,
   ];
@@ -2750,6 +2752,17 @@ class $TransactionsTable extends Transactions
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('logical_date')) {
+      context.handle(
+        _logicalDateMeta,
+        logicalDate.isAcceptableOrUnknown(
+          data['logical_date']!,
+          _logicalDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_logicalDateMeta);
+    }
     if (data.containsKey('voided_at')) {
       context.handle(
         _voidedAtMeta,
@@ -2813,6 +2826,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      logicalDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}logical_date'],
+      )!,
       voidedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}voided_at'],
@@ -2853,6 +2870,11 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
   final String? note;
   final DateTime createdAt;
 
+  /// The 07:00 -> 07:00 day this row belongs to, as `YYYY-MM-DD`. Frozen at
+  /// insert from [createdAt] like the item snapshots, and stored rather than
+  /// derived because a `localtime` expression can never be indexed.
+  final String logicalDate;
+
   /// One-way: null -> timestamp, never cleared. The row itself is never
   /// rewritten, and voided rows still render in history, just struck through.
   final DateTime? voidedAt;
@@ -2868,6 +2890,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     this.itemUnitPriceSnapshot,
     this.note,
     required this.createdAt,
+    required this.logicalDate,
     this.voidedAt,
     this.voidedNote,
   });
@@ -2896,6 +2919,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       map['note'] = Variable<String>(note);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['logical_date'] = Variable<String>(logicalDate);
     if (!nullToAbsent || voidedAt != null) {
       map['voided_at'] = Variable<DateTime>(voidedAt);
     }
@@ -2923,6 +2947,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           : Value(itemUnitPriceSnapshot),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       createdAt: Value(createdAt),
+      logicalDate: Value(logicalDate),
       voidedAt: voidedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(voidedAt),
@@ -2952,6 +2977,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       ),
       note: serializer.fromJson<String?>(json['note']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      logicalDate: serializer.fromJson<String>(json['logicalDate']),
       voidedAt: serializer.fromJson<DateTime?>(json['voidedAt']),
       voidedNote: serializer.fromJson<String?>(json['voidedNote']),
     );
@@ -2972,6 +2998,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       'itemUnitPriceSnapshot': serializer.toJson<int?>(itemUnitPriceSnapshot),
       'note': serializer.toJson<String?>(note),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'logicalDate': serializer.toJson<String>(logicalDate),
       'voidedAt': serializer.toJson<DateTime?>(voidedAt),
       'voidedNote': serializer.toJson<String?>(voidedNote),
     };
@@ -2988,6 +3015,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     Value<int?> itemUnitPriceSnapshot = const Value.absent(),
     Value<String?> note = const Value.absent(),
     DateTime? createdAt,
+    String? logicalDate,
     Value<DateTime?> voidedAt = const Value.absent(),
     Value<String?> voidedNote = const Value.absent(),
   }) => TransactionRow(
@@ -3005,6 +3033,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
         : this.itemUnitPriceSnapshot,
     note: note.present ? note.value : this.note,
     createdAt: createdAt ?? this.createdAt,
+    logicalDate: logicalDate ?? this.logicalDate,
     voidedAt: voidedAt.present ? voidedAt.value : this.voidedAt,
     voidedNote: voidedNote.present ? voidedNote.value : this.voidedNote,
   );
@@ -3026,6 +3055,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           : this.itemUnitPriceSnapshot,
       note: data.note.present ? data.note.value : this.note,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      logicalDate: data.logicalDate.present
+          ? data.logicalDate.value
+          : this.logicalDate,
       voidedAt: data.voidedAt.present ? data.voidedAt.value : this.voidedAt,
       voidedNote: data.voidedNote.present
           ? data.voidedNote.value
@@ -3046,6 +3078,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           ..write('itemUnitPriceSnapshot: $itemUnitPriceSnapshot, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
+          ..write('logicalDate: $logicalDate, ')
           ..write('voidedAt: $voidedAt, ')
           ..write('voidedNote: $voidedNote')
           ..write(')'))
@@ -3064,6 +3097,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     itemUnitPriceSnapshot,
     note,
     createdAt,
+    logicalDate,
     voidedAt,
     voidedNote,
   );
@@ -3081,6 +3115,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           other.itemUnitPriceSnapshot == this.itemUnitPriceSnapshot &&
           other.note == this.note &&
           other.createdAt == this.createdAt &&
+          other.logicalDate == this.logicalDate &&
           other.voidedAt == this.voidedAt &&
           other.voidedNote == this.voidedNote);
 }
@@ -3096,6 +3131,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
   final Value<int?> itemUnitPriceSnapshot;
   final Value<String?> note;
   final Value<DateTime> createdAt;
+  final Value<String> logicalDate;
   final Value<DateTime?> voidedAt;
   final Value<String?> voidedNote;
   const TransactionsCompanion({
@@ -3109,6 +3145,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.itemUnitPriceSnapshot = const Value.absent(),
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.logicalDate = const Value.absent(),
     this.voidedAt = const Value.absent(),
     this.voidedNote = const Value.absent(),
   });
@@ -3123,11 +3160,13 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.itemUnitPriceSnapshot = const Value.absent(),
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
+    required String logicalDate,
     this.voidedAt = const Value.absent(),
     this.voidedNote = const Value.absent(),
   }) : userId = Value(userId),
        type = Value(type),
-       amountMinorUnits = Value(amountMinorUnits);
+       amountMinorUnits = Value(amountMinorUnits),
+       logicalDate = Value(logicalDate);
   static Insertable<TransactionRow> custom({
     Expression<int>? id,
     Expression<int>? userId,
@@ -3139,6 +3178,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Expression<int>? itemUnitPriceSnapshot,
     Expression<String>? note,
     Expression<DateTime>? createdAt,
+    Expression<String>? logicalDate,
     Expression<DateTime>? voidedAt,
     Expression<String>? voidedNote,
   }) {
@@ -3154,6 +3194,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
         'item_unit_price_snapshot': itemUnitPriceSnapshot,
       if (note != null) 'note': note,
       if (createdAt != null) 'created_at': createdAt,
+      if (logicalDate != null) 'logical_date': logicalDate,
       if (voidedAt != null) 'voided_at': voidedAt,
       if (voidedNote != null) 'voided_note': voidedNote,
     });
@@ -3170,6 +3211,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Value<int?>? itemUnitPriceSnapshot,
     Value<String?>? note,
     Value<DateTime>? createdAt,
+    Value<String>? logicalDate,
     Value<DateTime?>? voidedAt,
     Value<String?>? voidedNote,
   }) {
@@ -3185,6 +3227,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
           itemUnitPriceSnapshot ?? this.itemUnitPriceSnapshot,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
+      logicalDate: logicalDate ?? this.logicalDate,
       voidedAt: voidedAt ?? this.voidedAt,
       voidedNote: voidedNote ?? this.voidedNote,
     );
@@ -3227,6 +3270,9 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (logicalDate.present) {
+      map['logical_date'] = Variable<String>(logicalDate.value);
+    }
     if (voidedAt.present) {
       map['voided_at'] = Variable<DateTime>(voidedAt.value);
     }
@@ -3249,6 +3295,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
           ..write('itemUnitPriceSnapshot: $itemUnitPriceSnapshot, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
+          ..write('logicalDate: $logicalDate, ')
           ..write('voidedAt: $voidedAt, ')
           ..write('voidedNote: $voidedNote')
           ..write(')'))
@@ -3402,6 +3449,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'transactions_created_at',
     'CREATE INDEX transactions_created_at ON transactions (created_at)',
   );
+  late final Index transactionsLogicalDate = Index(
+    'transactions_logical_date',
+    'CREATE INDEX transactions_logical_date ON transactions (logical_date)',
+  );
   late final SettingsDao settingsDao = SettingsDao(this as AppDatabase);
   late final UsersDao usersDao = UsersDao(this as AppDatabase);
   late final ItemsDao itemsDao = ItemsDao(this as AppDatabase);
@@ -3424,5 +3475,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     itemsGroupId,
     transactionsUserIdVoidedAt,
     transactionsCreatedAt,
+    transactionsLogicalDate,
   ];
 }

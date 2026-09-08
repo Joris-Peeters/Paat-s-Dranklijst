@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../database.dart';
+import '../logical_day.dart';
 import '../tables/items_table.dart';
 import '../tables/transactions_table.dart';
 
@@ -16,6 +17,15 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     with _$TransactionsDaoMixin {
   TransactionsDao(super.db);
 
+  // Both stamps come from one clock read, so the column's own
+  // `currentDateAndTime` default is deliberately not used here: a row inserted
+  // microseconds either side of 07:00 must not take its timestamp and its
+  // logical day from different days.
+  ({Value<DateTime> createdAt, String logicalDate}) _stamp() {
+    final now = DateTime.now();
+    return (createdAt: Value(now), logicalDate: logicalDayKey(now));
+  }
+
   /// Takes the whole [item] rather than an id so the price that gets frozen is
   /// the one the member actually tapped, not one re-read afterwards.
   Future<int> logConsumption({
@@ -24,6 +34,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     int quantity = 1,
   }) {
     assert(quantity > 0, 'quantity must be positive');
+    final stamp = _stamp();
     return into(transactions).insert(
       TransactionsCompanion.insert(
         userId: userId,
@@ -35,6 +46,8 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         itemId: Value(item.id),
         itemNameSnapshot: Value(item.name),
         itemUnitPriceSnapshot: Value(item.priceMinorUnits),
+        createdAt: stamp.createdAt,
+        logicalDate: stamp.logicalDate,
       ),
     );
   }
@@ -46,12 +59,15 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     String? note,
   }) {
     assert(amountMinorUnits > 0, 'a top-up adds credit');
+    final stamp = _stamp();
     return into(transactions).insert(
       TransactionsCompanion.insert(
         userId: userId,
         type: TransactionType.topUp,
         amountMinorUnits: amountMinorUnits,
         note: Value(note),
+        createdAt: stamp.createdAt,
+        logicalDate: stamp.logicalDate,
       ),
     );
   }
@@ -62,14 +78,19 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     required int userId,
     required int amountMinorUnits,
     required String note,
-  }) => into(transactions).insert(
-    TransactionsCompanion.insert(
-      userId: userId,
-      type: TransactionType.adjustment,
-      amountMinorUnits: amountMinorUnits,
-      note: Value(note),
-    ),
-  );
+  }) {
+    final stamp = _stamp();
+    return into(transactions).insert(
+      TransactionsCompanion.insert(
+        userId: userId,
+        type: TransactionType.adjustment,
+        amountMinorUnits: amountMinorUnits,
+        note: Value(note),
+        createdAt: stamp.createdAt,
+        logicalDate: stamp.logicalDate,
+      ),
+    );
+  }
 
   /// One-way: null -> timestamp, never cleared, never a DELETE. The
   /// `voidedAt IS NULL` guard makes a second call a no-op rather than a second
@@ -111,6 +132,41 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
               ),
             ]))
           .watch();
+
+  /// Consumptions on the logical day containing [at], optionally for one
+  /// member. Voided rows and non-consumption types are excluded: a mis-tap is
+  /// not a drink, and a top-up is not one either.
+  ///
+  /// [at] is required rather than defaulting to now on purpose. A stream
+  /// resolves its day once, at subscription, and this kiosk runs untouched for
+  /// months — an implicit "now" would keep reporting yesterday's total after
+  /// 07:00. The caller decides how it refreshes, the way `AppSettings` does for
+  /// the theme schedule.
+  Stream<int> watchConsumptionCount({required DateTime at, int? userId}) {
+    final count = countAll();
+    final query = selectOnly(transactions)
+      ..addColumns([count])
+      ..where(
+        transactions.logicalDate.equals(logicalDayKey(at)) &
+            transactions.type.equalsValue(TransactionType.consumption) &
+            transactions.voidedAt.isNull(),
+      );
+    if (userId != null) {
+      query.where(transactions.userId.equals(userId));
+    }
+    return query.watchSingle().map((row) => row.read(count)!);
+  }
+
+  /// Everything on that logical day, newest first. Voided rows are included —
+  /// they stay in the record, struck through.
+  Stream<List<TransactionRow>> watchTransactionsForDay({
+    required DateTime at,
+  }) => (select(transactions)
+        ..where((t) => t.logicalDate.equals(logicalDayKey(at)))
+        ..orderBy([
+          (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+        ]))
+      .watch();
 
   Future<TransactionRow?> readTransaction(int id) => (select(
     transactions,

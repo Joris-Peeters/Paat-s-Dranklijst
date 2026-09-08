@@ -105,6 +105,26 @@ The asymmetry is the point: items are *catalogue entries*, so history keeps what
 actually paid; users are *identities*, so fixing a typo in a name should fix it
 everywhere, old rows included.
 
+#### The logical day
+
+A third column is frozen at write: `logicalDate`, a `YYYY-MM-DD` string.
+
+**A day runs 07:00 → 07:00.** The fridge is used past midnight, so a drink at 01:00
+belongs to the evening before, not to the new calendar date. Every "per day" question —
+drinks today, the biggest day ever, the biggest day per member or per item — uses this,
+never the raw calendar date of `createdAt`.
+
+The rule lives in `lib/data/logical_day.dart` as pure functions (`logicalDayOf`,
+`logicalDayKey`), the same shape as `isDarkAt`, with `logicalDayStart` a constant rather
+than a setting: it is a business rule, not user state. `TransactionsDao` stamps
+`createdAt` and `logicalDate` from **one** `DateTime.now()` read — the column's
+`currentDateAndTime` default is bypassed on purpose, so a row inserted microseconds
+either side of 07:00 cannot take its timestamp and its day from different days.
+
+It is **stored rather than derived** because the equivalent SQL expression can never be
+indexed — see the gotcha below. Voiding never rewrites it, like everything else on the
+row.
+
 #### Voiding
 
 A mis-tap should vanish, not appear twice in history, so a row can be voided: `voidedAt`
@@ -389,6 +409,23 @@ blow up. In the UI, disable the delete action with an explanation ("3 members, i
 - **Index names must be unique across the whole database**, not per table, and each
   becomes a camelCase getter on the database class — so an index named `users` would
   collide with the `users` table getter. Prefix every index with its table name.
+- **An index on a `localtime` expression is accepted and then fails on the first
+  INSERT.** This is why `logicalDate` is a stored column rather than a view over
+  `createdAt`:
+
+  ```sql
+  CREATE INDEX idx ON t (date(created_at - 25200, 'unixepoch', 'localtime'));
+  -- accepted, no error
+  INSERT INTO t(created_at) VALUES (1757300000);
+  -- Error: non-deterministic use of date() in an index
+  ```
+
+  Dropping `localtime` makes it indexable but wrong: the boundary shifts an hour every
+  winter (UTC+1 vs UTC+2), silently misfiling anything logged between 06:00 and 07:00.
+  So a derived logical day could only ever be full-scanned and sorted, with no composite
+  `(user_id, logical_date)` index possible. (`localtime` itself does work on all three
+  platforms — `SQLITE_OMIT_LOCALTIME` is not among the `sqlite3` package's build
+  defines. Indexing it is the problem, not availability.)
 - **A constraint violation is a `SqliteException` in tests but a `DriftRemoteException`
   in the app.** `driftDatabase` uses `NativeDatabase.createBackgroundConnection`, so the
   error crosses an isolate boundary and the real cause lands in `.remoteCause`. A test
@@ -438,6 +475,7 @@ lib/
     database_provider.dart   # Database InheritedWidget; owns the AppDatabase instance
     converters.dart          # drift TypeConverters; TimeOfDay <-> minutes so far
     errors.dart              # typed domain failures the DAOs throw (see rule 7)
+    logical_day.dart         # the 07:00 -> 07:00 day rule; pure, see rule 1
     tables/                  # drift table definitions
       settings_table.dart    # }
       user_groups_table.dart # }
@@ -528,15 +566,20 @@ raw PIN string. The wizard and the settings row both go through `showPinSetDialo
   `items.emoji` are non-null and picked at random by the create screen (rule 6); the two
   group tables' `emoji` stay nullable.
 - `transactions` — the append-only ledger of rule 1, with a `TransactionType` textEnum,
-  a signed `amountMinorUnits`, the two item snapshot columns, and the one-way
-  `voidedAt`.
+  a signed `amountMinorUnits`, the two item snapshot columns, the frozen `logicalDate`
+  (the 07:00 → 07:00 day), and the one-way `voidedAt`.
 - `user_balances` — a Dart-defined view: `SUM(amount_minor_units)` per member with
   voided rows excluded. Not a cache; an indexed query. Members with no live
   transactions have no row in it, so readers left-join and read a missing row as 0.
 
-Four indexes carry it: `users(group_id)`, `items(group_id)`,
-`transactions(user_id, voided_at)` for balances, and `transactions(created_at)` for the
-Start page. Foreign keys are enforced (`beforeOpen`), so a bad delete fails loudly.
+Five indexes carry it: `users(group_id)`, `items(group_id)`,
+`transactions(user_id, voided_at)` for balances, `transactions(created_at)` for recent
+history, and `transactions(logical_date)` for per-day counts. Foreign keys are enforced
+(`beforeOpen`), so a bad delete fails loudly.
+
+The composites the Stats page will want — `(user_id, logical_date)`,
+`(item_id, logical_date)` — are deliberately **not** added yet: no query uses them, and
+an unused index is write cost on every ledger row.
 
 `schemaVersion` is 1 and the `onUpgrade` scaffolding is empty. Nothing is deployed, so
 schema changes are made by editing the tables and **deleting the dev database file**
@@ -549,9 +592,19 @@ kind (rule 7), and the wizard is where an admin changes them.
 Four DAOs cover the queries. `UsersDao` also exposes `MemberWithBalance` (a member, her
 group and her balance in one row) and `GroupUsage` (active and archived counts, so the
 UI can explain a disabled delete). `TransactionsDao` is the only writer of a ledger row.
+`TransactionsDao` also has the two single-day queries, `watchConsumptionCount` and
+`watchTransactionsForDay`. Both take a **required** `at` rather than defaulting to now:
+a stream resolves its day once at subscription, and on a kiosk that runs untouched for
+months an implicit "now" would keep reporting yesterday after 07:00. The Start screen has
+to decide how it refreshes — the minute-timer plus `didChangeAppLifecycleState` pattern
+in `app_settings.dart` is the one to copy.
+
 `test/database_test.dart` covers the invariants that matter — signed balances, snapshot
-freezing, one-way voiding, the archive and group-deletion guards — against an in-memory
-database through the `AppDatabase({QueryExecutor? executor})` seam.
+freezing, one-way voiding, the archive and group-deletion guards, the logical-day
+boundary — against an in-memory database through the
+`AppDatabase({QueryExecutor? executor})` seam. `test/logical_day_test.dart` covers the
+day rule itself, including a sweep of every hour of a year asserting the result is always
+local midnight, which catches a DST regression on any host.
 
 Still target design, not code: **all of the UI over this schema**, plus per-user theming
 and avatars. The Start, Members and Stats pages are empty states, and the three
