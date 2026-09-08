@@ -70,13 +70,59 @@ These are deliberate and load-bearing. Do not work around them without asking.
 
 ### 1. The transaction log is an append-only ledger
 
-Every consumption and every top-up is a permanent row. **Never UPDATE or DELETE a
-transaction.** Corrections are made by appending a compensating entry.
+Every consumption, top-up and adjustment is a permanent row. **Never DELETE a
+transaction, and never rewrite one.** The only permitted update is the one-way void
+described below.
 
-Each transaction row stores a **frozen snapshot** of the item's name and price at the
-time of purchase. Renaming "Cola" or changing its price must never rewrite history.
-This means transaction rows carry `itemNameSnapshot` and `priceMinorUnitsSnapshot`
-columns rather than relying on a join to the current items table.
+#### Money and direction
+
+`amountMinorUnits` is **signed**, and it is the **line total**, never a unit price.
+Positive means the member holds credit, negative means they owe — the app is a prepaid
+tab, so a top-up is positive and a consumption is negative.
+
+Keeping the direction in the amount rather than deriving it from `type` makes the
+balance one type-agnostic query, so a fourth transaction type would need no change to
+any balance logic:
+
+```sql
+SELECT SUM(amount_minor_units) FROM transactions
+WHERE user_id = ? AND voided_at IS NULL
+```
+
+Two €1.50 colas is one row: `quantity = 2`, `itemUnitPriceSnapshot = 150`,
+`amountMinorUnits = -300`. `quantity` is display only — the multiplication is already
+done. `TransactionsDao.logConsumption` is the only code that computes this, so the
+invariant lives in exactly one place.
+
+#### Snapshots: items yes, users no
+
+Each transaction freezes the item's name and unit price at purchase time in
+`itemNameSnapshot` and `itemUnitPriceSnapshot` rather than joining to the current items
+table. Renaming "Cola" or changing its price must never rewrite history.
+
+Users are deliberately **not** snapshotted — the row holds a plain `userId` foreign key.
+The asymmetry is the point: items are *catalogue entries*, so history keeps what was
+actually paid; users are *identities*, so fixing a typo in a name should fix it
+everywhere, old rows included.
+
+#### Voiding
+
+A mis-tap should vanish, not appear twice in history, so a row can be voided: `voidedAt`
+goes from null to a timestamp and `voidedNote` records why.
+
+- The transition is **one-way**. Never cleared, never DELETEd. The DAO guards on
+  `voidedAt IS NULL`, so a second call is a no-op rather than a second timestamp.
+- The row itself is never rewritten — amount, snapshots and `createdAt` stay frozen
+  exactly as recorded.
+- Voided rows still render in history, struck through. They are hidden from balances,
+  not from the record.
+
+Gate it by time and PIN, because there is no login and anyone can tap anything: an
+inline **Undo** with no PIN within ~60 seconds of creation, which covers essentially
+every real case, and after that the admin PIN plus a `voidedNote`.
+
+Use an `adjustment`, not a void, for a genuine correction that is not a mistake ("Jonas
+paid €10 cash"). **Voiding erases; adjusting records.**
 
 ### 2. Money is an integer in minor units. Always
 
@@ -149,6 +195,9 @@ colors, rendered as a hand-rolled grid of circular swatches. No color-picker pac
 
 Colors are stored as ARGB `int` (the resolved color, **not** an index into the
 palette, so retiring a palette color doesn't silently recolor users).
+
+`users.seedColorArgb` is **non-null**: every member has their own accent, assigned at
+random on creation (rule 6), so there is no "falls back to the global seed" path.
 
 Light/dark is a stored `AppThemeMode` — `light`, `dark`, or `scheduled` between two
 wall-clock times. There is deliberately no "follow system": a kiosk tablet's system
@@ -230,16 +279,72 @@ when regional locales are in play does not arise here.
 
 ### 6. Avatars
 
-Render order: uploaded image if present → emoji if present → initials fallback.
+Render order: uploaded image if present → emoji. **There is no initials fallback** —
+`avatarEmoji` is non-null, so every member always has something to draw.
 
 ```dart
-TextColumn get avatarEmoji => text().nullable()();   // TEXT — emoji are multi-codepoint
+TextColumn get avatarEmoji => text()();              // TEXT — emoji are multi-codepoint
 BlobColumn get avatarImage => blob().nullable()();   // reserved; feature not built yet
 ```
 
 `avatarEmoji` is TEXT because emoji use skin-tone modifiers and ZWJ sequences and
 cannot be stored as a single int codepoint. The blob column exists now specifically so
 the future camera feature needs no migration.
+
+**The create screen picks a random emoji and a random palette colour** for a new member,
+which is why both columns are non-null and neither has a schema default: a default would
+let an insert quietly give everyone the same face. `UsersDao.createUser` therefore takes
+`avatarEmoji` and `seedColorArgb` as required arguments — the data layer has no business
+knowing the curated palette (rule 4), so the caller does the picking. `ItemsDao
+.createItem` requires `emoji` for the same reason.
+
+Group emoji (`user_groups`, `item_groups`) stay **nullable**: a group is named, and an
+admin creating one is choosing deliberately rather than being handed a random face.
+
+### 7. Deletion is soft for anything the ledger references
+
+Two tiers, decided by what points at the row.
+
+**`users` and `items` are soft-deleted.** Every consumption row holds a permanent
+foreign key to both, so after a member's first tap they can never be removed without
+destroying history. `archivedAt` is a nullable timestamp and list queries filter
+`archived_at IS NULL`. Preferred over a boolean `active` because it carries *when* for
+free, and it matches `setupCompletedAt` and `voidedAt`.
+
+A member whose balance is not zero **cannot be archived** — settle up or post an
+`adjustment` first. Archiving is not a way to make a debt disappear quietly.
+
+**`user_groups` and `item_groups` are hard-deleted, and only while unreferenced.** They
+carry no `archivedAt` at all.
+
+"Unreferenced" means **no rows at all, including archived ones**. This is the subtle
+part: a departed member is archived rather than deleted, and their row still holds a
+`groupId`. A group can therefore look empty in the UI while archived rows still pin it.
+Counting only active members and hard-deleting would leave dangling references that
+crash whenever an archived member's history is rendered.
+
+Because archiving and deleting a group would then have identical preconditions, a soft
+delete on groups could never be meaningfully set — hence no column.
+
+Being empty is the *only* precondition. The last group of a kind may be deleted, the
+seeded one included, leaving the table empty — the management screen has a `+` button,
+so an admin can always make another. There is deliberately no "at least one group" rule
+to enforce; it would be one more failure mode for a state the UI can walk straight out
+of.
+
+A default group of each kind is still seeded in `onCreate`, so a fresh install can add
+a member without visiting the group screen first. It is named plainly (`General`) so an
+admin renames it rather than it looking like sample data.
+
+Accept the practical consequence: a group in use for a season is effectively permanent,
+since archived members keep it pinned. That matches reality — Chiro age groups don't
+disappear. The deletion that actually happens is "I typed the name wrong ten seconds
+ago", and that group genuinely is empty.
+
+The count and the delete run in **one transaction** so the check cannot go stale, and it
+throws `GroupInUseException` from `lib/data/errors.dart` rather than letting a constraint
+blow up. In the UI, disable the delete action with an explanation ("3 members, including
+1 archived") rather than letting it fail after the tap.
 
 ## Known gotchas
 
@@ -265,10 +370,42 @@ the future camera feature needs no migration.
   along with the Dart type it produces** — importing it in the table file is not
   enough. `database.g.dart` is a `part of` `database.dart` and so has no imports of
   its own; codegen succeeds either way and the failure only shows up as
-  `'X' isn't a type` in the generated file at analyze time.
+  `'X' isn't a type` in the generated file at analyze time. The same applies to any
+  enum used with `textEnum`: keep it in the table file, which `database.dart` already
+  imports, rather than moving it somewhere only the table sees.
+- **SQLite leaves foreign key enforcement OFF by default.** It is turned on in
+  `beforeOpen` with `PRAGMA foreign_keys = ON`. Never wrap that in a transaction — the
+  pragma is silently ignored there. Drift only toggles it around `alterTable`, so
+  without the `beforeOpen` line a bad delete leaves dangling references rather than
+  failing. It runs *after* `onCreate`, so the seed inserts are not themselves checked.
+- **A Dart-defined `View`'s `as()` body must not be parenthesised.** drift_dev walks
+  the AST and accepts only method invocations and cascades, so
+  `Query as() => (select(...)..where(...));` fails codegen with "invalid expression
+  type ParenthesizedExpression". Drop the parens. The class must also be `abstract`,
+  with its table getters declared abstract and bodyless.
+- **A view's computed columns always generate as nullable**, whatever the expression —
+  drift hardcodes it. `SUM(...)` therefore arrives as `int?`, and `coalesce` in the view
+  will not change the Dart type. Collapse the `?? 0` in one place in the DAO.
+- **Index names must be unique across the whole database**, not per table, and each
+  becomes a camelCase getter on the database class — so an index named `users` would
+  collide with the `users` table getter. Prefix every index with its table name.
+- **A constraint violation is a `SqliteException` in tests but a `DriftRemoteException`
+  in the app.** `driftDatabase` uses `NativeDatabase.createBackgroundConnection`, so the
+  error crosses an isolate boundary and the real cause lands in `.remoteCause`. A test
+  asserting `isA<SqliteException>()` passes while the app's matching catch never fires —
+  prefer the DAOs' own typed errors, and match on the message when the raw violation is
+  the subject.
+- **Generated `.g.dart` files are excluded from analysis.** drift's own
+  `ignore_for_file: type=lint` header silences the linter but not analyzer warnings, and
+  a view's generated `Query?` getter trips `strict-raw-types` — a raw type that cannot be
+  spelled differently from our source.
 - Drift schema changes require re-running `build_runner` **and** bumping
-  `schemaVersion` with a matching migration step. As long as we are int the development
-  phase and no deployments have been done, migrations are not needed.
+  `schemaVersion` with a matching migration step. As long as we are in the development
+  phase and no deployments have been done, migrations are not needed — but that means
+  `onCreate` will not re-run against a database file that already exists, so **delete
+  the dev database** after a schema change or every query fails with `no such table`:
+  `rm ~/.local/share/xyz.jpsystems.paats_dranklijst/paats_dranklijst.sqlite`. This also
+  clears `setupCompletedAt`, so the wizard reappears.
 - **Drift's `.watch()` streams only see writes made through the same `AppDatabase`
   instance.** Editing the database file with the `sqlite3` CLI while the app runs
   changes nothing on screen until a restart — drift tracks table updates in Dart, it
@@ -297,11 +434,24 @@ lib/
                              # also resolves the dark-mode schedule and formatMoney
   l10n/                      # ARB files (committed) + generated localizations (gitignored)
   data/
-    database.dart            # AppDatabase, schemaVersion, migrations
+    database.dart            # AppDatabase, schemaVersion, migrations, FK pragma
     database_provider.dart   # Database InheritedWidget; owns the AppDatabase instance
     converters.dart          # drift TypeConverters; TimeOfDay <-> minutes so far
+    errors.dart              # typed domain failures the DAOs throw (see rule 7)
     tables/                  # drift table definitions
+      settings_table.dart    # }
+      user_groups_table.dart # }
+      users_table.dart       # } one file per table; enums live beside their table
+      item_groups_table.dart # }
+      items_table.dart       # }
+      transactions_table.dart# }
+    views/
+      user_balances_view.dart # per-member SUM, voided rows excluded
     daos/                    # queries, grouped by concern
+      settings_dao.dart      # the single settings row
+      users_dao.dart         # members + their groups + balances
+      items_dao.dart         # drinks + their groups
+      transactions_dao.dart  # the ledger; the only writer of a transaction row
   theme/
     app_theme.dart           # ColorScheme.fromSeed helpers
   utils/
@@ -322,6 +472,7 @@ lib/
     epc_qr_code.dart         # SEPA payment QR code; byte-mode wrapper over buildEpcPayload
     member_row.dart          # member list row shape; not rendered yet
 test/                        # unit tests; no widget tests yet
+build.yaml                   # drift codegen options (manager API off)
 ```
 
 ## Current state
@@ -365,19 +516,45 @@ lock-screen-style keypad and both dialogs around it — `PinEnterDialog` for the
 `PinSetDialog` for choose-then-confirm — so no other screen builds PIN UI or handles a
 raw PIN string. The wizard and the settings row both go through `showPinSetDialog`.
 
-The database has **one table**: a single-row `settings` table with typed columns
-(`lib/data/tables/settings_table.dart`), a `CHECK (id = 1)` constraint, and the row
-inserted in `onCreate` so no code anywhere handles "settings is null". `schemaVersion`
-is 1; the `onUpgrade` scaffolding is in place but empty. Two of its columns go through
-a converter: `themeMode` (drift's own `textEnum`) and `darkStart`/`darkEnd`
-(`TimeOfDayConverter`, see rule 4).
+**The schema is complete; none of it has UI yet.** Six tables and one view:
+
+- `settings` — single-row, typed columns, a `CHECK (id = 1)` constraint, and the row
+  inserted in `onCreate` so no code anywhere handles "settings is null". Two of its
+  columns go through a converter: `themeMode` (drift's own `textEnum`) and
+  `darkStart`/`darkEnd` (`TimeOfDayConverter`, see rule 4).
+- `user_groups` / `users` and `item_groups` / `items` — the two catalogs, each a group
+  table and a member table with a non-null `groupId`, `sortOrder`, and (on `users` and
+  `items` only) `archivedAt`. `users.avatarEmoji`, `users.seedColorArgb` and
+  `items.emoji` are non-null and picked at random by the create screen (rule 6); the two
+  group tables' `emoji` stay nullable.
+- `transactions` — the append-only ledger of rule 1, with a `TransactionType` textEnum,
+  a signed `amountMinorUnits`, the two item snapshot columns, and the one-way
+  `voidedAt`.
+- `user_balances` — a Dart-defined view: `SUM(amount_minor_units)` per member with
+  voided rows excluded. Not a cache; an indexed query. Members with no live
+  transactions have no row in it, so readers left-join and read a missing row as 0.
+
+Four indexes carry it: `users(group_id)`, `items(group_id)`,
+`transactions(user_id, voided_at)` for balances, and `transactions(created_at)` for the
+Start page. Foreign keys are enforced (`beforeOpen`), so a bad delete fails loudly.
+
+`schemaVersion` is 1 and the `onUpgrade` scaffolding is empty. Nothing is deployed, so
+schema changes are made by editing the tables and **deleting the dev database file**
+rather than writing a migration.
 
 Nothing is seeded from the device. A fresh database takes every value from the schema
-defaults — `en`, `EUR`, teal, scheduled dark mode — and the wizard is where an admin
-changes them.
+defaults — `en`, `EUR`, teal, scheduled dark mode — plus one `General` group of each
+kind (rule 7), and the wizard is where an admin changes them.
 
-Still target design, not code: users, items and the transaction ledger; per-user
-theming; avatars. The Start, Members and Stats pages are empty states, and the three
+Four DAOs cover the queries. `UsersDao` also exposes `MemberWithBalance` (a member, her
+group and her balance in one row) and `GroupUsage` (active and archived counts, so the
+UI can explain a disabled delete). `TransactionsDao` is the only writer of a ledger row.
+`test/database_test.dart` covers the invariants that matter — signed balances, snapshot
+freezing, one-way voiding, the archive and group-deletion guards — against an in-memory
+database through the `AppDatabase({QueryExecutor? executor})` seam.
+
+Still target design, not code: **all of the UI over this schema**, plus per-user theming
+and avatars. The Start, Members and Stats pages are empty states, and the three
 management cards lead to stubs. `widgets/member_row.dart` carries the member row's two
 tap targets (avatar opens the account page, name starts a consumption) but nothing
 renders it yet.

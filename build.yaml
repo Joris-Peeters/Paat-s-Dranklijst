@@ -1,0 +1,9 @@
+# Drift's manager API is generated for every table by default and we never use
+# it — Drift's `.watch()` streams plus the DAOs are the query surface (rule 3).
+# Leaving it on roughly triples the committed database.g.dart.
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          generate_manager: false

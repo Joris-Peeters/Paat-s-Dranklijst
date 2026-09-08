@@ -17,6 +17,10 @@ analyzer:
     - linux/**
     # Generated code, never hand-edited
     - lib/l10n/app_localizations*.dart
+    # drift's own output. Its `ignore_for_file: type=lint` header silences the
+    # linter but not analyzer warnings, and a view's generated `Query?` getter
+    # trips strict-raw-types — a raw type we cannot spell differently.
+    - lib/**.g.dart
 
 linter:
   rules:
