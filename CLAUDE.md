@@ -33,6 +33,7 @@ networked app. There is no server, no account system, no sync.
 | Database | `drift` + `drift_flutter` |
 | Charts | `fl_chart` |
 | QR codes | `qr_flutter` |
+| Emoji picker | `emoji_picker_flutter` |
 | i18n | `flutter_localizations` + `intl` + ARB / `gen-l10n` |
 | Camera (future, low priority) | `image_picker` (not `camera`) |
 
@@ -193,8 +194,6 @@ preferences — live in the database alongside the data they govern. The goal is
 
 Consequences:
 
-- Do not use `SharedPreferences`. Ever. If a package needs it internally, that's a
-  reason to reconsider the package.
 - Do not write user-facing state to files outside the DB. Avatar images go in a
   `BlobColumn`, not a directory.
 - No separate state-management package (`provider`, `riverpod`, `bloc`) is used for
@@ -218,6 +217,22 @@ palette, so retiring a palette color doesn't silently recolor users).
 
 `users.seedColorArgb` is **non-null**: every member has their own accent, assigned at
 random on creation (rule 6), so there is no "falls back to the global seed" path.
+
+Build a per-user subtree with `appTheme(user.seedColorArgb, Theme.of(context).brightness)`,
+**not** `Theme.of(context).copyWith(colorScheme: ...)`. `copyWith` swaps the scheme but
+leaves the derived component themes and the legacy colors (`primaryColor`, `splashColor`,
+text theme colors) on the *app's* palette, giving a half-recolored page. Going through
+`appTheme` also means any later app-wide theme customisation is inherited for free.
+`widgets/user_avatar.dart` is the reference implementation.
+
+Both `schemeFor` and `appTheme` are **memoized** on `(seedArgb, brightness)`, because a
+list of members is one `ColorScheme.fromSeed` per avatar per frame otherwise. Repeat
+calls return the *same instance*, so `ThemeData ==` short-circuits on identity — which
+also matters for the global theme, since `MainApp` rebuilds both themes on every settings
+emission including the once-a-minute schedule re-resolve. The caches never evict: seeds
+only come from the curated palette, so they hold at most `seedColorPalette.length * 2`
+entries. Free color picking would break that assumption. Note they survive hot reload but
+not hot restart, so editing `schemeVariant` and hot-reloading shows stale colors.
 
 Light/dark is a stored `AppThemeMode` — `light`, `dark`, or `scheduled` between two
 wall-clock times. There is deliberately no "follow system": a kiosk tablet's system
@@ -371,9 +386,26 @@ blow up. In the UI, disable the delete action with an explanation ("3 members, i
 - **`lib/l10n/app_localizations*.dart` are gitignored**, so a fresh clone has broken
   imports and a red `flutter analyze` until codegen has run once. `flutter run`/`build`
   generate them; `flutter gen-l10n` forces it. Run it before analyzing a fresh clone.
-- **Color emoji do not render on Linux desktop by default** — they appear monochrome.
-  A color emoji font must be bundled as an app asset and set via `fontFamilyFallback`.
-  This also makes avatars render identically across Android, iOS, and Linux.
+- **Emoji come from the platform's own font — none is bundled.** Android and iOS ship
+  one; a Linux box needs an emoji font installed system-wide (on Arch,
+  `noto-fonts-emoji`) or emoji render as monochrome outlines or tofu. That is a
+  deployment-image requirement for a Linux kiosk, not something the app can fix.
+  Avatars therefore look slightly different per platform, which is fine — a member's
+  emoji is decoration, and their name is the identifier.
+- **Set `height: 1.0` on any `TextStyle` that renders a bare emoji.** Emoji fonts carry
+  generous leading, so without it a `Center` visibly puts the glyph off-centre. Also set
+  an explicit `color`: where no colour emoji font exists the glyph is drawn as monochrome
+  in the text colour, and inheriting `DefaultTextStyle` inside a tinted surface can make
+  it invisible. `widgets/user_avatar.dart` does both.
+- **Do not pass a `fontSize` in `EmojiPickerDialog`'s `emojiTextStyle`.** The package
+  merges the style it is given over one that already carries its responsive per-cell
+  size, so a `fontSize` there freezes the grid's glyphs and stops them scaling.
+- **`emoji_picker_flutter`'s widgets ignore the ambient `Theme`** — every colour is an
+  explicit `Color` argument defaulting to blue and grey. `EmojiPickerDialog` threads the
+  whole `ColorScheme` in by hand; a new config knob needs the same treatment or it will
+  render blue. Two of its defaults are actively wrong for us and are overridden:
+  `columns` is 10 (too small a target for wet fingers) and `initCategory` is
+  `Category.RECENT`, the tab `RecentTabBehavior.NONE` removes.
 - **Do not import `package:flutter_gen/gen_l10n/app_localizations.dart`.** The
   synthetic package is removed from modern Flutter. Import generated localizations by
   their real path (`package:paats_dranklijst/l10n/app_localizations.dart`).
@@ -491,9 +523,10 @@ lib/
       items_dao.dart         # drinks + their groups
       transactions_dao.dart  # the ledger; the only writer of a transaction row
   theme/
-    app_theme.dart           # ColorScheme.fromSeed helpers
+    app_theme.dart           # memoized ColorScheme.fromSeed / ThemeData helpers
   utils/
     banking.dart             # IBAN mod-97 and currency-code checks; EPC QR payload
+    random_emoji.dart        # random avatar emoji from a narrowed set of categories
   screens/
     app_shell.dart           # NavigationBar frame; owns the selected tab
     settings_screen.dart     # admin settings; openSettings() is the PIN gate
@@ -504,6 +537,8 @@ lib/
     stats_screen.dart        # }
   widgets/
     palette_picker.dart      # curated color lists, inline picker + swatch grid dialog
+    emoji_picker_dialog.dart # emoji_picker_flutter's grid in a dialog, themed by hand
+    user_avatar.dart         # a member's emoji in a circle from their own seed color
     pin_dialog.dart          # keypad, and the enter/set dialogs around it
     settings_text_field.dart # commit-on-blur field bound to one settings column
     empty_state.dart         # centred icon and message
@@ -519,8 +554,9 @@ Implemented: rules 2, 4 and 5 in full for the app's own settings, and rule 3's
 foundation. Every setting has a control that writes straight to the database and takes
 effect immediately.
 
-The settings screen groups its controls into three cards — Appearance, Admin, Settling
-up — under section headers, below the management cards. The section header, the group
+The settings screen groups its controls into four cards — Appearance, Admin, Settling
+up, About — under section headers, below the management cards. About holds only Flutter's
+own `showLicensePage`, listing the open-source licences of every package. The section header, the group
 card and the note line are private widgets in `settings_screen.dart`, its only consumer.
 `SettingsTextField` is not: the wizard needs the same field, so it lives in
 `widgets/`.
@@ -606,11 +642,30 @@ boundary — against an in-memory database through the
 day rule itself, including a sweep of every hour of a year asserting the result is always
 local midnight, which catches a DST regression on any host.
 
-Still target design, not code: **all of the UI over this schema**, plus per-user theming
-and avatars. The Start, Members and Stats pages are empty states, and the three
-management cards lead to stubs. `widgets/member_row.dart` carries the member row's two
-tap targets (avatar opens the account page, name starts a consumption) but nothing
-renders it yet.
+Per-user theming and avatars are now real. `widgets/user_avatar.dart` renders a member's
+emoji in a circle themed from their own seed color (rule 4), `widgets/emoji_picker_dialog
+.dart` wraps `emoji_picker_flutter`'s grid in a dialog shaped like `ColorPickerDialog`,
+and `utils/random_emoji.dart` picks the random emoji rule 6 requires. None of them touch
+the database — they take the emoji and color loose, so the member-create screen can use
+them before a row exists.
+
+**The Start page is a temporary demo of exactly that**: an avatar whose tap opens the
+emoji picker, over a `ColorPicker`. Both values are local `setState`, deliberately *not*
+the settings row — this shows a per-user seed, and writing the global one would re-theme
+the whole app. Replace the body when the real Start page is built; keep the settings
+`IconButton`, which is the only route into settings.
+
+Still target design, not code: **the rest of the UI over this schema**. The Members and
+Stats pages are empty states and the three management cards lead to stubs.
+`widgets/member_row.dart` is named in this document but **does not exist yet**; when
+written it carries the member row's two tap targets (avatar opens the account page, name
+starts a consumption). `screens/app_shell.dart` likewise does not exist — `AppShell` and
+`AppShellState` currently live in `main.dart`, and `goToRestingPage()` is not written.
+
+`test/emoji_picker_dialog_test.dart` is the one **widget** test. It exists because
+`EmojiPicker` measures itself off `constraints.maxWidth` and puts a `Flexible` in a
+`Column`, so a missing bound is a layout exception no unit test would catch — it pumps
+the dialog at full and narrow widths and taps a cell. It also covers `UserAvatar`.
 
 ## Working preferences
 

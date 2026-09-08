@@ -74,6 +74,15 @@
   "sectionSettlingUp": "Settling up",
   "@sectionSettlingUp": { "description": "Settings section heading for the bank details behind the payment QR code" },
 
+  "sectionAbout": "About",
+  "@sectionAbout": { "description": "Settings section heading for app information and licenses" },
+
+  "aboutLicenses": "Open source licenses",
+  "@aboutLicenses": { "description": "Button opening the list of open source licenses" },
+
+  "aboutLicensesHelp": "The licenses of the software and fonts this app is built on.",
+  "@aboutLicensesHelp": { "description": "Note above the open source licenses button" },
+
   "manageMembers": "Members",
   "@manageMembers": { "description": "Management card leading to member administration" },
 
@@ -103,6 +112,9 @@
 
   "chooseColor": "Choose a color",
   "@chooseColor": { "description": "Title of the colour picker dialog" },
+
+  "chooseEmoji": "Choose an emoji",
+  "@chooseEmoji": { "description": "Title of the emoji picker dialog" },
 
   "themeMode": "Theme",
   "@themeMode": { "description": "Setting choosing between light, dark and scheduled" },

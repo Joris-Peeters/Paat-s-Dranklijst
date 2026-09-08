@@ -22,6 +22,10 @@
   "sectionAppearance": "Weergave",
   "sectionAdmin": "Beheerder",
   "sectionSettlingUp": "Afrekenen",
+  "sectionAbout": "Over",
+
+  "aboutLicenses": "Opensourcelicenties",
+  "aboutLicensesHelp": "De licenties van de software en lettertypes waarop deze app gebouwd is.",
 
   "manageMembers": "Leden",
   "manageMembersSubtitle": "Leden toevoegen, aanpassen en verwijderen",
@@ -34,6 +38,7 @@
 
   "themeColor": "Themakleur",
   "chooseColor": "Kies een kleur",
+  "chooseEmoji": "Kies een emoji",
   "themeMode": "Thema",
   "themeModeLight": "Licht",
   "themeModeDark": "Donker",

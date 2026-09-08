@@ -66,6 +66,9 @@ class SettingsScreen extends StatelessWidget {
 
           _SectionHeader(title: l10n.sectionSettlingUp),
           _PayeeCard(settings: settings, write: write),
+
+          _SectionHeader(title: l10n.sectionAbout),
+          const _AboutCard(),
         ],
       ),
     );
@@ -566,6 +569,29 @@ class _PayeeCard extends StatelessWidget {
           validator: (value) => isValidIban(value) ? null : l10n.ibanInvalid,
           onCommit: (value) =>
               write(SettingsCompanion(payeeIban: Value(value))),
+        ),
+      ],
+    );
+  }
+}
+
+class _AboutCard extends StatelessWidget {
+  const _AboutCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return _SettingsCard(
+      children: [
+        _Note(l10n.aboutLicensesHelp),
+        // Flutter's own page, localized by MaterialLocalizations. It lists
+        // every package plus the emoji font registered in main().
+        OutlinedButton.icon(
+          icon: const Icon(Icons.description_outlined),
+          label: Text(l10n.aboutLicenses),
+          onPressed: () =>
+              showLicensePage(context: context, applicationName: l10n.appTitle),
         ),
       ],
     );
