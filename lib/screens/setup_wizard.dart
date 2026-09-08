@@ -1,12 +1,10 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 
-import '../app_settings.dart';
-import '../data/database.dart';
-import '../data/database_provider.dart';
 import '../l10n/app_localizations.dart';
+import '../settings/app_settings.dart';
+import '../settings/settings_data.dart';
 import '../utils/banking.dart';
 import '../widgets/palette_picker.dart';
 import '../widgets/pin_dialog.dart';
@@ -28,7 +26,6 @@ class SetupWizard extends StatefulWidget {
   State<SetupWizard> createState() => _SetupWizardState();
 }
 
-typedef _Write = void Function(SettingsCompanion changes);
 
 class _SetupWizardState extends State<SetupWizard> {
   final _pageController = PageController();
@@ -55,25 +52,22 @@ class _SetupWizardState extends State<SetupWizard> {
     );
   }
 
-  /// Marking setup complete re-emits the settings row, which swaps `MainApp`'s
-  /// home over to the shell — so this screen is gone right after.
+  /// Marking setup complete swaps `MainApp`'s home over to the shell, so this
+  /// screen is gone right after.
   ///
   /// The yield is what makes that safe: unfocusing schedules the last field's
   /// commit on a microtask, and this widget must still be alive when it runs.
-  Future<void> _finish(_Write write) async {
+  Future<void> _finish(AppSettingsData settings, WriteSettings write) async {
     _unfocus();
     await Future<void>.delayed(Duration.zero);
-    write(SettingsCompanion(setupCompletedAt: Value(DateTime.now())));
+    write(settings.copyWith(setupCompletedAt: DateTime.now()));
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final settings = AppSettings.of(context);
-    final dao = Database.of(context).settingsDao;
-
-    void write(SettingsCompanion changes) =>
-        unawaited(dao.updateSettings(changes));
+    final write = AppSettings.writeOf(context);
 
     // One list, so the step count is never hand-kept.
     final steps = <Widget>[
@@ -113,7 +107,7 @@ class _SetupWizardState extends State<SetupWizard> {
                   const Spacer(),
                   FilledButton(
                     onPressed: isLast
-                        ? () => unawaited(_finish(write))
+                        ? () => unawaited(_finish(settings, write))
                         : () => _goTo(_step + 1),
                     child: Text(isLast ? l10n.setupFinish : l10n.setupNext),
                   ),
@@ -186,8 +180,8 @@ class _Step extends StatelessWidget {
 class _WelcomeStep extends StatelessWidget {
   const _WelcomeStep({required this.settings, required this.write});
 
-  final SettingsRow settings;
-  final _Write write;
+  final AppSettingsData settings;
+  final WriteSettings write;
 
   @override
   Widget build(BuildContext context) {
@@ -205,7 +199,7 @@ class _WelcomeStep extends StatelessWidget {
             groupValue: settings.languageCode,
             onChanged: (code) {
               if (code != null) {
-                write(SettingsCompanion(languageCode: Value(code)));
+                write(settings.copyWith(languageCode: code));
               }
             },
             child: Column(
@@ -230,8 +224,8 @@ class _WelcomeStep extends StatelessWidget {
 class _CurrencyStep extends StatelessWidget {
   const _CurrencyStep({required this.settings, required this.write});
 
-  final SettingsRow settings;
-  final _Write write;
+  final AppSettingsData settings;
+  final WriteSettings write;
 
   @override
   Widget build(BuildContext context) {
@@ -249,7 +243,7 @@ class _CurrencyStep extends StatelessWidget {
             isValidCurrencyCode(value) ? null : l10n.currencyInvalid,
         onCommit: (value) {
           if (value != null) {
-            write(SettingsCompanion(currencyCode: Value(value)));
+            write(settings.copyWith(currencyCode: value));
           }
         },
       ),
@@ -260,8 +254,8 @@ class _CurrencyStep extends StatelessWidget {
 class _ColorStep extends StatelessWidget {
   const _ColorStep({required this.settings, required this.write});
 
-  final SettingsRow settings;
-  final _Write write;
+  final AppSettingsData settings;
+  final WriteSettings write;
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +268,7 @@ class _ColorStep extends StatelessWidget {
         child: ColorPicker(
           selected: Color(settings.seedColorArgb),
           onSelected: (color) =>
-              write(SettingsCompanion(seedColorArgb: Value(color.toARGB32()))),
+              write(settings.copyWith(seedColorArgb: color.toARGB32())),
         ),
       ),
     );
@@ -284,12 +278,12 @@ class _ColorStep extends StatelessWidget {
 class _PinStep extends StatelessWidget {
   const _PinStep({required this.settings, required this.write});
 
-  final SettingsRow settings;
-  final _Write write;
+  final AppSettingsData settings;
+  final WriteSettings write;
 
   Future<void> _edit(BuildContext context) async {
     final pin = await showPinSetDialog(context);
-    if (pin != null) write(SettingsCompanion(adminPin: Value(pin)));
+    if (pin != null) write(settings.copyWith(adminPin: pin));
   }
 
   @override
@@ -321,8 +315,8 @@ class _PinStep extends StatelessWidget {
 class _PayeeStep extends StatelessWidget {
   const _PayeeStep({required this.settings, required this.write});
 
-  final SettingsRow settings;
-  final _Write write;
+  final AppSettingsData settings;
+  final WriteSettings write;
 
   @override
   Widget build(BuildContext context) {
@@ -339,7 +333,7 @@ class _PayeeStep extends StatelessWidget {
             value: settings.payeeName,
             maxLength: epcMaxNameLength,
             onCommit: (value) =>
-                write(SettingsCompanion(payeeName: Value(value))),
+                write(settings.copyWith(payeeName: value)),
           ),
           SettingsTextField(
             label: l10n.payeeIban,
@@ -347,7 +341,7 @@ class _PayeeStep extends StatelessWidget {
             uppercase: true,
             validator: (value) => isValidIban(value) ? null : l10n.ibanInvalid,
             onCommit: (value) =>
-                write(SettingsCompanion(payeeIban: Value(value))),
+                write(settings.copyWith(payeeIban: value)),
           ),
         ],
       ),

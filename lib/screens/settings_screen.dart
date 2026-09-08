@@ -1,13 +1,10 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 
-import '../app_settings.dart';
-import '../data/database.dart';
-import '../data/database_provider.dart';
-import '../data/tables/settings_table.dart';
 import '../l10n/app_localizations.dart';
+import '../settings/app_settings.dart';
+import '../settings/settings_data.dart';
 import '../utils/banking.dart';
 import '../widgets/palette_picker.dart';
 import '../widgets/pin_dialog.dart';
@@ -40,13 +37,9 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final settings = AppSettings.of(context);
-    final dao = Database.of(context).settingsDao;
-
-    // Every control writes straight to the database; the settings stream
-    // rebuilds the whole app, so there is no save button and no restart.
-    // Fire-and-forget: the UI reacts to the stream, not to this future.
-    void write(SettingsCompanion changes) =>
-        unawaited(dao.updateSettings(changes));
+    // Every control writes on the tap and the whole app re-themes, so there is
+    // no save button and no restart.
+    final write = AppSettings.writeOf(context);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settings)),
@@ -127,7 +120,6 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-typedef _Write = void Function(SettingsCompanion changes);
 
 const _cardMargin = EdgeInsets.symmetric(horizontal: 16, vertical: 4);
 
@@ -196,8 +188,8 @@ class _SettingsCard extends StatelessWidget {
 class _AppearanceCard extends StatelessWidget {
   const _AppearanceCard({required this.settings, required this.write});
 
-  final SettingsRow settings;
-  final _Write write;
+  final AppSettingsData settings;
+  final WriteSettings write;
 
   @override
   Widget build(BuildContext context) {
@@ -211,7 +203,7 @@ class _AppearanceCard extends StatelessWidget {
           trailing: ColorPicker(
             selected: Color(settings.seedColorArgb),
             onSelected: (color) => write(
-              SettingsCompanion(seedColorArgb: Value(color.toARGB32())),
+              settings.copyWith(seedColorArgb: color.toARGB32()),
             ),
           ),
         ),
@@ -221,7 +213,7 @@ class _AppearanceCard extends StatelessWidget {
           trailing: SegmentedButton<AppThemeMode>(
             selected: {settings.themeMode},
             onSelectionChanged: (selection) =>
-                write(SettingsCompanion(themeMode: Value(selection.first))),
+                write(settings.copyWith(themeMode: selection.first)),
             segments: [
               ButtonSegment(
                 value: AppThemeMode.light,
@@ -255,7 +247,7 @@ class _AppearanceCard extends StatelessWidget {
                       icon: Icons.bedtime_outlined,
                       time: settings.darkStart,
                       onPicked: (time) =>
-                          write(SettingsCompanion(darkStart: Value(time))),
+                          write(settings.copyWith(darkStart: time)),
                     ),
                   ),
                   Expanded(
@@ -264,7 +256,7 @@ class _AppearanceCard extends StatelessWidget {
                       icon: Icons.wb_sunny_outlined,
                       time: settings.darkEnd,
                       onPicked: (time) =>
-                          write(SettingsCompanion(darkEnd: Value(time))),
+                          write(settings.copyWith(darkEnd: time)),
                     ),
                   ),
                 ],
@@ -367,8 +359,8 @@ class _ReadOnlyFieldState extends State<_ReadOnlyField> {
 class _AdminCard extends StatelessWidget {
   const _AdminCard({required this.settings, required this.write});
 
-  final SettingsRow settings;
-  final _Write write;
+  final AppSettingsData settings;
+  final WriteSettings write;
 
   @override
   Widget build(BuildContext context) {
@@ -401,7 +393,7 @@ class _AdminCard extends StatelessWidget {
           ),
           value: selfRegistration,
           onChanged: (value) =>
-              write(SettingsCompanion(allowSelfRegistration: Value(value))),
+              write(settings.copyWith(allowSelfRegistration: value)),
         ),
         // A three-letter code does not want the full card width.
         Align(
@@ -417,7 +409,7 @@ class _AdminCard extends StatelessWidget {
                   isValidCurrencyCode(value) ? null : l10n.currencyInvalid,
               onCommit: (value) {
                 if (value != null) {
-                  write(SettingsCompanion(currencyCode: Value(value)));
+                  write(settings.copyWith(currencyCode: value));
                 }
               },
             ),
@@ -433,12 +425,12 @@ class _AdminCard extends StatelessWidget {
 class _AdminPinField extends StatelessWidget {
   const _AdminPinField({required this.settings, required this.write});
 
-  final SettingsRow settings;
-  final _Write write;
+  final AppSettingsData settings;
+  final WriteSettings write;
 
   Future<void> _edit(BuildContext context) async {
     final pin = await showPinSetDialog(context);
-    if (pin != null) write(SettingsCompanion(adminPin: Value(pin)));
+    if (pin != null) write(settings.copyWith(adminPin: pin));
   }
 
   Future<void> _remove(BuildContext context) async {
@@ -463,7 +455,7 @@ class _AdminPinField extends StatelessWidget {
     );
 
     if (confirmed ?? false) {
-      write(const SettingsCompanion(adminPin: Value(null)));
+      write(settings.copyWith(adminPin: null));
     }
   }
 
@@ -506,8 +498,8 @@ class _AdminPinField extends StatelessWidget {
 class _LanguageField extends StatelessWidget {
   const _LanguageField({required this.settings, required this.write});
 
-  final SettingsRow settings;
-  final _Write write;
+  final AppSettingsData settings;
+  final WriteSettings write;
 
   @override
   Widget build(BuildContext context) {
@@ -523,7 +515,7 @@ class _LanguageField extends StatelessWidget {
       ),
       onSelected: (code) {
         if (code != null) {
-          write(SettingsCompanion(languageCode: Value(code)));
+          write(settings.copyWith(languageCode: code));
         }
       },
       // Straight from the ARB files via gen-l10n — no hand-kept list to fall
@@ -543,8 +535,8 @@ class _LanguageField extends StatelessWidget {
 class _PayeeCard extends StatelessWidget {
   const _PayeeCard({required this.settings, required this.write});
 
-  final SettingsRow settings;
-  final _Write write;
+  final AppSettingsData settings;
+  final WriteSettings write;
 
   @override
   Widget build(BuildContext context) {
@@ -560,7 +552,7 @@ class _PayeeCard extends StatelessWidget {
           value: settings.payeeName,
           maxLength: epcMaxNameLength,
           onCommit: (value) =>
-              write(SettingsCompanion(payeeName: Value(value))),
+              write(settings.copyWith(payeeName: value)),
         ),
         SettingsTextField(
           label: l10n.payeeIban,
@@ -568,7 +560,7 @@ class _PayeeCard extends StatelessWidget {
           uppercase: true,
           validator: (value) => isValidIban(value) ? null : l10n.ibanInvalid,
           onCommit: (value) =>
-              write(SettingsCompanion(payeeIban: Value(value))),
+              write(settings.copyWith(payeeIban: value)),
         ),
       ],
     );

@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'app_settings.dart';
 import 'data/database_provider.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/setup_wizard.dart';
 import 'screens/start_screen.dart';
 import 'screens/stats_screen.dart';
 import 'screens/users_screen.dart';
+import 'settings/app_settings.dart';
+import 'settings/settings_store.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Without this, DateFormat throws for any locale but the default one.
   await initializeDateFormatting();
+  final store = await SettingsStore.open();
 
-  runApp(const Database(child: AppSettings(child: MainApp())));
+  runApp(
+    Database(child: AppSettings(store: store, child: const MainApp())),
+  );
 }
 
-/// Builds the [MaterialApp].
-///
 /// Must be its own widget class: a closure inside [AppSettings] would build
 /// with the enclosing context, and `AppSettings.of` would find nothing.
 class MainApp extends StatelessWidget {
@@ -40,8 +42,8 @@ class MainApp extends StatelessWidget {
       theme: appTheme(seedColor, Brightness.light),
       darkTheme: appTheme(seedColor, Brightness.dark),
       themeMode: AppSettings.themeModeOf(context),
-      // The wizard writes setupCompletedAt in its closing transaction, which
-      // re-emits the settings row and swaps this over to the shell.
+      // The wizard's last step writes setupCompletedAt, which swaps this over
+      // to the shell.
       home: settings.setupCompletedAt == null
           ? const SetupWizard()
           : const AppShell(),
@@ -53,10 +55,10 @@ class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
   @override
-  State<AppShell> createState() => AppShellState();
+  State<AppShell> createState() => _AppShellState();
 }
 
-class AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> {
   int _index = 0;
 
   @override

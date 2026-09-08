@@ -41,8 +41,7 @@ void main() {
       expect(row.read<bool>('foreign_keys'), isTrue);
     });
 
-    test('onCreate seeds the settings row and one group of each kind', () async {
-      expect((await db.settingsDao.readSettings()).id, 1);
+    test('onCreate seeds one group of each kind', () async {
       expect(await db.select(db.userGroups).get(), hasLength(1));
       expect(await db.select(db.itemGroups).get(), hasLength(1));
     });

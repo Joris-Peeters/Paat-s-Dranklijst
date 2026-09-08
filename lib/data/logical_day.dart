@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart' show TimeOfDay;
 
-import 'converters.dart';
+import '../utils/time_of_day.dart';
 
 /// A day runs 07:00 -> 07:00. People stay up past midnight, so a drink at 01:00
 /// belongs to the evening before rather than to the new calendar date.

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:paats_dranklijst/app_settings.dart';
-import 'package:paats_dranklijst/data/converters.dart';
+import 'package:paats_dranklijst/settings/app_settings.dart';
+import 'package:paats_dranklijst/utils/time_of_day.dart';
 
 TimeOfDay at(int hour, [int minute = 0]) =>
     TimeOfDay(hour: hour, minute: minute);
@@ -63,19 +63,18 @@ void main() {
     });
   });
 
-  group('TimeOfDayConverter', () {
-    const converter = TimeOfDayConverter();
-
-    test('stores minutes since midnight', () {
-      expect(converter.toSql(at(0)), 0);
-      expect(converter.toSql(at(7)), 7 * 60);
-      expect(converter.toSql(at(20, 30)), 20 * 60 + 30);
-      expect(converter.toSql(at(23, 59)), 24 * 60 - 1);
+  // The stored form of darkStart/darkEnd.
+  group('minutes since midnight', () {
+    test('counts from midnight', () {
+      expect(at(0).minutesSinceMidnight, 0);
+      expect(at(7).minutesSinceMidnight, 7 * 60);
+      expect(at(20, 30).minutesSinceMidnight, 20 * 60 + 30);
+      expect(at(23, 59).minutesSinceMidnight, 24 * 60 - 1);
     });
 
     test('round-trips every minute of the day', () {
       for (var minutes = 0; minutes < 24 * 60; minutes++) {
-        expect(converter.toSql(converter.fromSql(minutes)), minutes);
+        expect(timeOfDayFromMinutes(minutes).minutesSinceMidnight, minutes);
       }
     });
   });
