@@ -5,27 +5,21 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
-import '../utils/banking.dart';
 import '../widgets/palette_picker.dart';
-import '../widgets/pin_dialog.dart';
-import '../widgets/settings_text_field.dart';
+import '../widgets/settings_fields.dart';
 
 /// The first-run wizard, shown while `setupCompletedAt` is null.
 ///
-/// Every step is optional: the schema defaults are already a working
-/// configuration. Each control writes straight to the database, exactly as the
-/// settings screen does — so the app re-themes and re-localizes as the choices
-/// are made.
-///
-/// Only `setupCompletedAt` waits for the last step. An interrupted wizard
-/// therefore reappears, with whatever was already chosen still in place.
+/// Every step is optional and every control writes immediately, reusing the
+/// settings screen's own fields, so the app re-themes and re-localizes as the
+/// choices are made. Only `setupCompletedAt` waits for the last step, so an
+/// interrupted wizard reappears with what was already chosen still in place.
 class SetupWizard extends StatefulWidget {
   const SetupWizard({super.key});
 
   @override
   State<SetupWizard> createState() => _SetupWizardState();
 }
-
 
 class _SetupWizardState extends State<SetupWizard> {
   final _pageController = PageController();
@@ -234,19 +228,7 @@ class _CurrencyStep extends StatelessWidget {
     return _Step(
       title: l10n.setupCurrencyTitle,
       body: l10n.setupCurrencyBody,
-      child: SettingsTextField(
-        label: l10n.currency,
-        value: settings.currencyCode,
-        uppercase: true,
-        maxLength: 3,
-        validator: (value) =>
-            isValidCurrencyCode(value) ? null : l10n.currencyInvalid,
-        onCommit: (value) {
-          if (value != null) {
-            write(settings.copyWith(currencyCode: value));
-          }
-        },
-      ),
+      child: CurrencyField(settings: settings, write: write),
     );
   }
 }
@@ -281,11 +263,6 @@ class _PinStep extends StatelessWidget {
   final AppSettingsData settings;
   final WriteSettings write;
 
-  Future<void> _edit(BuildContext context) async {
-    final pin = await showPinSetDialog(context);
-    if (pin != null) write(settings.copyWith(adminPin: pin));
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -303,7 +280,7 @@ class _PinStep extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           FilledButton.tonal(
-            onPressed: () => unawaited(_edit(context)),
+            onPressed: () => unawaited(editAdminPin(context, settings, write)),
             child: Text(isSet ? l10n.pinChange : l10n.pinSet),
           ),
         ],
@@ -328,21 +305,8 @@ class _PayeeStep extends StatelessWidget {
       child: Column(
         spacing: 16,
         children: [
-          SettingsTextField(
-            label: l10n.payeeName,
-            value: settings.payeeName,
-            maxLength: epcMaxNameLength,
-            onCommit: (value) =>
-                write(settings.copyWith(payeeName: value)),
-          ),
-          SettingsTextField(
-            label: l10n.payeeIban,
-            value: settings.payeeIban,
-            uppercase: true,
-            validator: (value) => isValidIban(value) ? null : l10n.ibanInvalid,
-            onCommit: (value) =>
-                write(settings.copyWith(payeeIban: value)),
-          ),
+          PayeeNameField(settings: settings, write: write),
+          PayeeIbanField(settings: settings, write: write),
         ],
       ),
     );

@@ -37,25 +37,21 @@ const epcMaxNameLength = 70;
 const epcMaxMessageLength = 140;
 
 /// Largest transfer an EPC QR code can carry: EUR 999 999 999.99.
-const epcMaxAmountMinorUnits = 99999999999;
+const epcMaxAmountMinorUnits = 999_999_999_99;
 
 /// The whole payload must stay within this many UTF-8 bytes.
 const epcMaxPayloadBytes = 331;
 
-/// Builds the payload encoded in a SEPA Credit Transfer QR code, per the EPC's
-/// "Quick Response Code Guidelines" (EPC069-12, version 002).
+/// Builds the payload for a SEPA Credit Transfer QR code, per the EPC's "Quick
+/// Response Code Guidelines" (EPC069-12, version 002).
 ///
-/// The result is the UTF-8 bytes of the newline-separated fields, which
-/// `EpcQrCode` encodes in QR byte mode — the standard declares its own charset
-/// in field 3, so the bytes are what the reader decodes. Banking apps scan it to
-/// prefill a transfer, so a malformed payload is worse than none — every
-/// constraint below is validated rather than silently truncated.
+/// Returns UTF-8 bytes rather than a string because the payload declares its
+/// own charset in field 3, so `EpcQrCode` encodes it in QR byte mode. A banking
+/// app prefills a transfer from this, where a malformed payload is worse than
+/// none — hence [ArgumentError] rather than silent truncation.
 ///
-/// [amountMinorUnits] is in cents, like all money in this app (see rule 2), and
-/// may be 0 to leave the amount for the payer to fill in. The scheme is
-/// euro-only, so cents are the right unit by definition here.
-///
-/// Throws [ArgumentError] if any field breaks the standard.
+/// [amountMinorUnits] is in cents; the scheme is euro-only. 0 leaves the amount
+/// for the payer.
 Uint8List buildEpcPayload({
   required String beneficiaryName,
   required String iban,

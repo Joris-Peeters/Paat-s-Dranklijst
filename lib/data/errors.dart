@@ -1,8 +1,7 @@
 /// Domain failures the DAOs raise instead of letting a constraint blow up.
 ///
-/// Each one is a condition the UI should prevent before the tap, by disabling
-/// the action with an explanation. They exist so that when it slips through
-/// anyway the failure is a clear message rather than a foreign-key violation.
+/// The UI should prevent each one before the tap by disabling the action with
+/// an explanation; these are what it costs when that slips through.
 library;
 
 /// A group still holds users or items, so it cannot be deleted.
@@ -26,10 +25,8 @@ class GroupInUseException implements Exception {
       '$archivedCount archived rows';
 }
 
-/// A member cannot be archived while their balance is not zero.
-///
-/// Settle up or post an adjustment first — archiving is not a way to make a
-/// debt disappear quietly.
+/// A member cannot be archived while their balance is not zero: settle up or
+/// post an adjustment first.
 class MemberHasBalanceException implements Exception {
   const MemberHasBalanceException({
     required this.userId,

@@ -9,8 +9,8 @@ import 'users_table.dart';
 /// voiding for a mis-tap. Adjusting records; voiding erases.
 enum TransactionType { consumption, topUp, adjustment }
 
-/// The append-only ledger. See rule 1: rows are never DELETEd, and the only
-/// permitted update is the one-way `voidedAt` transition.
+/// The append-only ledger: rows are never DELETEd, and the only permitted
+/// update is the one-way `voidedAt` transition.
 @DataClassName('TransactionRow')
 // For balance lookups
 @TableIndex(
@@ -30,9 +30,8 @@ class Transactions extends Table {
 
   TextColumn get type => textEnum<TransactionType>()();
 
-  /// The signed **line total**, never a unit price: negative is spending,
-  /// positive is credit the member holds. Makes the balance one type-agnostic
-  /// SUM, so a fourth transaction type would need no balance changes.
+  /// The signed line total, never a unit price: negative is spending, positive
+  /// is credit. Keeps the balance a single type-agnostic SUM.
   IntColumn get amountMinorUnits => integer()();
 
   /// Display only — [amountMinorUnits] already has this multiplied in.

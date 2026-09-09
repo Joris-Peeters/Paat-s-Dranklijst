@@ -17,11 +17,11 @@ class EpcQrCode extends StatelessWidget {
     this.size = 240,
   });
 
-  /// Both are nullable so the settings columns can be passed straight through.
+  /// Both are nullable so the settings fields can be passed straight through.
   final String? beneficiaryName;
   final String? iban;
 
-  /// In cents (see rule 2). 0 leaves the amount for the payer to fill in.
+  /// In cents. 0 leaves the amount for the payer to fill in.
   final int amountMinorUnits;
 
   final String? message;
@@ -71,7 +71,7 @@ class EpcQrCode extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        // Deliberately not the colour scheme, unlike everything else (rule 4):
+        // Deliberately not the colour scheme, unlike everything else:
         // scanners expect dark modules on light, and dark mode would invert it.
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),

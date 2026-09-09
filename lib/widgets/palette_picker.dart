@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 
 // Used for small inline color picker
-const seedColorPaletteSmall = <Color>[
+const _seedColorPaletteSmall = <Color>[
   Colors.red,
   Colors.green,
   Colors.blue,
@@ -58,7 +58,7 @@ class ColorPicker extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       spacing: 8,
       children: [
-        for (final swatch in seedColorPaletteSmall)
+        for (final swatch in _seedColorPaletteSmall)
           _Swatch(
             color: swatch,
             size: 40,

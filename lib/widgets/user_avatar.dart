@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// A member's emoji in a circle tinted from *their* seed colour.
+/// A member's emoji in a circle tinted from their own seed colour.
 ///
-/// The colour is never painted raw: it goes through a `ColorScheme`, applied by
-/// wrapping the circle in a `Theme` so everything inside — the ink splash
-/// included — picks up the member's palette. See rule 4.
-///
-/// Takes the emoji and colour loose rather than a `UserRow`: the create screen
-/// picks both before a row exists (rule 6).
+/// The colour is never painted raw: wrapping the circle in a `Theme` means
+/// everything inside, the ink splash included, picks up the member's palette.
+/// Takes the emoji and colour loose rather than a `UserRow`, so the create
+/// screen can use it before a row exists.
 class UserAvatar extends StatelessWidget {
   const UserAvatar({
     super.key,
@@ -63,9 +61,9 @@ class _AvatarCircle extends StatelessWidget {
           width: size,
           height: size,
           child: Center(
-            // `height: 1.0` drops the font's leading so the glyph box is the
-            // font size and Center really centres it. The colour only shows
-            // where the platform has no colour emoji font and draws an outline.
+            // `height: 1.0` drops the font's generous leading, without which
+            // Center visibly misses. The colour only shows where the platform
+            // has no colour emoji font and draws an outline.
             child: Text(
               emoji,
               textAlign: TextAlign.center,

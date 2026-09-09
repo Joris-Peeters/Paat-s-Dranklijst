@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 
-/// A text field backed by one settings column.
+/// A text field backed by one setting, committing on blur or submit rather
+/// than per keystroke.
 ///
-/// Stateful for one specific reason: every settings write re-emits the row and
-/// rebuilds whoever is showing it. A field whose controller were rebuilt from
-/// that value on each frame would fight the cursor, so the controller is owned
-/// here and only re-synced from the database **while unfocused**.
-///
-/// Commits on blur or submit, never per keystroke — a database write per
-/// character is wasteful and makes the field jump.
+/// Stateful because every settings write rebuilds whoever is showing it. A
+/// controller rebuilt from that value each frame would fight the cursor, so it
+/// is owned here and re-synced only while unfocused.
 class SettingsTextField extends StatefulWidget {
   const SettingsTextField({
     super.key,

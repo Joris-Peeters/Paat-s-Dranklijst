@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../database.dart';
 import '../errors.dart';
+import '../group_usage.dart';
 import '../tables/user_groups_table.dart';
 import '../tables/users_table.dart';
 import '../views/user_balances_view.dart';
@@ -19,19 +20,8 @@ class MemberWithBalance {
   final UserRow user;
   final UserGroupRow group;
 
-  /// Positive means the member has credit, negative means they owe. See rule 1.
+  /// Positive means the member has credit, negative means they owe.
   final int balanceMinorUnits;
-}
-
-/// How many rows a group holds. Archived rows count: they still carry a
-/// `groupId`, so they pin the group just as hard. See rule 7.
-class GroupUsage {
-  const GroupUsage({required this.activeCount, required this.archivedCount});
-
-  final int activeCount;
-  final int archivedCount;
-
-  int get total => activeCount + archivedCount;
 }
 
 /// Queries against members and the groups they belong to.
@@ -99,8 +89,8 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
   }
 
   /// [avatarEmoji] and [seedColorArgb] are required rather than defaulted here:
-  /// the caller picks them at random from the curated palette (rule 4), which
-  /// this layer has no business knowing about.
+  /// the caller picks them at random from the curated palette, which this
+  /// layer has no business knowing about.
   Future<int> createUser({
     required String name,
     required int groupId,
@@ -124,7 +114,7 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
   }
 
   /// Soft delete. Refuses a member who still owes or holds money — archiving is
-  /// not a way to make a debt disappear quietly. See rule 7.
+  /// not a way to make a debt disappear quietly.
   Future<void> archiveUser(int id) => transaction(() async {
     final balance = await readBalance(id);
     if (balance != 0) {
@@ -159,7 +149,7 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
 
   /// Hard delete, allowed only while the group is genuinely unreferenced. The
   /// count and the delete share this transaction so the check cannot go stale
-  /// between them. See rule 7.
+  /// between them.
   Future<void> deleteUserGroup(int id) => transaction(() async {
     final usage = await userGroupUsage(id);
     if (usage.total > 0) {
@@ -219,5 +209,4 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     final row = await (selectOnly(userGroups)..addColumns([max])).getSingle();
     return (row.read(max) ?? -1) + 1;
   }
-
 }

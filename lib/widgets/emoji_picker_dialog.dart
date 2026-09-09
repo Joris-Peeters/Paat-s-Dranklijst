@@ -51,9 +51,10 @@ class EmojiPickerDialog extends StatelessWidget {
           config: Config(
             // The package wraps itself in a SizedBox of this height.
             height: min(screen.height * 0.5, _maxHeight),
-            // We ship our own emoji font, and this check probes the *platform*
-            // font — so leaving it on would cost a startup pass over the whole
-            // set and filter out glyphs we can actually draw.
+            // The check renders every emoji once at startup to drop the ones
+            // the platform font lacks — too slow on a cheap tablet. Android
+            // and iOS always ship a font, and a Linux kiosk image is expected
+            // to have one installed.
             checkPlatformCompatibility: false,
             // No fontSize: this is merged over a style that already carries the
             // responsive per-cell size, and setting one would freeze it.

@@ -2,9 +2,9 @@ import 'package:drift/drift.dart';
 
 import '../database.dart';
 import '../errors.dart';
+import '../group_usage.dart';
 import '../tables/item_groups_table.dart';
 import '../tables/items_table.dart';
-import 'users_dao.dart' show GroupUsage;
 
 part 'items_dao.g.dart';
 
@@ -82,7 +82,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
   }
 
   /// Hard delete, allowed only while unreferenced. The count and the delete
-  /// share this transaction so the check cannot go stale. See rule 7.
+  /// share this transaction so the check cannot go stale.
   Future<void> deleteItemGroup(int id) => transaction(() async {
     final usage = await itemGroupUsage(id);
     if (usage.total > 0) {
@@ -138,5 +138,4 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     final row = await (selectOnly(itemGroups)..addColumns([max])).getSingle();
     return (row.read(max) ?? -1) + 1;
   }
-
 }

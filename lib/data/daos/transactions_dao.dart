@@ -10,8 +10,8 @@ part 'transactions_dao.g.dart';
 /// The append-only ledger.
 ///
 /// This is the only place in the app that writes a transaction row, so the sign
-/// convention (rule 1) and the item snapshot freeze are decided in exactly one
-/// file. Nothing here DELETEs.
+/// convention and the item snapshot freeze are decided in exactly one file.
+/// Nothing here DELETEs.
 @DriftAccessor(tables: [Transactions, Items])
 class TransactionsDao extends DatabaseAccessor<AppDatabase>
     with _$TransactionsDaoMixin {
@@ -40,7 +40,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         userId: userId,
         type: TransactionType.consumption,
         // Negative, and the line total rather than the unit price: the balance
-        // is a plain SUM over this column. See rule 1.
+        // is a plain SUM over this column.
         amountMinorUnits: -(item.priceMinorUnits * quantity),
         quantity: Value(quantity),
         itemId: Value(item.id),
@@ -93,11 +93,8 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// One-way: null -> timestamp, never cleared, never a DELETE. The
-  /// `voidedAt IS NULL` guard makes a second call a no-op rather than a second
-  /// timestamp. The amount, snapshots and createdAt are left untouched.
-  ///
-  /// Who may call this is UI policy: an inline undo within the first minute,
-  /// the admin PIN and a note after that.
+  /// `voidedAt IS NULL` guard makes a second call a no-op, and the amount,
+  /// snapshots and createdAt are left untouched.
   Future<void> voidTransaction(int id, {String? note}) async {
     await (update(transactions)
           ..where((t) => t.id.equals(id) & t.voidedAt.isNull()))
@@ -137,11 +134,10 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   /// member. Voided rows and non-consumption types are excluded: a mis-tap is
   /// not a drink, and a top-up is not one either.
   ///
-  /// [at] is required rather than defaulting to now on purpose. A stream
-  /// resolves its day once, at subscription, and this kiosk runs untouched for
-  /// months — an implicit "now" would keep reporting yesterday's total after
-  /// 07:00. The caller decides how it refreshes, the way `AppSettings` does for
-  /// the theme schedule.
+  /// [at] is required rather than defaulting to now: a stream resolves its day
+  /// once, at subscription, so on a kiosk left running for months an implicit
+  /// "now" would keep reporting yesterday after 07:00. The caller decides how
+  /// it refreshes.
   Stream<int> watchConsumptionCount({required DateTime at, int? userId}) {
     final count = countAll();
     final query = selectOnly(transactions)

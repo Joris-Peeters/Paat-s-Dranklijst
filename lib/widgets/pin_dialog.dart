@@ -12,7 +12,7 @@ const pinLength = 4;
 
 /// Asks for a new PIN twice. Resolves to the confirmed PIN, or null if dismissed.
 Future<String?> showPinSetDialog(BuildContext context) =>
-    showDialog<String>(context: context, builder: (_) => const PinSetDialog());
+    showDialog<String>(context: context, builder: (_) => const _PinSetDialog());
 
 /// Asks for the admin PIN. Pops `true` on a match, `null` if dismissed.
 ///
@@ -64,14 +64,14 @@ class _PinEnterDialogState extends State<PinEnterDialog> {
 }
 
 /// Asks for a new PIN, then for it again. Pops the PIN, or `null` if dismissed.
-class PinSetDialog extends StatefulWidget {
-  const PinSetDialog({super.key});
+class _PinSetDialog extends StatefulWidget {
+  const _PinSetDialog();
 
   @override
-  State<PinSetDialog> createState() => _PinSetDialogState();
+  State<_PinSetDialog> createState() => _PinSetDialogState();
 }
 
-class _PinSetDialogState extends State<PinSetDialog> {
+class _PinSetDialogState extends State<_PinSetDialog> {
   String? _first;
   String? _error;
 
@@ -143,9 +143,6 @@ class _PinPad extends StatefulWidget {
   State<_PinPad> createState() => _PinPadState();
 }
 
-// `SingleTickerProviderStateMixin` supplies the `vsync` below: it ties the
-// controller to this screen's frame callbacks, so the shake stops ticking when
-// the pad is off screen.
 class _PinPadState extends State<_PinPad> with SingleTickerProviderStateMixin {
   late final AnimationController _shake = AnimationController(
     duration: const Duration(milliseconds: 400),

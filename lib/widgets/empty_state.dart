@@ -9,7 +9,8 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.outline;
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.outline;
 
     return Center(
       child: Padding(
@@ -22,8 +23,7 @@ class EmptyState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge
-                  ?.copyWith(color: color),
+              style: theme.textTheme.bodyLarge?.copyWith(color: color),
             ),
           ],
         ),

@@ -5,11 +5,10 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
-import '../utils/banking.dart';
 import '../widgets/palette_picker.dart';
 import '../widgets/pin_dialog.dart';
-import '../widgets/settings_text_field.dart';
-import 'management_screens.dart';
+import '../widgets/settings_fields.dart';
+import 'management_stub_screen.dart';
 
 /// Opens the settings screen, asking for the admin PIN first when one is set.
 Future<void> openSettings(BuildContext context) async {
@@ -69,27 +68,26 @@ class SettingsScreen extends StatelessWidget {
 
   /// One record per management area — a fourth is one more entry here.
   List<Widget> _managementCards(BuildContext context, AppLocalizations l10n) {
-    final areas =
-        <({IconData icon, String title, String subtitle, String empty})>[
-          (
-            icon: Icons.people_rounded,
-            title: l10n.manageMembers,
-            subtitle: l10n.manageMembersSubtitle,
-            empty: l10n.noMembersYet,
-          ),
-          (
-            icon: Icons.groups_rounded,
-            title: l10n.manageGroups,
-            subtitle: l10n.manageGroupsSubtitle,
-            empty: l10n.noGroupsYet,
-          ),
-          (
-            icon: Icons.local_cafe,
-            title: l10n.manageItems,
-            subtitle: l10n.manageItemsSubtitle,
-            empty: l10n.noItemsYet,
-          ),
-        ];
+    final areas = <_ManagementArea>[
+      (
+        icon: Icons.people_rounded,
+        title: l10n.manageMembers,
+        subtitle: l10n.manageMembersSubtitle,
+        empty: l10n.noMembersYet,
+      ),
+      (
+        icon: Icons.groups_rounded,
+        title: l10n.manageGroups,
+        subtitle: l10n.manageGroupsSubtitle,
+        empty: l10n.noGroupsYet,
+      ),
+      (
+        icon: Icons.local_cafe,
+        title: l10n.manageItems,
+        subtitle: l10n.manageItemsSubtitle,
+        empty: l10n.noItemsYet,
+      ),
+    ];
 
     return [
       for (final area in areas)
@@ -120,6 +118,12 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
+typedef _ManagementArea = ({
+  IconData icon,
+  String title,
+  String subtitle,
+  String empty,
+});
 
 const _cardMargin = EdgeInsets.symmetric(horizontal: 16, vertical: 4);
 
@@ -400,19 +404,7 @@ class _AdminCard extends StatelessWidget {
           alignment: AlignmentDirectional.centerStart,
           child: SizedBox(
             width: 200,
-            child: SettingsTextField(
-              label: l10n.currency,
-              value: settings.currencyCode,
-              uppercase: true,
-              maxLength: 3,
-              validator: (value) =>
-                  isValidCurrencyCode(value) ? null : l10n.currencyInvalid,
-              onCommit: (value) {
-                if (value != null) {
-                  write(settings.copyWith(currencyCode: value));
-                }
-              },
-            ),
+            child: CurrencyField(settings: settings, write: write),
           ),
         ),
       ],
@@ -427,11 +419,6 @@ class _AdminPinField extends StatelessWidget {
 
   final AppSettingsData settings;
   final WriteSettings write;
-
-  Future<void> _edit(BuildContext context) async {
-    final pin = await showPinSetDialog(context);
-    if (pin != null) write(settings.copyWith(adminPin: pin));
-  }
 
   Future<void> _remove(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
@@ -466,7 +453,7 @@ class _AdminPinField extends StatelessWidget {
 
     return _ReadOnlyField(
       value: isSet ? List.filled(pinLength, '●').join(' ') : '',
-      onTap: () => unawaited(_edit(context)),
+      onTap: () => unawaited(editAdminPin(context, settings, write)),
       decoration: InputDecoration(
         labelText: l10n.adminPin,
         helperText: isSet ? l10n.adminPinSet : l10n.adminPinNotSet,
@@ -480,7 +467,8 @@ class _AdminPinField extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.edit),
               tooltip: isSet ? l10n.pinChange : l10n.pinSet,
-              onPressed: () => unawaited(_edit(context)),
+              onPressed: () =>
+                  unawaited(editAdminPin(context, settings, write)),
             ),
             if (isSet)
               IconButton(
@@ -547,21 +535,8 @@ class _PayeeCard extends StatelessWidget {
         // The explanation covers both fields, so it is the card's note rather
         // than one field's helper text.
         _Note(l10n.payeeHelp),
-        SettingsTextField(
-          label: l10n.payeeName,
-          value: settings.payeeName,
-          maxLength: epcMaxNameLength,
-          onCommit: (value) =>
-              write(settings.copyWith(payeeName: value)),
-        ),
-        SettingsTextField(
-          label: l10n.payeeIban,
-          value: settings.payeeIban,
-          uppercase: true,
-          validator: (value) => isValidIban(value) ? null : l10n.ibanInvalid,
-          onCommit: (value) =>
-              write(settings.copyWith(payeeIban: value)),
-        ),
+        PayeeNameField(settings: settings, write: write),
+        PayeeIbanField(settings: settings, write: write),
       ],
     );
   }
@@ -578,7 +553,7 @@ class _AboutCard extends StatelessWidget {
       children: [
         _Note(l10n.aboutLicensesHelp),
         // Flutter's own page, localized by MaterialLocalizations. It lists
-        // every package plus the emoji font registered in main().
+        // the licence of every package we depend on.
         OutlinedButton.icon(
           icon: const Icon(Icons.description_outlined),
           label: Text(l10n.aboutLicenses),
