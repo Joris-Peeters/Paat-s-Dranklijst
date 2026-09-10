@@ -35,18 +35,19 @@ bool isDarkAt({
 /// The theme mode to actually apply, with the schedule resolved against the
 /// wall clock. Never [ThemeMode.system]: the schedule is not a mirror of the
 /// device theme.
-ThemeMode _themeModeFor(AppSettingsData settings) => switch (settings.themeMode) {
-  AppThemeMode.light => ThemeMode.light,
-  AppThemeMode.dark => ThemeMode.dark,
-  AppThemeMode.scheduled =>
-    isDarkAt(
-          now: TimeOfDay.now(),
-          start: settings.darkStart,
-          end: settings.darkEnd,
-        )
-        ? ThemeMode.dark
-        : ThemeMode.light,
-};
+ThemeMode _themeModeFor(AppSettingsData settings) =>
+    switch (settings.themeMode) {
+      AppThemeMode.light => ThemeMode.light,
+      AppThemeMode.dark => ThemeMode.dark,
+      AppThemeMode.scheduled =>
+        isDarkAt(
+              now: TimeOfDay.now(),
+              start: settings.darkStart,
+              end: settings.darkEnd,
+            )
+            ? ThemeMode.dark
+            : ThemeMode.light,
+    };
 
 /// Ambient app settings, published to the whole tree.
 ///

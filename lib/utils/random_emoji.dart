@@ -15,7 +15,7 @@ final _avatarEmojis = <String>[
       for (final emoji in category.emoji) emoji.emoji,
 ];
 
-/// A random emoji for a new member.
+/// A random emoji for a new user.
 ///
 /// Uniform over the flattened pool rather than category-then-emoji, so a second
 /// category could not quietly over-weight the smaller one.

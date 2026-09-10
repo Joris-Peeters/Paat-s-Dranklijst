@@ -4,9 +4,9 @@ import 'user_theme_scope.dart';
 
 /// An emoji in a circle, tinted from the ambient theme.
 ///
-/// Use this where the page is already inside the member's own
+/// Use this where the page is already inside the user's own
 /// [UserThemeScope]; use [UserAvatar] anywhere else. Splitting the two keeps a
-/// member's own page from installing their theme twice for one circle.
+/// user's own page from installing their theme twice for one circle.
 class AvatarCircle extends StatelessWidget {
   const AvatarCircle({
     super.key,
@@ -57,8 +57,8 @@ class AvatarCircle extends StatelessWidget {
   }
 }
 
-/// A member's avatar on a page that is not theirs: brings their palette with
-/// it, so a list on the app's theme still shows each member in their own
+/// A user's avatar on a page that is not theirs: brings their palette with
+/// it, so a list on the app's theme still shows each user in their own
 /// colour.
 ///
 /// Takes the emoji and colour loose rather than a `UserRow`, so the create

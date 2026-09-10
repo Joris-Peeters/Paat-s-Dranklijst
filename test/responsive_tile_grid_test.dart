@@ -82,4 +82,79 @@ void main() {
       greaterThanOrEqualTo(180),
     );
   });
+
+  testWidgets('tileHeight holds as the window widens', (tester) async {
+    Future<Size> tileAt(double width) async {
+      tester.view.physicalSize = Size(width, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: ResponsiveTileGrid(
+              minTileWidth: 260,
+              tileHeight: 88,
+              children: [ColoredBox(key: ValueKey(0), color: Colors.blue)],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      return tester.getSize(find.byKey(const ValueKey(0)));
+    }
+
+    // A row of avatar, name and amount does not get taller with the window,
+    // which is exactly what an aspect ratio would do to it. Width is left out
+    // on purpose: a wider window adds columns, so tiles get narrower, not
+    // wider.
+    expect((await tileAt(400)).height, 88);
+    expect((await tileAt(900)).height, 88);
+    expect((await tileAt(1600)).height, 88);
+  });
+
+  testWidgets('a shrinkWrap grid sizes to its rows and does not scroll', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                ResponsiveTileGrid(
+                  minTileWidth: 180,
+                  tileHeight: 100,
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  spacing: 0,
+                  children: [
+                    ColoredBox(key: ValueKey('a'), color: Colors.blue),
+                    ColoredBox(key: ValueKey('b'), color: Colors.blue),
+                  ],
+                ),
+                SizedBox(key: ValueKey('after'), height: 10),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // One row of two tiles at 400px wide, so the grid claims exactly 100px and
+    // the widget after it starts right below.
+    expect(tester.takeException(), isNull);
+    expect(tester.getTopLeft(find.byKey(const ValueKey('after'))).dy, 100);
+    expect(
+      tester.widget<GridView>(find.byType(GridView)).physics,
+      isA<NeverScrollableScrollPhysics>(),
+    );
+  });
 }

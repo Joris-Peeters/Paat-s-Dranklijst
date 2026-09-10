@@ -18,7 +18,9 @@ Future<void> main() async {
   final store = await SettingsStore.open();
 
   runApp(
-    Database(child: AppSettings(store: store, child: const MainApp())),
+    Database(
+      child: AppSettings(store: store, child: const MainApp()),
+    ),
   );
 }
 

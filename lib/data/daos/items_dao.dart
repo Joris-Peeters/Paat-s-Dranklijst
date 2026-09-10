@@ -61,6 +61,37 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     return query.watch();
   }
 
+  /// Every active item, grouped under its category, both in `sortOrder`.
+  ///
+  /// A category holding nothing on offer is left out entirely rather than
+  /// rendering as an empty heading — which the inner join does for free, since
+  /// a category with no surviving item produces no row.
+  Stream<List<({ItemGroupRow group, List<ItemRow> items})>>
+  watchItemsByCategory() {
+    final query =
+        select(itemGroups)
+            .join([innerJoin(items, items.groupId.equalsExp(itemGroups.id))])
+          ..where(items.archivedAt.isNull())
+          ..orderBy([
+            OrderingTerm(expression: itemGroups.sortOrder),
+            OrderingTerm(expression: items.sortOrder),
+          ]);
+
+    return query.watch().map((rows) {
+      // Grouped in Dart rather than in SQL: the rows already arrive in the
+      // right order, so this is one pass with no second query.
+      final sections = <({ItemGroupRow group, List<ItemRow> items})>[];
+      for (final row in rows) {
+        final group = row.readTable(itemGroups);
+        if (sections.isEmpty || sections.last.group.id != group.id) {
+          sections.add((group: group, items: <ItemRow>[]));
+        }
+        sections.last.items.add(row.readTable(items));
+      }
+      return sections;
+    });
+  }
+
   /// Categories with their item counts, in one query rather than a count per
   /// row. Left-joined so an empty category still appears — an empty one is the
   /// only kind that can be deleted.

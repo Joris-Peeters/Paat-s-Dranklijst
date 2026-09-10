@@ -10,7 +10,7 @@ import '../widgets/user_avatar.dart';
 import 'settings_screen.dart';
 
 /// Overview: summary stats and recent history. Not built yet — for now it
-/// demonstrates the member avatar and the two pickers behind it.
+/// demonstrates the user avatar and the two pickers behind it.
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
 
@@ -19,7 +19,7 @@ class StartScreen extends StatefulWidget {
 }
 
 class _StartScreenState extends State<StartScreen> {
-  // Demo state only, and deliberately local: a real member's emoji and colour
+  // Demo state only, and deliberately local: a real user's emoji and colour
   // come from their row, and writing the *global* seed here would re-theme the
   // whole app instead of just this avatar.
   String _emoji = randomAvatarEmoji();

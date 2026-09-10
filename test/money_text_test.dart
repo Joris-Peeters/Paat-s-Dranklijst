@@ -58,7 +58,7 @@ void main() {
     expect(find.text('-€2.50'), findsOneWidget);
   });
 
-  testWidgets('a caller style merges over the resolved colour', (tester) async {
+  testWidgets('a caller style keeps its own decoration', (tester) async {
     await tester.pumpWidget(
       await settingsHarness(
         const MoneyText(
@@ -71,5 +71,43 @@ void main() {
     final style = tester.widget<Text>(find.byType(Text)).style!;
     expect(style.decoration, TextDecoration.lineThrough);
     expect(style.color, isNotNull);
+  });
+
+  testWidgets('a themed style does not win on colour', (tester) async {
+    // The regression this guards: nearly every text theme style carries a
+    // colour of its own, and merging the caller's style last let that colour
+    // silently replace the one thing this widget exists to decide.
+    await tester.pumpWidget(
+      await settingsHarness(
+        const MoneyText(
+          amountMinorUnits: -300,
+          style: TextStyle(color: Colors.purple, fontSize: 30),
+        ),
+      ),
+    );
+
+    final style = tester.widget<Text>(find.byType(Text)).style!;
+    expect(style.color, isNot(Colors.purple));
+    expect(
+      style.color,
+      Theme.of(tester.element(find.byType(MoneyText))).colorScheme.error,
+    );
+    // Everything else the caller asked for survives.
+    expect(style.fontSize, 30);
+  });
+
+  testWidgets('colored: false leaves the caller in charge', (tester) async {
+    // A price is not a balance, so it must not read as credit.
+    await tester.pumpWidget(
+      await settingsHarness(
+        const MoneyText(
+          amountMinorUnits: 150,
+          colored: false,
+          style: TextStyle(color: Colors.purple),
+        ),
+      ),
+    );
+
+    expect(tester.widget<Text>(find.byType(Text)).style?.color, Colors.purple);
   });
 }

@@ -121,9 +121,8 @@ class _ItemCategoryContentsScreenState
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => unawaited(
-          showItemEditDialog(context, presetGroupId: widget.group.id),
-        ),
+        onPressed: () =>
+            unawaited(showItemEditDialog(context, presetGroup: widget.group)),
         icon: const Icon(Icons.add),
         label: Text(l10n.newItem),
       ),

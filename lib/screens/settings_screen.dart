@@ -122,15 +122,15 @@ class _UserGroupsCard extends StatefulWidget {
 class _UserGroupsCardState extends State<_UserGroupsCard> {
   // Built once: `Database.of` depends on an inherited widget, so it cannot run
   // in initState, and rebuilding it in build would resubscribe every frame.
-  late final Stream<({int groups, int members})> _counts = Database.of(context)
+  late final Stream<({int groups, int users})> _counts = Database.of(context)
       .usersDao
       .watchUserGroupsWithUsage()
       .map(
         (rows) => (
           groups: rows.length,
-          // Archived members included: the point of the number is how much the
+          // Archived users included: the point of the number is how much the
           // group holds, and an archived row weighs the same here.
-          members: rows.fold(0, (sum, row) => sum + row.usage.total),
+          users: rows.fold(0, (sum, row) => sum + row.usage.total),
         ),
       );
 
@@ -143,7 +143,7 @@ class _UserGroupsCardState extends State<_UserGroupsCard> {
       title: l10n.userGroups,
       subtitle: l10n.userGroupsSubtitle,
       counts: _counts.map(
-        (counts) => l10n.userGroupsSummary(counts.groups, counts.members),
+        (counts) => l10n.userGroupsSummary(counts.groups, counts.users),
       ),
       open: UserGroupsScreen.new,
     );

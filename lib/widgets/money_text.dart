@@ -16,6 +16,7 @@ class MoneyText extends StatelessWidget {
     super.key,
     required this.amountMinorUnits,
     this.signed = false,
+    this.colored = true,
     this.style,
     this.textAlign,
   });
@@ -27,8 +28,14 @@ class MoneyText extends StatelessWidget {
   /// better without it.
   final bool signed;
 
-  /// Merged over the resolved colour, so a caller can strike the amount
-  /// through without losing it.
+  /// Whether the amount is coloured by what it means.
+  ///
+  /// False for a price tag: nobody holds a price, so painting one green would
+  /// dilute the colour where it does mean something.
+  final bool colored;
+
+  /// The base style. The meaning is painted over it, so a caller can pass a
+  /// themed style — or a strikethrough — without losing the colour.
   final TextStyle? style;
 
   final TextAlign? textAlign;
@@ -51,11 +58,17 @@ class MoneyText extends StatelessWidget {
           ? AppLocalizations.of(context).amountPositive(amount)
           : amount,
       textAlign: textAlign,
-      style: TextStyle(
-        color: color,
-        // Digits of equal width, so a column of amounts lines up.
-        fontFeatures: const [FontFeature.tabularFigures()],
-      ).merge(style),
+      // The caller's style is the base and the meaning goes on top. Merging the
+      // other way round let a themed style win on colour — `titleLarge` carries
+      // one — which is the single thing this widget exists to decide. A null
+      // colour (a zero balance) still leaves the caller's own.
+      style: (style ?? const TextStyle()).merge(
+        TextStyle(
+          color: colored ? color : null,
+          // Digits of equal width, so a column of amounts lines up.
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
     );
   }
 }

@@ -6,7 +6,7 @@ library;
 
 /// A group still holds users or items, so it cannot be deleted.
 ///
-/// [archivedCount] is the subtle half: an archived member still carries a
+/// [archivedCount] is the subtle half: an archived user still carries a
 /// `groupId`, so a group can look empty on screen while archived rows pin it.
 class GroupInUseException implements Exception {
   const GroupInUseException({
@@ -25,10 +25,10 @@ class GroupInUseException implements Exception {
       '$archivedCount archived rows';
 }
 
-/// A member cannot be archived while their balance is not zero: settle up or
+/// A user cannot be archived while their balance is not zero: settle up or
 /// post an adjustment first.
-class MemberHasBalanceException implements Exception {
-  const MemberHasBalanceException({
+class UserHasBalanceException implements Exception {
+  const UserHasBalanceException({
     required this.userId,
     required this.balanceMinorUnits,
   });
@@ -38,6 +38,6 @@ class MemberHasBalanceException implements Exception {
 
   @override
   String toString() =>
-      'MemberHasBalanceException: member $userId still has a balance of '
+      'UserHasBalanceException: user $userId still has a balance of '
       '$balanceMinorUnits';
 }

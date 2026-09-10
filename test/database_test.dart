@@ -16,7 +16,7 @@ void main() {
   setUp(() => db = AppDatabase(executor: NativeDatabase.memory()));
   tearDown(() => db.close());
 
-  Future<int> addMember({String name = 'Jonas', int groupId = seededGroup}) =>
+  Future<int> addUser({String name = 'Jonas', int groupId = seededGroup}) =>
       db.usersDao.createUser(
         name: name,
         groupId: groupId,
@@ -24,10 +24,14 @@ void main() {
         seedColorArgb: 0xFF009688,
       );
 
-  Future<ItemRow> addItem({String name = 'Cola', int price = 150}) async {
+  Future<ItemRow> addItem({
+    String name = 'Cola',
+    int price = 150,
+    int groupId = seededGroup,
+  }) async {
     final id = await db.itemsDao.createItem(
       name: name,
-      groupId: seededGroup,
+      groupId: groupId,
       priceMinorUnits: price,
       emoji: '🥤',
     );
@@ -45,7 +49,7 @@ void main() {
       expect(await db.select(db.itemGroups).get(), hasLength(1));
     });
 
-    test('a member cannot point at a group that does not exist', () async {
+    test('a user cannot point at a group that does not exist', () async {
       // Matched on the message rather than the type: a constraint violation
       // surfaces as SqliteException here but as DriftRemoteException in the
       // app, which runs the database on a background isolate.
@@ -67,7 +71,7 @@ void main() {
     });
 
     test('quantity must be positive', () async {
-      final user = await addMember();
+      final user = await addUser();
       await expectLater(
         db
             .into(db.transactions)
@@ -92,13 +96,13 @@ void main() {
   });
 
   group('balances', () {
-    test('a member with no transactions has a zero balance', () async {
-      final user = await addMember();
+    test('a user with no transactions has a zero balance', () async {
+      final user = await addUser();
       expect(await db.usersDao.readBalance(user), 0);
     });
 
     test('balance is the signed sum of every live row', () async {
-      final user = await addMember();
+      final user = await addUser();
       final cola = await addItem(price: 150);
 
       await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
@@ -110,7 +114,7 @@ void main() {
     });
 
     test('a consumption stores the line total, not the unit price', () async {
-      final user = await addMember();
+      final user = await addUser();
       final cola = await addItem(price: 150);
 
       final id = await db.transactionsDao.logConsumption(
@@ -127,7 +131,7 @@ void main() {
     });
 
     test('an adjustment moves the balance either way', () async {
-      final user = await addMember();
+      final user = await addUser();
       await db.transactionsDao.logAdjustment(
         userId: user,
         amountMinorUnits: -250,
@@ -136,21 +140,18 @@ void main() {
       expect(await db.usersDao.readBalance(user), -250);
     });
 
-    test(
-      'watchMembersWithBalances reports zero for an untouched member',
-      () async {
-        await addMember(name: 'Silent');
-        final members = await db.usersDao.watchMembersWithBalances().first;
-        expect(members, hasLength(1));
-        expect(members.single.balanceMinorUnits, 0);
-        expect(members.single.group.id, seededGroup);
-      },
-    );
+    test('watchUsersWithBalances reports zero for an untouched user', () async {
+      await addUser(name: 'Silent');
+      final users = await db.usersDao.watchUsersWithBalances().first;
+      expect(users, hasLength(1));
+      expect(users.single.balanceMinorUnits, 0);
+      expect(users.single.group.id, seededGroup);
+    });
   });
 
   group('voiding', () {
     test('a voided row leaves the balance but stays in the history', () async {
-      final user = await addMember();
+      final user = await addUser();
       final cola = await addItem(price: 150);
       final id = await db.transactionsDao.logConsumption(
         userId: user,
@@ -167,7 +168,7 @@ void main() {
     });
 
     test('voiding is one-way: a second call changes nothing', () async {
-      final user = await addMember();
+      final user = await addUser();
       final cola = await addItem();
       final id = await db.transactionsDao.logConsumption(
         userId: user,
@@ -185,7 +186,7 @@ void main() {
     });
 
     test('the ledger row itself is never rewritten', () async {
-      final user = await addMember();
+      final user = await addUser();
       final cola = await addItem(name: 'Cola', price: 150);
       final id = await db.transactionsDao.logConsumption(
         userId: user,
@@ -205,7 +206,7 @@ void main() {
 
   group('snapshots', () {
     test('renaming and repricing an item does not rewrite history', () async {
-      final user = await addMember();
+      final user = await addUser();
       final cola = await addItem(name: 'Cola', price: 150);
       final id = await db.transactionsDao.logConsumption(
         userId: user,
@@ -229,19 +230,19 @@ void main() {
   });
 
   group('archiving', () {
-    test('a member with a balance cannot be archived', () async {
-      final user = await addMember();
+    test('a user with a balance cannot be archived', () async {
+      final user = await addUser();
       final cola = await addItem();
       await db.transactionsDao.logConsumption(userId: user, item: cola);
 
       await expectLater(
         db.usersDao.archiveUser(user),
-        throwsA(isA<MemberHasBalanceException>()),
+        throwsA(isA<UserHasBalanceException>()),
       );
     });
 
-    test('a settled member can be archived and restored', () async {
-      final user = await addMember();
+    test('a settled user can be archived and restored', () async {
+      final user = await addUser();
       final cola = await addItem(price: 150);
       await db.transactionsDao.logConsumption(userId: user, item: cola);
       await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 150);
@@ -259,12 +260,12 @@ void main() {
   });
 
   group('group deletion', () {
-    test('an archived member still pins their group', () async {
-      final user = await addMember();
+    test('an archived user still pins their group', () async {
+      final user = await addUser();
       await db.usersDao.archiveUser(user);
       final extra = await db.usersDao.createUserGroup(name: 'Rakkers');
 
-      // The seeded group looks empty on screen — the member is archived — but
+      // The seeded group looks empty on screen — the user is archived — but
       // still holds a foreign key, so deleting it would dangle.
       final usage = await db.usersDao.userGroupUsage(seededGroup);
       expect(usage.activeCount, 0);
@@ -302,9 +303,9 @@ void main() {
 
   group('ordering', () {
     test('new rows land at the end', () async {
-      await addMember(name: 'A');
-      await addMember(name: 'B');
-      await addMember(name: 'C');
+      await addUser(name: 'A');
+      await addUser(name: 'B');
+      await addUser(name: 'C');
 
       final names = (await db.usersDao.watchUsers().first)
           .map((u) => u.name)
@@ -313,9 +314,9 @@ void main() {
     });
 
     test('reorderUsers renumbers 0..n-1', () async {
-      final a = await addMember(name: 'A');
-      final b = await addMember(name: 'B');
-      final c = await addMember(name: 'C');
+      final a = await addUser(name: 'A');
+      final b = await addUser(name: 'B');
+      final c = await addUser(name: 'C');
 
       await db.usersDao.reorderUsers(
         groupId: seededGroup,
@@ -327,12 +328,12 @@ void main() {
       expect(users.map((u) => u.sortOrder), [0, 1, 2]);
     });
 
-    test('a new member starts at 0 in a group of its own', () async {
-      await addMember(name: 'A');
-      await addMember(name: 'B');
+    test('a new user starts at 0 in a group of its own', () async {
+      await addUser(name: 'A');
+      await addUser(name: 'B');
 
       final other = await db.usersDao.createUserGroup(name: 'Leiding');
-      await addMember(name: 'X', groupId: other);
+      await addUser(name: 'X', groupId: other);
 
       final inOther = await db.usersDao.watchUsersInGroup(other).first;
       expect(inOther.single.sortOrder, 0);
@@ -340,10 +341,10 @@ void main() {
 
     test('a reorder renumbers only its own group', () async {
       final other = await db.usersDao.createUserGroup(name: 'Leiding');
-      await addMember(name: 'A');
-      await addMember(name: 'B');
-      final x = await addMember(name: 'X', groupId: other);
-      final y = await addMember(name: 'Y', groupId: other);
+      await addUser(name: 'A');
+      await addUser(name: 'B');
+      final x = await addUser(name: 'X', groupId: other);
+      final y = await addUser(name: 'Y', groupId: other);
 
       await db.usersDao.reorderUsers(groupId: other, idsInOrder: [y, x]);
 
@@ -361,9 +362,9 @@ void main() {
 
     test('a reorder ignores an id from another group', () async {
       final other = await db.usersDao.createUserGroup(name: 'Leiding');
-      final a = await addMember(name: 'A');
-      final b = await addMember(name: 'B');
-      final x = await addMember(name: 'X', groupId: other);
+      final a = await addUser(name: 'A');
+      final b = await addUser(name: 'B');
+      final x = await addUser(name: 'X', groupId: other);
 
       // X is passed first but belongs elsewhere, so it keeps its own number and
       // takes no slot in this group.
@@ -380,10 +381,10 @@ void main() {
       );
     });
 
-    test('a restored member lands last in their group', () async {
-      final a = await addMember(name: 'A');
-      final b = await addMember(name: 'B');
-      final c = await addMember(name: 'C');
+    test('a restored user lands last in their group', () async {
+      final a = await addUser(name: 'A');
+      final b = await addUser(name: 'B');
+      final c = await addUser(name: 'C');
 
       await db.usersDao.archiveUser(a);
       // The two left are renumbered 0..1, so A cannot go back to its old 0.
@@ -394,15 +395,120 @@ void main() {
       expect(users.map((u) => u.name), ['C', 'B', 'A']);
     });
 
-    test('watchUsers orders by group before member', () async {
-      // The second group sorts after the seeded one, so its members follow even
+    test('watchUsers orders by group before user', () async {
+      // The second group sorts after the seeded one, so its users follow even
       // though their own sortOrder restarts at 0.
       final other = await db.usersDao.createUserGroup(name: 'Leiding');
-      await addMember(name: 'X', groupId: other);
-      await addMember(name: 'A');
+      await addUser(name: 'X', groupId: other);
+      await addUser(name: 'A');
 
       final users = await db.usersDao.watchUsers().first;
       expect(users.map((u) => u.name), ['A', 'X']);
+    });
+  });
+
+  group('orders', () {
+    test('an order writes one row per distinct item', () async {
+      final user = await addUser();
+      final cola = await addItem(name: 'Cola', price: 150);
+      final chips = await addItem(name: 'Chips', price: 200);
+
+      final ids = await db.transactionsDao.logConsumptions(
+        userId: user,
+        lines: [(item: cola, quantity: 3), (item: chips, quantity: 1)],
+      );
+
+      expect(ids, hasLength(2));
+      final rows = await db.transactionsDao.watchUserHistory(user).first;
+      // Sets, not lists: the rows share one timestamp, so history's
+      // createdAt ordering has nothing to break the tie with.
+      expect(rows.map((r) => r.itemNameSnapshot).toSet(), {'Cola', 'Chips'});
+      // The line total, with the quantity already multiplied in.
+      expect(rows.map((r) => r.amountMinorUnits).toSet(), {-450, -200});
+      expect(await db.usersDao.readBalance(user), -650);
+    });
+
+    test('every row of an order shares one logical day', () async {
+      final user = await addUser();
+      final cola = await addItem();
+      final chips = await addItem(name: 'Chips');
+
+      await db.transactionsDao.logConsumptions(
+        userId: user,
+        lines: [(item: cola, quantity: 1), (item: chips, quantity: 1)],
+      );
+
+      final rows = await db.transactionsDao.watchUserHistory(user).first;
+      expect(rows.map((r) => r.logicalDate).toSet(), hasLength(1));
+    });
+
+    test('undo removes the rows and the balance returns', () async {
+      final user = await addUser();
+      final cola = await addItem();
+      await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
+
+      final ids = await db.transactionsDao.logConsumptions(
+        userId: user,
+        lines: [(item: cola, quantity: 2)],
+      );
+      expect(await db.usersDao.readBalance(user), 700);
+
+      await db.transactionsDao.undoConsumption(ids);
+
+      expect(await db.usersDao.readBalance(user), 1000);
+      // Gone outright, not voided: the row leaves no trace.
+      expect(
+        await db.transactionsDao.watchUserHistory(user).first,
+        hasLength(1),
+      );
+    });
+
+    test('undo leaves other rows alone', () async {
+      final user = await addUser();
+      final cola = await addItem();
+      final keep = await db.transactionsDao.logConsumption(
+        userId: user,
+        item: cola,
+      );
+      final drop = await db.transactionsDao.logConsumption(
+        userId: user,
+        item: cola,
+      );
+
+      await db.transactionsDao.undoConsumption([drop]);
+
+      final rows = await db.transactionsDao.watchUserHistory(user).first;
+      expect(rows.single.id, keep);
+    });
+  });
+
+  group('items by category', () {
+    test('categories and items both come back in order', () async {
+      final snacks = await db.itemsDao.createItemGroup(name: 'Snacks');
+      await addItem(name: 'Cola');
+      await addItem(name: 'Fanta');
+      await addItem(name: 'Chips', groupId: snacks);
+
+      final sections = await db.itemsDao.watchItemsByCategory().first;
+
+      expect(sections.map((s) => s.group.name), ['General', 'Snacks']);
+      expect(sections.first.items.map((i) => i.name), ['Cola', 'Fanta']);
+      expect(sections.last.items.map((i) => i.name), ['Chips']);
+    });
+
+    test('a category with nothing on offer is left out', () async {
+      final snacks = await db.itemsDao.createItemGroup(name: 'Snacks');
+      await addItem(name: 'Cola');
+      final chips = await addItem(name: 'Chips', groupId: snacks);
+      await db.itemsDao.archiveItem(chips.id);
+
+      final sections = await db.itemsDao.watchItemsByCategory().first;
+
+      expect(sections.map((s) => s.group.name), ['General']);
+    });
+
+    test('nothing on offer at all is an empty list', () async {
+      expect(await db.itemsDao.watchItemsByCategory().first, isEmpty);
     });
   });
 
@@ -411,10 +517,10 @@ void main() {
       'a group move lands last there and closes the gap left behind',
       () async {
         final other = await db.usersDao.createUserGroup(name: 'Leiding');
-        final a = await addMember(name: 'A');
-        final b = await addMember(name: 'B');
-        final c = await addMember(name: 'C');
-        await addMember(name: 'X', groupId: other);
+        final a = await addUser(name: 'A');
+        final b = await addUser(name: 'B');
+        final c = await addUser(name: 'C');
+        await addUser(name: 'X', groupId: other);
 
         await db.usersDao.updateUserDetails(
           id: a,
@@ -437,8 +543,8 @@ void main() {
     );
 
     test('an edit that keeps the group leaves sortOrder alone', () async {
-      await addMember(name: 'A');
-      final b = await addMember(name: 'B');
+      await addUser(name: 'A');
+      final b = await addUser(name: 'B');
 
       await db.usersDao.updateUserDetails(
         id: b,
@@ -478,33 +584,33 @@ void main() {
   group('balances per group', () {
     test('the groupId filter narrows to one group', () async {
       final other = await db.usersDao.createUserGroup(name: 'Leiding');
-      final a = await addMember(name: 'A');
-      await addMember(name: 'X', groupId: other);
+      final a = await addUser(name: 'A');
+      await addUser(name: 'X', groupId: other);
       await db.transactionsDao.logTopUp(userId: a, amountMinorUnits: 500);
 
       final inSeeded = await db.usersDao
-          .watchMembersWithBalances(groupId: seededGroup)
+          .watchUsersWithBalances(groupId: seededGroup)
           .first;
       expect(inSeeded.single.user.name, 'A');
       expect(inSeeded.single.balanceMinorUnits, 500);
 
       final inOther = await db.usersDao
-          .watchMembersWithBalances(groupId: other)
+          .watchUsersWithBalances(groupId: other)
           .first;
       expect(inOther.single.user.name, 'X');
       expect(inOther.single.balanceMinorUnits, 0);
     });
 
-    test('archived members come through when asked for', () async {
-      final a = await addMember(name: 'A');
+    test('archived users come through when asked for', () async {
+      final a = await addUser(name: 'A');
       await db.usersDao.archiveUser(a);
 
       expect(
-        await db.usersDao.watchMembersWithBalances(groupId: seededGroup).first,
+        await db.usersDao.watchUsersWithBalances(groupId: seededGroup).first,
         isEmpty,
       );
       final all = await db.usersDao
-          .watchMembersWithBalances(groupId: seededGroup, includeArchived: true)
+          .watchUsersWithBalances(groupId: seededGroup, includeArchived: true)
           .first;
       expect(all.single.user.name, 'A');
     });
@@ -518,8 +624,8 @@ void main() {
       expect(rows.single.usage.total, 0);
     });
 
-    test('an archived member still pins the group', () async {
-      await db.usersDao.archiveUser(await addMember());
+    test('an archived user still pins the group', () async {
+      await db.usersDao.archiveUser(await addUser());
 
       final usage =
           (await db.usersDao.watchUserGroupsWithUsage().first).single.usage;
@@ -530,9 +636,9 @@ void main() {
 
     test('counts follow the group they belong to', () async {
       final other = await db.usersDao.createUserGroup(name: 'Leiding');
-      await addMember(name: 'A');
-      await addMember(name: 'X', groupId: other);
-      await addMember(name: 'Y', groupId: other);
+      await addUser(name: 'A');
+      await addUser(name: 'X', groupId: other);
+      await addUser(name: 'Y', groupId: other);
 
       final rows = await db.usersDao.watchUserGroupsWithUsage().first;
       expect(rows.map((row) => row.usage.activeCount), [1, 2]);
@@ -575,7 +681,7 @@ void main() {
     test(
       'a logged consumption stamps the day its timestamp falls in',
       () async {
-        final user = await addMember();
+        final user = await addUser();
         final cola = await addItem();
         final id = await db.transactionsDao.logConsumption(
           userId: user,
@@ -588,7 +694,7 @@ void main() {
     );
 
     test('rows either side of 07:00 land on different days', () async {
-      final user = await addMember();
+      final user = await addUser();
       final cola = await addItem();
       final evening = DateTime(2026, 9, 7, 23);
       final afterMidnight = DateTime(2026, 9, 8, 1);
@@ -614,7 +720,7 @@ void main() {
     });
 
     test('the count ignores voided rows, top-ups and adjustments', () async {
-      final user = await addMember();
+      final user = await addUser();
       final cola = await addItem();
       final at = DateTime(2026, 9, 8, 20);
 
@@ -630,9 +736,9 @@ void main() {
       expect(await db.transactionsDao.watchConsumptionCount(at: at).first, 1);
     });
 
-    test('the count can be narrowed to one member', () async {
-      final jonas = await addMember(name: 'Jonas');
-      final marie = await addMember(name: 'Marie');
+    test('the count can be narrowed to one user', () async {
+      final jonas = await addUser(name: 'Jonas');
+      final marie = await addUser(name: 'Marie');
       final cola = await addItem();
       final at = DateTime(2026, 9, 8, 20);
 
@@ -650,7 +756,7 @@ void main() {
     });
 
     test('watchTransactionsForDay returns the night, newest first', () async {
-      final user = await addMember();
+      final user = await addUser();
       final cola = await addItem();
       final evening = DateTime(2026, 9, 7, 23);
       final afterMidnight = DateTime(2026, 9, 8, 1);

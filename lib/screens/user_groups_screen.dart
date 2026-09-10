@@ -11,7 +11,7 @@ import '../l10n/app_localizations.dart';
 import '../widgets/group_management_view.dart';
 import 'user_group_contents_screen.dart';
 
-/// The groups members are organised into.
+/// The groups users are organised into.
 class UserGroupsScreen extends StatefulWidget {
   const UserGroupsScreen({super.key});
 
@@ -60,7 +60,7 @@ class _UserGroupsScreenState extends State<UserGroupsScreen> {
       createLabel: l10n.newGroup,
       editLabel: l10n.editGroup,
       deleteLabel: l10n.deleteGroup,
-      countLabel: l10n.groupMemberCount,
+      countLabel: l10n.groupUserCount,
       onCreate: (edit) async =>
           _dao.createUserGroup(name: edit.name, emoji: edit.emoji),
       onEdit: (id, edit) => _dao.updateUserGroup(

@@ -2,10 +2,10 @@ import 'package:drift/drift.dart';
 
 import '../tables/transactions_table.dart';
 
-/// Per-member balance: a plain SUM over the signed amounts, voided rows
+/// Per-user balance: a plain SUM over the signed amounts, voided rows
 /// excluded.
 ///
-/// A member with no live transactions has no row here, not a zero, so readers
+/// A user with no live transactions has no row here, not a zero, so readers
 /// left-join and treat a missing row as 0.
 @DataClassName('UserBalanceRow')
 abstract class UserBalances extends View {
@@ -20,6 +20,6 @@ abstract class UserBalances extends View {
   @override
   Query<HasResultSet, dynamic> as() =>
       select([userId, balanceMinorUnits]).from(transactions)
-    ..where(transactions.voidedAt.isNull())
-    ..groupBy([transactions.userId]);
+        ..where(transactions.voidedAt.isNull())
+        ..groupBy([transactions.userId]);
 }

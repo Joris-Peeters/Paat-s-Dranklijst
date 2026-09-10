@@ -101,7 +101,7 @@ class EmojiPickerDialog extends StatelessWidget {
 
 /// A circle showing the current emoji that opens the picker when tapped.
 ///
-/// Clearing is left to the caller: group emoji are nullable but member and item
+/// Clearing is left to the caller: group emoji are nullable but user and item
 /// emoji are not, so a built-in clear affordance would be wrong half the time.
 class EmojiPickerButton extends StatelessWidget {
   const EmojiPickerButton({

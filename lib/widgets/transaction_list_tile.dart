@@ -10,7 +10,7 @@ import 'user_avatar.dart';
 
 /// One ledger row, as a history line.
 ///
-/// Takes the member alongside the row because a transaction stores only a
+/// Takes the user alongside the row because a transaction stores only a
 /// `userId` — history is never snapshotted, so that a corrected name is
 /// corrected everywhere.
 class TransactionListTile extends StatelessWidget {
@@ -61,7 +61,7 @@ class TransactionListTile extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         // A mixed feed runs on the app's theme, so each row's avatar has to
-        // bring the member's own colour with it.
+        // bring the user's own colour with it.
         leading: UserAvatar(
           emoji: user.avatarEmoji,
           seedColorArgb: user.seedColorArgb,

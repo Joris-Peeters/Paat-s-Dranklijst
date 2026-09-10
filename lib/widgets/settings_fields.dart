@@ -21,11 +21,7 @@ Future<void> editAdminPin(
 }
 
 class CurrencyField extends StatelessWidget {
-  const CurrencyField({
-    super.key,
-    required this.settings,
-    required this.write,
-  });
+  const CurrencyField({super.key, required this.settings, required this.write});
 
   final AppSettingsData settings;
   final WriteSettings write;

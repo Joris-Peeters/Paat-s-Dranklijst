@@ -44,8 +44,10 @@ class AppDatabase extends _$AppDatabase {
       // groupId is non-null on both users and items, so without one group of
       // each kind a fresh install could not create either. Plain names, so an
       // admin renames them rather than reading them as sample data.
-      await into(userGroups).insert(UserGroupsCompanion.insert(name: 'General'));
-      await into(itemGroups).insert(ItemGroupsCompanion.insert(name: 'General'));
+      await into(userGroups)
+          .insert(UserGroupsCompanion.insert(name: 'General'));
+      await into(itemGroups)
+          .insert(ItemGroupsCompanion.insert(name: 'General'));
     },
     // SQLite leaves foreign keys OFF by default, and drift only toggles it
     // around alterTable. Never wrap this in a transaction — the pragma is

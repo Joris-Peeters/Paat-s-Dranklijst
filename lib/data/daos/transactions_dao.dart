@@ -8,7 +8,7 @@ import '../tables/users_table.dart';
 
 part 'transactions_dao.g.dart';
 
-/// A ledger row with the member it belongs to.
+/// A ledger row with the user it belongs to.
 ///
 /// The row itself holds only a `userId` — users are identities, so history is
 /// never snapshotted — which leaves a history line one lookup short. Joining it
@@ -23,8 +23,8 @@ class TransactionWithUser {
 /// The append-only ledger.
 ///
 /// This is the only place in the app that writes a transaction row, so the sign
-/// convention and the item snapshot freeze are decided in exactly one file.
-/// Nothing here DELETEs.
+/// convention and the item snapshot freeze are decided in exactly one file. The
+/// only DELETE is [undoConsumption], which the five-second snackbar owns.
 @DriftAccessor(tables: [Transactions, Items, Users])
 class TransactionsDao extends DatabaseAccessor<AppDatabase>
     with _$TransactionsDaoMixin {
@@ -39,33 +39,89 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     return (createdAt: Value(now), logicalDate: logicalDayKey(now));
   }
 
+  /// One consumption line. Shared by the single tap and the multi-item order so
+  /// the sign convention and the snapshot freeze are written once.
+  TransactionsCompanion _consumption({
+    required int userId,
+    required ItemRow item,
+    required int quantity,
+    required ({Value<DateTime> createdAt, String logicalDate}) stamp,
+  }) => TransactionsCompanion.insert(
+    userId: userId,
+    type: TransactionType.consumption,
+    // Negative, and the line total rather than the unit price: the balance is a
+    // plain SUM over this column.
+    amountMinorUnits: -(item.priceMinorUnits * quantity),
+    quantity: Value(quantity),
+    itemId: Value(item.id),
+    itemNameSnapshot: Value(item.name),
+    itemUnitPriceSnapshot: Value(item.priceMinorUnits),
+    createdAt: stamp.createdAt,
+    logicalDate: stamp.logicalDate,
+  );
+
   /// Takes the whole [item] rather than an id so the price that gets frozen is
-  /// the one the member actually tapped, not one re-read afterwards.
+  /// the one the user actually tapped, not one re-read afterwards.
   Future<int> logConsumption({
     required int userId,
     required ItemRow item,
     int quantity = 1,
   }) {
     assert(quantity > 0, 'quantity must be positive');
-    final stamp = _stamp();
     return into(transactions).insert(
-      TransactionsCompanion.insert(
+      _consumption(
         userId: userId,
-        type: TransactionType.consumption,
-        // Negative, and the line total rather than the unit price: the balance
-        // is a plain SUM over this column.
-        amountMinorUnits: -(item.priceMinorUnits * quantity),
-        quantity: Value(quantity),
-        itemId: Value(item.id),
-        itemNameSnapshot: Value(item.name),
-        itemUnitPriceSnapshot: Value(item.priceMinorUnits),
-        createdAt: stamp.createdAt,
-        logicalDate: stamp.logicalDate,
+        item: item,
+        quantity: quantity,
+        stamp: _stamp(),
       ),
     );
   }
 
-  /// Positive: the member handed over money.
+  /// One order of several different items, as a row each.
+  ///
+  /// All in one transaction and all sharing a single clock read: the rows are
+  /// one trip to the fridge, so they must not straddle the 07:00 boundary,
+  /// appear in the balance one at a time, or half-survive a failure.
+  Future<List<int>> logConsumptions({
+    required int userId,
+    required List<({ItemRow item, int quantity})> lines,
+  }) {
+    assert(lines.isNotEmpty, 'an order needs at least one line');
+    final stamp = _stamp();
+
+    return transaction(() async {
+      final ids = <int>[];
+      for (final line in lines) {
+        assert(line.quantity > 0, 'quantity must be positive');
+        ids.add(
+          await into(transactions).insert(
+            _consumption(
+              userId: userId,
+              item: line.item,
+              quantity: line.quantity,
+              stamp: stamp,
+            ),
+          ),
+        );
+      }
+      return ids;
+    });
+  }
+
+  /// Removes rows the five-second snackbar undo is still offering to take back.
+  ///
+  /// The only DELETE anywhere in the app, and the only reversal that does not
+  /// take the admin PIN. It is safe precisely because it is unreachable by
+  /// anyone but the person still standing at the fridge, and a row that existed
+  /// for five seconds has told nobody anything. Every later correction voids
+  /// instead, which leaves the row in the record.
+  Future<void> undoConsumption(List<int> transactionIds) async {
+    if (transactionIds.isEmpty) return;
+    await (delete(transactions)..where((t) => t.id.isIn(transactionIds))).go();
+  }
+
+  /// Positive: the user handed over money.
   Future<int> logTopUp({
     required int userId,
     required int amountMinorUnits,
@@ -132,8 +188,8 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
             ..limit(limit))
           .watch();
 
-  /// Newest first, each row carrying its member — for a feed that mixes
-  /// members and so cannot take the name from a page header.
+  /// Newest first, each row carrying its user — for a feed that mixes
+  /// users and so cannot take the name from a page header.
   Stream<List<TransactionWithUser>> watchRecentTransactionsWithUsers({
     int limit = 50,
   }) {
@@ -172,7 +228,7 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
           .watch();
 
   /// Consumptions on the logical day containing [at], optionally for one
-  /// member. Voided rows and non-consumption types are excluded: a mis-tap is
+  /// user. Voided rows and non-consumption types are excluded: a mis-tap is
   /// not a drink, and a top-up is not one either.
   ///
   /// [at] is required rather than defaulting to now: a stream resolves its day

@@ -12,10 +12,10 @@ import 'full_screen_editor.dart';
 import 'palette_picker.dart';
 import 'user_avatar.dart';
 
-/// Creates or edits one member. Closes on save; the caller's stream updates.
+/// Creates or edits one user. Closes on save; the caller's stream updates.
 ///
 /// The same dialog does both jobs because they ask for the same four things —
-/// there is no separate member settings screen anywhere in the app.
+/// there is no separate user settings screen anywhere in the app.
 Future<void> showUserEditDialog(
   BuildContext context, {
   UserRow? user,
@@ -28,7 +28,7 @@ Future<void> showUserEditDialog(
 class UserEditDialog extends StatefulWidget {
   const UserEditDialog({super.key, this.user, this.presetGroupId});
 
-  /// Null creates a new member.
+  /// Null creates a new user.
   final UserRow? user;
 
   /// Pre-selects the group when creating from inside one.
@@ -41,7 +41,7 @@ class UserEditDialog extends StatefulWidget {
 class _UserEditDialogState extends State<UserEditDialog> {
   late final _controller = TextEditingController(text: widget.user?.name);
 
-  // A new member is handed a face and a colour rather than starting blank, so
+  // A new user is handed a face and a colour rather than starting blank, so
   // the two non-null columns always have a value and nobody has to choose
   // before they can save. Both are visible in the preview and freely changed.
   late String _emoji = widget.user?.avatarEmoji ?? randomAvatarEmoji();
@@ -96,7 +96,7 @@ class _UserEditDialogState extends State<UserEditDialog> {
     final l10n = AppLocalizations.of(context);
 
     return FullScreenEditor(
-      title: widget.user == null ? l10n.newMember : l10n.editMember,
+      title: widget.user == null ? l10n.newUser : l10n.editUser,
       onSave: _canSave ? () => unawaited(_save()) : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -147,7 +147,7 @@ class _UserEditDialogState extends State<UserEditDialog> {
   }
 }
 
-/// Always editable, even in create mode: moving a member between groups is an
+/// Always editable, even in create mode: moving a user between groups is an
 /// ordinary correction, not a special operation.
 class _GroupField extends StatefulWidget {
   const _GroupField({required this.selected, required this.onSelected});

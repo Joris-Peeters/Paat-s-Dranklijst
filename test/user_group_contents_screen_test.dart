@@ -17,7 +17,7 @@ void main() {
   setUp(() => db = AppDatabase(executor: NativeDatabase.memory()));
   tearDown(() => db.close());
 
-  Future<int> addMember({String name = 'Jonas'}) => db.usersDao.createUser(
+  Future<int> addUser({String name = 'Jonas'}) => db.usersDao.createUser(
     name: name,
     groupId: seededGroup,
     avatarEmoji: '🦊',
@@ -37,16 +37,16 @@ void main() {
   }
 
   testWidgetsWithDatabase(
-    'an archived member is shown dimmed, last, and undraggable',
+    'an archived user is shown dimmed, last, and undraggable',
     (tester) async {
-      await db.usersDao.archiveUser(await addMember(name: 'Jonas'));
-      await addMember(name: 'Bea');
+      await db.usersDao.archiveUser(await addUser(name: 'Jonas'));
+      await addUser(name: 'Bea');
       await pump(tester);
 
       // Always visible: there is no toggle to reach for.
       expect(find.text('Jonas'), findsOneWidget);
       expect(find.text('Archived'), findsOneWidget);
-      // Below the active member, whatever their sort order was.
+      // Below the active user, whatever their sort order was.
       expect(
         tester.getCenter(find.text('Jonas')).dy,
         greaterThan(tester.getCenter(find.text('Bea')).dy),
@@ -61,7 +61,7 @@ void main() {
   testWidgetsWithDatabase('restoring is immediate and needs no confirmation', (
     tester,
   ) async {
-    await db.usersDao.archiveUser(await addMember(name: 'Jonas'));
+    await db.usersDao.archiveUser(await addUser(name: 'Jonas'));
     await pump(tester);
 
     await tester.tap(find.byIcon(Icons.unarchive_outlined));
@@ -72,10 +72,10 @@ void main() {
     expect(find.byIcon(Icons.drag_handle), findsOneWidget);
   });
 
-  testWidgetsWithDatabase('a member who still holds money cannot be archived', (
+  testWidgetsWithDatabase('a user who still holds money cannot be archived', (
     tester,
   ) async {
-    final id = await addMember(name: 'Jonas');
+    final id = await addUser(name: 'Jonas');
     await db.transactionsDao.logTopUp(userId: id, amountMinorUnits: 450);
     await pump(tester);
 
@@ -99,10 +99,10 @@ void main() {
     expect(find.byIcon(Icons.drag_handle), findsOneWidget);
   });
 
-  testWidgetsWithDatabase('archiving a settled member asks first', (
+  testWidgetsWithDatabase('archiving a settled user asks first', (
     tester,
   ) async {
-    await addMember(name: 'Jonas');
+    await addUser(name: 'Jonas');
     await pump(tester);
 
     await tester.tap(find.byIcon(Icons.archive_outlined));
@@ -122,7 +122,7 @@ void main() {
   testWidgetsWithDatabase(
     'the adjustment action is present but not yet wired',
     (tester) async {
-      await addMember(name: 'Jonas');
+      await addUser(name: 'Jonas');
       await pump(tester);
 
       final button = find.widgetWithIcon(IconButton, Icons.tune);
@@ -139,7 +139,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await addMember(name: 'Jonas van der Elsdonckstraat');
+    await addUser(name: 'Jonas van der Elsdonckstraat');
     await pump(tester);
 
     expect(tester.takeException(), isNull);

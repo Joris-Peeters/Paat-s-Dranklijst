@@ -4,8 +4,7 @@ import 'package:paats_dranklijst/data/logical_day.dart';
 
 /// A local instant on 8 September 2026 — a Tuesday, mid-month, so a rollback
 /// lands on an ordinary neighbouring date.
-DateTime at(int hour, [int minute = 0]) =>
-    DateTime(2026, 9, 8, hour, minute);
+DateTime at(int hour, [int minute = 0]) => DateTime(2026, 9, 8, hour, minute);
 
 DateTime day(int year, int month, int dayOfMonth) =>
     DateTime(year, month, dayOfMonth);

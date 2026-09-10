@@ -36,7 +36,7 @@ void main() {
           createLabel: 'New group',
           editLabel: 'Edit group',
           deleteLabel: 'Delete group',
-          countLabel: (count) => '$count members',
+          countLabel: (count) => '$count users',
           onCreate: onCreate ?? (_) async {},
           onEdit: (_, _) async {},
           onDelete: onDelete ?? (_) async {},
@@ -76,7 +76,7 @@ void main() {
   ) async {
     var deleted = 0;
     await pump(
-      // Looks empty on screen, but the archived member still pins it.
+      // Looks empty on screen, but the archived user still pins it.
       tester,
       [entry(1, 'Leiding', archived: 1)],
       onDelete: (id) async => deleted = id,
@@ -87,9 +87,9 @@ void main() {
 
     expect(deleted, 0);
     expect(find.byType(AlertDialog), findsNothing);
-    // The subtitle counts only live members, so the reason cannot quote a
+    // The subtitle counts only live users, so the reason cannot quote a
     // number without appearing to contradict it.
-    expect(find.text('0 members'), findsOneWidget);
+    expect(find.text('0 users'), findsOneWidget);
     expect(
       find.text(
         'Cannot be deleted while it still holds entries, archived ones '

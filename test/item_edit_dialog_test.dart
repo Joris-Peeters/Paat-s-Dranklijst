@@ -26,12 +26,20 @@ void main() {
     return (db.select(db.items)..where((i) => i.id.equals(id))).getSingle();
   }
 
-  Future<void> pump(WidgetTester tester, {ItemRow? item}) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    ItemRow? item,
+    ItemGroupRow? presetGroup,
+  }) async {
     await tester.pumpWidget(
       await settingsHarness(
         null,
         database: db,
-        screen: ItemEditDialog(item: item, presetGroupId: seededGroup),
+        screen: ItemEditDialog(
+          item: item,
+          presetGroup:
+              presetGroup ?? await db.itemsDao.readItemGroup(seededGroup),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -70,7 +78,7 @@ void main() {
   ) async {
     await pump(tester);
 
-    // Unlike a member's face, which is arbitrary and assigned at random, an
+    // Unlike a user's face, which is arbitrary and assigned at random, an
     // item's emoji is what people tap to pick their drink — so it is chosen,
     // never invented.
     expect(find.byIcon(Icons.add_reaction_outlined), findsOneWidget);

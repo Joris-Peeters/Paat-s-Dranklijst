@@ -10,7 +10,10 @@ const logicalDayStart = TimeOfDay(hour: 7, minute: 0);
 ///
 /// [dayStart] is inclusive: 07:00 is the first minute of the new day, matching
 /// `isDarkAt`'s start-inclusive convention.
-DateTime logicalDayOf(DateTime instant, {TimeOfDay dayStart = logicalDayStart}) {
+DateTime logicalDayOf(
+  DateTime instant, {
+  TimeOfDay dayStart = logicalDayStart,
+}) {
   final local = instant.toLocal();
   final minutes = TimeOfDay.fromDateTime(local).minutesSinceMidnight;
   // `day - 1` through the constructor rather than subtract(Duration(days: 1)):

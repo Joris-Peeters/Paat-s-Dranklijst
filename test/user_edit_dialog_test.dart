@@ -36,7 +36,7 @@ void main() {
   ) async {
     await pump(tester);
 
-    // Both columns are non-null with no schema default, so a new member is
+    // Both columns are non-null with no schema default, so a new user is
     // handed values rather than being allowed to save without them.
     expect(avatar(tester).emoji, isNotEmpty);
     expect(avatar(tester).seedColorArgb, isNot(0));
@@ -83,7 +83,7 @@ void main() {
     fail('no swatch changed the preview');
   });
 
-  testWidgetsWithDatabase('editing pre-fills from the member', (tester) async {
+  testWidgetsWithDatabase('editing pre-fills from the user', (tester) async {
     final id = await db.usersDao.createUser(
       name: 'Jonas',
       groupId: seededGroup,
@@ -96,6 +96,6 @@ void main() {
     expect(find.text('Jonas'), findsOneWidget);
     expect(avatar(tester).emoji, '🦊');
     expect(avatar(tester).seedColorArgb, 0xFFE91E63);
-    expect(find.text('Edit member'), findsOneWidget);
+    expect(find.text('Edit user'), findsOneWidget);
   });
 }

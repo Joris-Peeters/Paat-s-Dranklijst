@@ -49,7 +49,7 @@ class GroupManagementView extends StatelessWidget {
   final String editLabel;
   final String deleteLabel;
 
-  /// Renders "3 members". A callback because members and items need different
+  /// Renders "3 users". A callback because users and items need different
   /// words for the same number. Counts only live rows: an archived one still
   /// pins the group, but saying so in every subtitle was more confusing than
   /// the one disabled delete it explains.
@@ -156,11 +156,8 @@ class _GroupTile extends StatelessWidget {
   /// looks disabled — otherwise the reason it cannot be used has nowhere to go.
   void _explainBlocked(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n.deleteBlockedInUse),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(l10n.deleteBlockedInUse)));
   }
 
   @override
@@ -198,9 +195,7 @@ class _GroupTile extends StatelessWidget {
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              tooltip: canDelete
-                  ? view.deleteLabel
-                  : l10n.deleteBlockedInUse,
+              tooltip: canDelete ? view.deleteLabel : l10n.deleteBlockedInUse,
               color: canDelete ? null : theme.disabledColor,
               onPressed: canDelete
                   ? () => unawaited(_delete(context))
@@ -215,7 +210,7 @@ class _GroupTile extends StatelessWidget {
 
 /// A group's emoji, or a neutral stand-in. Group emoji are nullable on purpose
 /// — an admin naming a group is choosing deliberately, not being handed a
-/// random face like a new member is.
+/// random face like a new user is.
 class _GroupEmoji extends StatelessWidget {
   const _GroupEmoji({required this.emoji});
 
@@ -310,6 +305,7 @@ class _GroupEditDialogState extends State<_GroupEditDialog> {
             child: TextField(
               controller: _controller,
               autofocus: true,
+              textCapitalization: TextCapitalization.sentences,
               textInputAction: TextInputAction.done,
               decoration: InputDecoration(
                 labelText: l10n.nameLabel,

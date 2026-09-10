@@ -10,17 +10,17 @@
 
   "chooseYourName": "Choose your name",
   "@chooseYourName": {
-    "description": "Prompt on the home screen where a member taps their own name"
+    "description": "Prompt on the home screen where a user taps their own name"
   },
 
   "balance": "Balance",
   "@balance": {
-    "description": "Label for a member's running tab"
+    "description": "Label for a user's running tab"
   },
 
   "drinksTaken": "{count, plural, =0{No drinks} =1{1 drink} other{{count} drinks}}",
   "@drinksTaken": {
-    "description": "Count of drinks a member has taken",
+    "description": "Count of drinks a user has taken",
     "placeholders": {
       "count": { "type": "int" }
     }
@@ -44,8 +44,50 @@
   "navStart": "Start",
   "@navStart": { "description": "Navigation bar label for the overview page" },
 
-  "navUsers": "Members",
-  "@navUsers": { "description": "Navigation bar label for the member list page" },
+  "navUsers": "Users",
+  "@navUsers": { "description": "Navigation bar label for the user list page. Users rather than members: not everyone with a tab is in the youth movement" },
+
+  "noSearchResults": "Nobody found",
+  "@noSearchResults": { "description": "Empty state when a search matches no one" },
+
+  "selectMultiple": "Take several",
+  "@selectMultiple": { "description": "Tooltip of the action that starts picking more than one drink at once" },
+
+  "confirm": "Confirm",
+  "@confirm": { "description": "Button that commits a multi-item order" },
+
+  "basketSummary": "{count, plural, =1{1 drink} other{{count} drinks}} · {total}",
+  "@basketSummary": {
+    "description": "What is about to be charged, on the confirm bar",
+    "placeholders": {
+      "count": { "type": "int" },
+      "total": { "type": "String" }
+    }
+  },
+
+  "topUp": "Top up",
+  "@topUp": { "description": "Button that starts adding credit to a user's tab" },
+
+  "undo": "Undo",
+  "@undo": { "description": "Snackbar action that takes back a just-logged drink" },
+
+  "consumptionLogged": "{item} registered for {name}",
+  "@consumptionLogged": {
+    "description": "Snackbar confirming one drink was logged",
+    "placeholders": {
+      "item": { "type": "String" },
+      "name": { "type": "String" }
+    }
+  },
+
+  "consumptionLoggedMultiple": "{count, plural, =1{1 drink} other{{count} drinks}} registered for {name}",
+  "@consumptionLoggedMultiple": {
+    "description": "Snackbar confirming a multi-item order was logged",
+    "placeholders": {
+      "count": { "type": "int" },
+      "name": { "type": "String" }
+    }
+  },
 
   "navStats": "Stats",
   "@navStats": { "description": "Navigation bar label for the statistics page" },
@@ -56,11 +98,11 @@
   "statsPlaceholder": "Statistics will appear here",
   "@statsPlaceholder": { "description": "Empty state on the not-yet-built Stats page" },
 
-  "noMembersYet": "No members yet",
-  "@noMembersYet": { "description": "Empty state on the member list" },
+  "noUsersYet": "No users yet",
+  "@noUsersYet": { "description": "Empty state on the user list" },
 
-  "addMember": "Add member",
-  "@addMember": { "description": "Tooltip on the button that adds a new member" },
+  "addUser": "Add user",
+  "@addUser": { "description": "Tooltip on the button that adds a new user" },
 
   "sectionManagement": "Management",
   "@sectionManagement": { "description": "Settings section heading for the CRUD areas" },
@@ -83,24 +125,24 @@
   "aboutLicensesHelp": "The licenses of the software and fonts this app is built on.",
   "@aboutLicensesHelp": { "description": "Note above the open source licenses button" },
 
-  "manageMembers": "Members",
-  "@manageMembers": { "description": "Title of the screen listing one group's members" },
+  "manageUsers": "Users",
+  "@manageUsers": { "description": "Title of the screen listing one group's users" },
 
   "manageItems": "Items",
   "@manageItems": { "description": "Title of the screen listing one category's items" },
 
   "userGroups": "User groups",
-  "@userGroups": { "description": "Management card and screen title for the member groups" },
+  "@userGroups": { "description": "Management card and screen title for the user groups" },
 
-  "userGroupsSubtitle": "Organise members into groups",
+  "userGroupsSubtitle": "Organise users into groups",
   "@userGroupsSubtitle": { "description": "Subtitle of the user groups card before its counts have loaded" },
 
-  "userGroupsSummary": "{groups, plural, =1{1 group} other{{groups} groups}} · {members, plural, =1{1 member} other{{members} members}}",
+  "userGroupsSummary": "{groups, plural, =1{1 group} other{{groups} groups}} · {users, plural, =1{1 user} other{{users} users}}",
   "@userGroupsSummary": {
     "description": "Live counts under the user groups management card",
     "placeholders": {
       "groups": { "type": "int" },
-      "members": { "type": "int" }
+      "users": { "type": "int" }
     }
   },
 
@@ -119,9 +161,9 @@
     }
   },
 
-  "groupMemberCount": "{count, plural, =0{No members} =1{1 member} other{{count} members}}",
-  "@groupMemberCount": {
-    "description": "How many members a group holds. Archived members are not counted here — see deleteBlockedInUse for why the delete action can still be refused",
+  "groupUserCount": "{count, plural, =0{No users} =1{1 user} other{{count} users}}",
+  "@groupUserCount": {
+    "description": "How many users a group holds. Archived users are not counted here — see deleteBlockedInUse for why the delete action can still be refused",
     "placeholders": { "count": { "type": "int" } }
   },
 
@@ -159,16 +201,16 @@
   "@deleteBlockedInUse": { "description": "Why the delete action is unavailable. Deliberately carries no count: an archived row pins a group just as hard but is not counted in the subtitle, so a number here would appear to contradict it" },
 
   "nameLabel": "Name",
-  "@nameLabel": { "description": "Label of the name field in the group, member and item editors" },
+  "@nameLabel": { "description": "Label of the name field in the group, user and item editors" },
 
   "groupLabel": "Group",
-  "@groupLabel": { "description": "Label of the group dropdown in the member editor" },
+  "@groupLabel": { "description": "Label of the group dropdown in the user editor" },
 
   "categoryLabel": "Category",
   "@categoryLabel": { "description": "Label of the category dropdown in the item editor" },
 
   "colorLabel": "Color",
-  "@colorLabel": { "description": "Label above the color palette in the member editor" },
+  "@colorLabel": { "description": "Label above the color palette in the user editor" },
 
   "priceLabel": "Price",
   "@priceLabel": { "description": "Label of the price field in the item editor" },
@@ -176,11 +218,11 @@
   "priceInvalid": "Enter an amount, for example 1.50",
   "@priceInvalid": { "description": "Validation message for a price that cannot be read as an amount" },
 
-  "newMember": "New member",
-  "@newMember": { "description": "Title of the member editor when creating" },
+  "newUser": "New user",
+  "@newUser": { "description": "Title of the user editor when creating" },
 
-  "editMember": "Edit member",
-  "@editMember": { "description": "Title of the member editor when changing an existing one" },
+  "editUser": "Edit user",
+  "@editUser": { "description": "Title of the user editor when changing an existing one" },
 
   "newItem": "New item",
   "@newItem": { "description": "Title of the item editor when creating" },
@@ -192,14 +234,14 @@
   "@archivedSection": { "description": "Heading above the archived rows at the bottom of a list" },
 
   "archive": "Archive",
-  "@archive": { "description": "Action that retires a member or item without deleting them" },
+  "@archive": { "description": "Action that retires a user or item without deleting them" },
 
   "unarchive": "Restore",
-  "@unarchive": { "description": "Action that brings an archived member or item back" },
+  "@unarchive": { "description": "Action that brings an archived user or item back" },
 
-  "archiveMemberConfirm": "Archive {name}? Their history stays intact and you can restore them later.",
-  "@archiveMemberConfirm": {
-    "description": "Body of the confirmation dialog before archiving a member",
+  "archiveUserConfirm": "Archive {name}? Their history stays intact and you can restore them later.",
+  "@archiveUserConfirm": {
+    "description": "Body of the confirmation dialog before archiving a user",
     "placeholders": { "name": { "type": "String" } }
   },
 
@@ -211,7 +253,7 @@
 
   "archiveBlockedBalance": "{name} still has {amount}. Settle up or post an adjustment first.",
   "@archiveBlockedBalance": {
-    "description": "Why a member cannot be archived. Archiving is not a way to make a debt disappear quietly",
+    "description": "Why a user cannot be archived. Archiving is not a way to make a debt disappear quietly",
     "placeholders": {
       "name": { "type": "String" },
       "amount": { "type": "String" }
@@ -219,10 +261,10 @@
   },
 
   "adjustment": "Adjustment",
-  "@adjustment": { "description": "Action that posts a correction to a member's balance" },
+  "@adjustment": { "description": "Action that posts a correction to a user's balance" },
 
-  "noMembersInGroup": "No members in this group yet",
-  "@noMembersInGroup": { "description": "Empty state on a group's member list" },
+  "noUsersInGroup": "No users in this group yet",
+  "@noUsersInGroup": { "description": "Empty state on a group's user list" },
 
   "noItemsInCategory": "No items in this category yet",
   "@noItemsInCategory": { "description": "Empty state on a category's item list" },
@@ -253,7 +295,7 @@
 
   "amountPositive": "+{amount}",
   "@amountPositive": {
-    "description": "An amount that is money in the member's favour, shown with an explicit plus. Separate from the formatted amount so a locale can place the sign itself",
+    "description": "An amount that is money in the user's favour, shown with an explicit plus. Separate from the formatted amount so a locale can place the sign itself",
     "placeholders": { "amount": { "type": "String" } }
   },
 
@@ -314,13 +356,13 @@
   "currencyInvalid": "Use a three-letter code, like EUR",
   "@currencyInvalid": { "description": "Validation message for a malformed currency code" },
 
-  "allowSelfRegistration": "Anyone can add members",
-  "@allowSelfRegistration": { "description": "Setting controlling whether non-admins may add members" },
+  "allowSelfRegistration": "Anyone can add users",
+  "@allowSelfRegistration": { "description": "Setting controlling whether non-admins may add users" },
 
-  "allowSelfRegistrationOn": "A button on the members page adds a new member",
+  "allowSelfRegistrationOn": "A button on the users page adds a new user",
   "@allowSelfRegistrationOn": { "description": "Subtitle when self-registration is enabled" },
 
-  "allowSelfRegistrationOff": "Members can only be added here in settings",
+  "allowSelfRegistrationOff": "Users can only be added here in settings",
   "@allowSelfRegistrationOff": { "description": "Subtitle when self-registration is disabled" },
 
   "adminPin": "Admin PIN",
@@ -401,7 +443,7 @@
   "setupPinTitle": "Admin PIN",
   "@setupPinTitle": { "description": "Title of the wizard's PIN step" },
 
-  "setupPinBody": "An optional 4-digit PIN keeps members out of the settings. Without one, anyone can change them.",
+  "setupPinBody": "An optional 4-digit PIN keeps users out of the settings. Without one, anyone can change them.",
   "@setupPinBody": { "description": "Explanation on the wizard's PIN step" },
 
   "setupPayeeTitle": "Settling up",

@@ -14,19 +14,21 @@ import 'full_screen_editor.dart';
 Future<void> showItemEditDialog(
   BuildContext context, {
   ItemRow? item,
-  int? presetGroupId,
+  ItemGroupRow? presetGroup,
 }) => showDialog<void>(
   context: context,
-  builder: (_) => ItemEditDialog(item: item, presetGroupId: presetGroupId),
+  builder: (_) => ItemEditDialog(item: item, presetGroup: presetGroup),
 );
 
 class ItemEditDialog extends StatefulWidget {
-  const ItemEditDialog({super.key, this.item, this.presetGroupId});
+  const ItemEditDialog({super.key, this.item, this.presetGroup});
 
   /// Null creates a new item.
   final ItemRow? item;
 
-  final int? presetGroupId;
+  /// The category a new item starts in. Taken whole rather than by id so the
+  /// new item can also start on the category's own emoji.
+  final ItemGroupRow? presetGroup;
 
   @override
   State<ItemEditDialog> createState() => _ItemEditDialogState();
@@ -36,12 +38,14 @@ class _ItemEditDialogState extends State<ItemEditDialog> {
   late final _name = TextEditingController(text: widget.item?.name);
   late final _price = TextEditingController();
 
-  // Null until picked. The column is non-null with no default, so Save stays
-  // disabled rather than inventing a glyph: unlike a member, whose face is
+  // A new item starts on its category's emoji, which is a better guess than
+  // nothing and often right — a drink in "🥤 Frisdrank" is a soft drink. Null
+  // when the category has none: the column is non-null with no default, so Save
+  // stays disabled rather than inventing a glyph. Unlike a user, whose face is
   // arbitrary and assigned at random, an item's emoji is what people tap to
   // pick their drink.
-  late String? _emoji = widget.item?.emoji;
-  late int? _groupId = widget.item?.groupId ?? widget.presetGroupId;
+  late String? _emoji = widget.item?.emoji ?? widget.presetGroup?.emoji;
+  late int? _groupId = widget.item?.groupId ?? widget.presetGroup?.id;
 
   /// Only after the first build: the amount has to be written in the language
   /// and currency the settings say, which needs an inherited widget.

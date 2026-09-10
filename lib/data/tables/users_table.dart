@@ -2,9 +2,9 @@ import 'package:drift/drift.dart';
 
 import 'user_groups_table.dart';
 
-/// A member. Never hard-deleted once they have a ledger row.
+/// A user. Never hard-deleted once they have a ledger row.
 ///
-/// No unique constraint on [name]: two members really can both be called Jonas.
+/// No unique constraint on [name]: two users really can both be called Jonas.
 /// The management screen warns on a duplicate; the schema does not forbid one.
 @DataClassName('UserRow')
 @TableIndex(name: 'users_group_id', columns: {#groupId})
@@ -26,7 +26,7 @@ class Users extends Table {
 
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
-  /// Soft delete: a departed member's ledger history stays intact and readable.
+  /// Soft delete: a departed user's ledger history stays intact and readable.
   DateTimeColumn get archivedAt => dateTime().nullable()();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
