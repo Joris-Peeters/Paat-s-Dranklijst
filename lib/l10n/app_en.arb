@@ -18,14 +18,6 @@
     "description": "Label for a user's running tab"
   },
 
-  "drinksTaken": "{count, plural, =0{No drinks} =1{1 drink} other{{count} drinks}}",
-  "@drinksTaken": {
-    "description": "Count of drinks a user has taken",
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
-
   "settings": "Settings",
   "@settings": {
     "description": "Admin settings screen title"
@@ -56,9 +48,9 @@
   "confirm": "Confirm",
   "@confirm": { "description": "Button that commits a multi-item order" },
 
-  "basketSummary": "{count, plural, =1{1 drink} other{{count} drinks}} · {total}",
+  "basketSummary": "{count, plural, =1{1 item} other{{count} items}} · {total}",
   "@basketSummary": {
-    "description": "What is about to be charged, on the confirm bar",
+    "description": "What is about to be charged, on the confirm bar.",
     "placeholders": {
       "count": { "type": "int" },
       "total": { "type": "String" }
@@ -73,14 +65,14 @@
 
   "consumptionLogged": "{item} registered for {name}",
   "@consumptionLogged": {
-    "description": "Snackbar confirming one drink was logged",
+    "description": "Snackbar confirming one item was logged",
     "placeholders": {
       "item": { "type": "String" },
       "name": { "type": "String" }
     }
   },
 
-  "consumptionLoggedMultiple": "{count, plural, =1{1 drink} other{{count} drinks}} registered for {name}",
+  "consumptionLoggedMultiple": "{count, plural, =1{1 item} other{{count} items}} registered for {name}",
   "@consumptionLoggedMultiple": {
     "description": "Snackbar confirming a multi-item order was logged",
     "placeholders": {
