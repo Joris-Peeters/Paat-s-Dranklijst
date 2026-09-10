@@ -16,12 +16,13 @@ void main() {
   setUp(() => db = AppDatabase(executor: NativeDatabase.memory()));
   tearDown(() => db.close());
 
-  Future<int> addMember({String name = 'Jonas'}) => db.usersDao.createUser(
-    name: name,
-    groupId: seededGroup,
-    avatarEmoji: '🦊',
-    seedColorArgb: 0xFF009688,
-  );
+  Future<int> addMember({String name = 'Jonas', int groupId = seededGroup}) =>
+      db.usersDao.createUser(
+        name: name,
+        groupId: groupId,
+        avatarEmoji: '🦊',
+        seedColorArgb: 0xFF009688,
+      );
 
   Future<ItemRow> addItem({String name = 'Cola', int price = 150}) async {
     final id = await db.itemsDao.createItem(
@@ -30,9 +31,7 @@ void main() {
       priceMinorUnits: price,
       emoji: '🥤',
     );
-    return (db.select(
-      db.items,
-    )..where((i) => i.id.equals(id))).getSingle();
+    return (db.select(db.items)..where((i) => i.id.equals(id))).getSingle();
   }
 
   group('schema', () {
@@ -137,13 +136,16 @@ void main() {
       expect(await db.usersDao.readBalance(user), -250);
     });
 
-    test('watchMembersWithBalances reports zero for an untouched member', () async {
-      await addMember(name: 'Silent');
-      final members = await db.usersDao.watchMembersWithBalances().first;
-      expect(members, hasLength(1));
-      expect(members.single.balanceMinorUnits, 0);
-      expect(members.single.group.id, seededGroup);
-    });
+    test(
+      'watchMembersWithBalances reports zero for an untouched member',
+      () async {
+        await addMember(name: 'Silent');
+        final members = await db.usersDao.watchMembersWithBalances().first;
+        expect(members, hasLength(1));
+        expect(members.single.balanceMinorUnits, 0);
+        expect(members.single.group.id, seededGroup);
+      },
+    );
   });
 
   group('voiding', () {
@@ -315,11 +317,233 @@ void main() {
       final b = await addMember(name: 'B');
       final c = await addMember(name: 'C');
 
-      await db.usersDao.reorderUsers([c, a, b]);
+      await db.usersDao.reorderUsers(
+        groupId: seededGroup,
+        idsInOrder: [c, a, b],
+      );
 
       final users = await db.usersDao.watchUsers().first;
       expect(users.map((u) => u.name), ['C', 'A', 'B']);
       expect(users.map((u) => u.sortOrder), [0, 1, 2]);
+    });
+
+    test('a new member starts at 0 in a group of its own', () async {
+      await addMember(name: 'A');
+      await addMember(name: 'B');
+
+      final other = await db.usersDao.createUserGroup(name: 'Leiding');
+      await addMember(name: 'X', groupId: other);
+
+      final inOther = await db.usersDao.watchUsersInGroup(other).first;
+      expect(inOther.single.sortOrder, 0);
+    });
+
+    test('a reorder renumbers only its own group', () async {
+      final other = await db.usersDao.createUserGroup(name: 'Leiding');
+      await addMember(name: 'A');
+      await addMember(name: 'B');
+      final x = await addMember(name: 'X', groupId: other);
+      final y = await addMember(name: 'Y', groupId: other);
+
+      await db.usersDao.reorderUsers(groupId: other, idsInOrder: [y, x]);
+
+      expect(
+        (await db.usersDao.watchUsersInGroup(other).first).map((u) => u.name),
+        ['Y', 'X'],
+      );
+      expect(
+        (await db.usersDao.watchUsersInGroup(seededGroup).first).map(
+          (u) => u.name,
+        ),
+        ['A', 'B'],
+      );
+    });
+
+    test('a reorder ignores an id from another group', () async {
+      final other = await db.usersDao.createUserGroup(name: 'Leiding');
+      final a = await addMember(name: 'A');
+      final b = await addMember(name: 'B');
+      final x = await addMember(name: 'X', groupId: other);
+
+      // X is passed first but belongs elsewhere, so it keeps its own number and
+      // takes no slot in this group.
+      await db.usersDao.reorderUsers(
+        groupId: seededGroup,
+        idsInOrder: [x, b, a],
+      );
+
+      final seeded = await db.usersDao.watchUsersInGroup(seededGroup).first;
+      expect(seeded.map((u) => u.name), ['B', 'A']);
+      expect(
+        (await db.usersDao.watchUsersInGroup(other).first).single.sortOrder,
+        0,
+      );
+    });
+
+    test('a restored member lands last in their group', () async {
+      final a = await addMember(name: 'A');
+      final b = await addMember(name: 'B');
+      final c = await addMember(name: 'C');
+
+      await db.usersDao.archiveUser(a);
+      // The two left are renumbered 0..1, so A cannot go back to its old 0.
+      await db.usersDao.reorderUsers(groupId: seededGroup, idsInOrder: [c, b]);
+      await db.usersDao.restoreUser(a);
+
+      final users = await db.usersDao.watchUsersInGroup(seededGroup).first;
+      expect(users.map((u) => u.name), ['C', 'B', 'A']);
+    });
+
+    test('watchUsers orders by group before member', () async {
+      // The second group sorts after the seeded one, so its members follow even
+      // though their own sortOrder restarts at 0.
+      final other = await db.usersDao.createUserGroup(name: 'Leiding');
+      await addMember(name: 'X', groupId: other);
+      await addMember(name: 'A');
+
+      final users = await db.usersDao.watchUsers().first;
+      expect(users.map((u) => u.name), ['A', 'X']);
+    });
+  });
+
+  group('editing details', () {
+    test(
+      'a group move lands last there and closes the gap left behind',
+      () async {
+        final other = await db.usersDao.createUserGroup(name: 'Leiding');
+        final a = await addMember(name: 'A');
+        final b = await addMember(name: 'B');
+        final c = await addMember(name: 'C');
+        await addMember(name: 'X', groupId: other);
+
+        await db.usersDao.updateUserDetails(
+          id: a,
+          name: 'A',
+          avatarEmoji: '🦊',
+          seedColorArgb: 0xFF009688,
+          groupId: other,
+        );
+
+        final moved = await db.usersDao.watchUsersInGroup(other).first;
+        expect(moved.map((u) => u.name), ['X', 'A']);
+        expect(moved.map((u) => u.sortOrder), [0, 1]);
+
+        // B and C were 1 and 2; the gap A left is closed.
+        final source = await db.usersDao.watchUsersInGroup(seededGroup).first;
+        expect(source.map((u) => u.name), ['B', 'C']);
+        expect(source.map((u) => u.sortOrder), [0, 1]);
+        expect([b, c], isNotEmpty);
+      },
+    );
+
+    test('an edit that keeps the group leaves sortOrder alone', () async {
+      await addMember(name: 'A');
+      final b = await addMember(name: 'B');
+
+      await db.usersDao.updateUserDetails(
+        id: b,
+        name: 'Bea',
+        avatarEmoji: '🐸',
+        seedColorArgb: 0xFFE91E63,
+        groupId: seededGroup,
+      );
+
+      final users = await db.usersDao.watchUsersInGroup(seededGroup).first;
+      expect(users.map((u) => u.name), ['A', 'Bea']);
+      expect(users.last.sortOrder, 1);
+      expect(users.last.avatarEmoji, '🐸');
+    });
+
+    test('an item moved between categories behaves the same way', () async {
+      final other = await db.itemsDao.createItemGroup(name: 'Snacks');
+      final cola = await addItem(name: 'Cola');
+      await addItem(name: 'Fanta');
+
+      await db.itemsDao.updateItemDetails(
+        id: cola.id,
+        name: 'Cola',
+        emoji: '🥤',
+        priceMinorUnits: 175,
+        groupId: other,
+      );
+
+      final moved = await db.itemsDao.watchItemsInGroup(other).first;
+      expect(moved.single.name, 'Cola');
+      expect(moved.single.priceMinorUnits, 175);
+      final source = await db.itemsDao.watchItemsInGroup(seededGroup).first;
+      expect(source.map((i) => i.sortOrder), [0]);
+    });
+  });
+
+  group('balances per group', () {
+    test('the groupId filter narrows to one group', () async {
+      final other = await db.usersDao.createUserGroup(name: 'Leiding');
+      final a = await addMember(name: 'A');
+      await addMember(name: 'X', groupId: other);
+      await db.transactionsDao.logTopUp(userId: a, amountMinorUnits: 500);
+
+      final inSeeded = await db.usersDao
+          .watchMembersWithBalances(groupId: seededGroup)
+          .first;
+      expect(inSeeded.single.user.name, 'A');
+      expect(inSeeded.single.balanceMinorUnits, 500);
+
+      final inOther = await db.usersDao
+          .watchMembersWithBalances(groupId: other)
+          .first;
+      expect(inOther.single.user.name, 'X');
+      expect(inOther.single.balanceMinorUnits, 0);
+    });
+
+    test('archived members come through when asked for', () async {
+      final a = await addMember(name: 'A');
+      await db.usersDao.archiveUser(a);
+
+      expect(
+        await db.usersDao.watchMembersWithBalances(groupId: seededGroup).first,
+        isEmpty,
+      );
+      final all = await db.usersDao
+          .watchMembersWithBalances(groupId: seededGroup, includeArchived: true)
+          .first;
+      expect(all.single.user.name, 'A');
+    });
+  });
+
+  group('group usage', () {
+    test('an empty group still appears, with zero counts', () async {
+      final rows = await db.usersDao.watchUserGroupsWithUsage().first;
+
+      expect(rows.single.group.id, seededGroup);
+      expect(rows.single.usage.total, 0);
+    });
+
+    test('an archived member still pins the group', () async {
+      await db.usersDao.archiveUser(await addMember());
+
+      final usage =
+          (await db.usersDao.watchUserGroupsWithUsage().first).single.usage;
+      expect(usage.activeCount, 0);
+      expect(usage.archivedCount, 1);
+      expect(usage.total, 1);
+    });
+
+    test('counts follow the group they belong to', () async {
+      final other = await db.usersDao.createUserGroup(name: 'Leiding');
+      await addMember(name: 'A');
+      await addMember(name: 'X', groupId: other);
+      await addMember(name: 'Y', groupId: other);
+
+      final rows = await db.usersDao.watchUserGroupsWithUsage().first;
+      expect(rows.map((row) => row.usage.activeCount), [1, 2]);
+    });
+
+    test('categories count their items', () async {
+      await addItem();
+
+      final rows = await db.itemsDao.watchItemGroupsWithUsage().first;
+      expect(rows.single.usage.activeCount, 1);
+      expect(rows.single.usage.archivedCount, 0);
     });
   });
 
@@ -348,17 +572,20 @@ void main() {
           );
     }
 
-    test('a logged consumption stamps the day its timestamp falls in', () async {
-      final user = await addMember();
-      final cola = await addItem();
-      final id = await db.transactionsDao.logConsumption(
-        userId: user,
-        item: cola,
-      );
+    test(
+      'a logged consumption stamps the day its timestamp falls in',
+      () async {
+        final user = await addMember();
+        final cola = await addItem();
+        final id = await db.transactionsDao.logConsumption(
+          userId: user,
+          item: cola,
+        );
 
-      final row = await db.transactionsDao.readTransaction(id);
-      expect(row!.logicalDate, logicalDayKey(row.createdAt));
-    });
+        final row = await db.transactionsDao.readTransaction(id);
+        expect(row!.logicalDate, logicalDayKey(row.createdAt));
+      },
+    );
 
     test('rows either side of 07:00 land on different days', () async {
       final user = await addMember();

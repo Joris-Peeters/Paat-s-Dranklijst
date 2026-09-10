@@ -1,49 +1,26 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import 'user_theme_scope.dart';
 
-/// A member's emoji in a circle tinted from their own seed colour.
+/// An emoji in a circle, tinted from the ambient theme.
 ///
-/// The colour is never painted raw: wrapping the circle in a `Theme` means
-/// everything inside, the ink splash included, picks up the member's palette.
-/// Takes the emoji and colour loose rather than a `UserRow`, so the create
-/// screen can use it before a row exists.
-class UserAvatar extends StatelessWidget {
-  const UserAvatar({
+/// Use this where the page is already inside the member's own
+/// [UserThemeScope]; use [UserAvatar] anywhere else. Splitting the two keeps a
+/// member's own page from installing their theme twice for one circle.
+class AvatarCircle extends StatelessWidget {
+  const AvatarCircle({
     super.key,
     required this.emoji,
-    required this.seedColorArgb,
     this.size = 56,
     this.onTap,
   });
 
   final String emoji;
-  final int seedColorArgb;
 
   /// Diameter. The glyph is sized from it, so the two cannot desync.
   final double size;
 
   /// Null leaves the circle inert, so display-only use needs no other widget.
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) => Theme(
-    // Memoized, so a screen full of avatars is one map lookup each.
-    data: appTheme(seedColorArgb, Theme.of(context).brightness),
-    child: _AvatarCircle(emoji: emoji, size: size, onTap: onTap),
-  );
-}
-
-/// Below the [Theme], so `Theme.of` here is the *member's* scheme.
-class _AvatarCircle extends StatelessWidget {
-  const _AvatarCircle({
-    required this.emoji,
-    required this.size,
-    required this.onTap,
-  });
-
-  final String emoji;
-  final double size;
   final VoidCallback? onTap;
 
   @override
@@ -78,4 +55,31 @@ class _AvatarCircle extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A member's avatar on a page that is not theirs: brings their palette with
+/// it, so a list on the app's theme still shows each member in their own
+/// colour.
+///
+/// Takes the emoji and colour loose rather than a `UserRow`, so the create
+/// screen can use it before a row exists.
+class UserAvatar extends StatelessWidget {
+  const UserAvatar({
+    super.key,
+    required this.emoji,
+    required this.seedColorArgb,
+    this.size = 56,
+    this.onTap,
+  });
+
+  final String emoji;
+  final int seedColorArgb;
+  final double size;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => UserThemeScope(
+    seedColorArgb: seedColorArgb,
+    child: AvatarCircle(emoji: emoji, size: size, onTap: onTap),
+  );
 }

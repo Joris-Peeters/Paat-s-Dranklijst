@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import 'user_avatar.dart';
 
 /// Asks for an emoji. Resolves to the chosen glyph, or null if dismissed.
 Future<String?> showEmojiPickerDialog(BuildContext context) =>
@@ -93,6 +95,82 @@ class EmojiPickerDialog extends StatelessWidget {
           child: Text(l10n.cancel),
         ),
       ],
+    );
+  }
+}
+
+/// A circle showing the current emoji that opens the picker when tapped.
+///
+/// Clearing is left to the caller: group emoji are nullable but member and item
+/// emoji are not, so a built-in clear affordance would be wrong half the time.
+class EmojiPickerButton extends StatelessWidget {
+  const EmojiPickerButton({
+    super.key,
+    required this.emoji,
+    required this.onPicked,
+    this.size = 56,
+  });
+
+  /// Null renders the placeholder rather than a glyph.
+  final String? emoji;
+
+  /// Not called when the picker is dismissed.
+  final ValueChanged<String> onPicked;
+
+  final double size;
+
+  Future<void> _pick(BuildContext context) async {
+    final picked = await showEmojiPickerDialog(context);
+    if (picked != null) onPicked(picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final emoji = this.emoji;
+    void onTap() => unawaited(_pick(context));
+
+    return Tooltip(
+      message: l10n.chooseEmoji,
+      // The glyph case reuses the avatar circle rather than restyling an emoji
+      // here: the leading and colour it needs are fiddly and belong in one
+      // place. The placeholder is an Icon, which takes its colour from
+      // IconTheme and needs none of that care.
+      child: emoji != null
+          ? AvatarCircle(emoji: emoji, size: size, onTap: onTap)
+          : _EmojiPlaceholder(size: size, onTap: onTap),
+    );
+  }
+}
+
+class _EmojiPlaceholder extends StatelessWidget {
+  const _EmojiPlaceholder({required this.size, required this.onTap});
+
+  final double size;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Material(
+      color: colors.surfaceContainerHighest,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: Icon(
+              Icons.add_reaction_outlined,
+              size: size * 0.5,
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

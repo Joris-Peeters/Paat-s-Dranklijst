@@ -123,18 +123,63 @@ class AppSettingsData {
 }
 
 extension AppSettingsFormatting on AppSettingsData {
+  /// `simpleCurrency` renders '€' where `currency` would render 'EUR'. Always
+  /// naming the currency explicitly: without it the currency is derived from
+  /// the locale, which ignores the setting when the two disagree.
+  NumberFormat get _currencyFormat =>
+      NumberFormat.simpleCurrency(locale: languageCode, name: currencyCode);
+
   /// Formats an integer amount of minor units, in the stored language and
   /// currency.
   String formatMoney(int minorUnits) {
-    final format = NumberFormat.simpleCurrency(
-      locale: languageCode,
-      // `simpleCurrency` renders '€' where `currency` would render 'EUR'.
-      // Always naming the currency explicitly: without it the currency is
-      // derived from the locale, which ignores the setting when they disagree.
-      name: currencyCode,
-    );
+    final format = _currencyFormat;
     // Not every currency has 100 minor units.
     final divisor = pow(10, format.decimalDigits ?? 2);
     return format.format(minorUnits / divisor);
   }
+
+  /// The bare number, for seeding an editable amount field.
+  ///
+  /// [formatMoney] is a display formatter and always writes the symbol, so a
+  /// field that draws its own prefix would show it twice. Grouping is off as
+  /// well: a price is a small number, and a thousands separator in an editable
+  /// field is punctuation the admin has to type around, next to a decimal mark
+  /// that may be the same glyph. The decimal mark itself still follows the
+  /// chosen language, so it reads the way money does everywhere else, and
+  /// [parseMoney] reads it back.
+  String formatAmount(int minorUnits) {
+    final digits = _currencyFormat.decimalDigits ?? 2;
+    final format = NumberFormat.decimalPatternDigits(
+      locale: languageCode,
+      decimalDigits: digits,
+    )..turnOffGrouping();
+    return format.format(minorUnits / pow(10, digits));
+  }
+
+  /// The symbol alone, for a price field's prefix.
+  String get currencySymbol => _currencyFormat.currencySymbol;
+
+  /// Minor units from typed text, or null when it is not an amount.
+  ///
+  /// Takes either separator as the decimal mark rather than the one this
+  /// language writes: a tablet's number pad usually offers only one of them,
+  /// and which it is has nothing to do with the language the admin chose.
+  /// Scales by the currency's own decimal count instead of assuming 100 minor
+  /// units.
+  int? parseMoney(String text) {
+    final amount = double.tryParse(text.trim().replaceAll(',', '.'));
+    // tryParse also reads "Infinity" and "NaN", and round() throws on those.
+    if (amount == null || !amount.isFinite) return null;
+    // Rounded, not truncated: 1.15 * 100 is 114.99999999999999 in binary
+    // floating point, and a price a cent short would compound over a season.
+    return (amount * pow(10, _currencyFormat.decimalDigits ?? 2)).round();
+  }
+
+  /// An absolute date and time in the stored language.
+  ///
+  /// Here rather than at the call site for the same reason as [formatMoney]:
+  /// the language is a setting, not the device locale, and a widget that
+  /// reached for `DateFormat` itself would quietly use the wrong one.
+  String formatDateTime(DateTime at) =>
+      DateFormat.yMMMd(languageCode).add_Hm().format(at);
 }

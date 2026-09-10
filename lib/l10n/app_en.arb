@@ -84,28 +84,193 @@
   "@aboutLicensesHelp": { "description": "Note above the open source licenses button" },
 
   "manageMembers": "Members",
-  "@manageMembers": { "description": "Management card leading to member administration" },
-
-  "manageMembersSubtitle": "Add, edit and remove members",
-  "@manageMembersSubtitle": { "description": "Subtitle of the members management card" },
-
-  "manageGroups": "Groups",
-  "@manageGroups": { "description": "Management card leading to group administration" },
-
-  "manageGroupsSubtitle": "Organise members into groups",
-  "@manageGroupsSubtitle": { "description": "Subtitle of the groups management card" },
+  "@manageMembers": { "description": "Title of the screen listing one group's members" },
 
   "manageItems": "Items",
-  "@manageItems": { "description": "Management card leading to item administration" },
+  "@manageItems": { "description": "Title of the screen listing one category's items" },
 
-  "manageItemsSubtitle": "Drinks and snacks, and what they cost",
-  "@manageItemsSubtitle": { "description": "Subtitle of the items management card" },
+  "userGroups": "User groups",
+  "@userGroups": { "description": "Management card and screen title for the member groups" },
+
+  "userGroupsSubtitle": "Organise members into groups",
+  "@userGroupsSubtitle": { "description": "Subtitle of the user groups card before its counts have loaded" },
+
+  "userGroupsSummary": "{groups, plural, =1{1 group} other{{groups} groups}} · {members, plural, =1{1 member} other{{members} members}}",
+  "@userGroupsSummary": {
+    "description": "Live counts under the user groups management card",
+    "placeholders": {
+      "groups": { "type": "int" },
+      "members": { "type": "int" }
+    }
+  },
+
+  "itemCategories": "Categories",
+  "@itemCategories": { "description": "Management card and screen title for the item categories" },
+
+  "itemCategoriesSubtitle": "Organise drinks and snacks into categories",
+  "@itemCategoriesSubtitle": { "description": "Subtitle of the categories card before its counts have loaded" },
+
+  "itemCategoriesSummary": "{categories, plural, =1{1 category} other{{categories} categories}} · {items, plural, =1{1 item} other{{items} items}}",
+  "@itemCategoriesSummary": {
+    "description": "Live counts under the categories management card",
+    "placeholders": {
+      "categories": { "type": "int" },
+      "items": { "type": "int" }
+    }
+  },
+
+  "groupMemberCount": "{count, plural, =0{No members} =1{1 member} other{{count} members}}",
+  "@groupMemberCount": {
+    "description": "How many members a group holds. Archived members are not counted here — see deleteBlockedInUse for why the delete action can still be refused",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "categoryItemCount": "{count, plural, =0{No items} =1{1 item} other{{count} items}}",
+  "@categoryItemCount": {
+    "description": "How many items a category holds, archived ones excluded",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "newGroup": "New group",
+  "@newGroup": { "description": "Button that creates a user group" },
+
+  "newCategory": "New category",
+  "@newCategory": { "description": "Button that creates an item category" },
+
+  "editGroup": "Edit group",
+  "@editGroup": { "description": "Title of the dialog that renames a user group" },
+
+  "editCategory": "Edit category",
+  "@editCategory": { "description": "Title of the dialog that renames an item category" },
+
+  "deleteGroup": "Delete group",
+  "@deleteGroup": { "description": "Action that permanently removes an empty user group" },
+
+  "deleteCategory": "Delete category",
+  "@deleteCategory": { "description": "Action that permanently removes an empty item category" },
+
+  "deleteConfirm": "Delete {name}? This cannot be undone.",
+  "@deleteConfirm": {
+    "description": "Body of the confirmation dialog before a hard delete",
+    "placeholders": { "name": { "type": "String" } }
+  },
+
+  "deleteBlockedInUse": "Cannot be deleted while it still holds entries, archived ones included.",
+  "@deleteBlockedInUse": { "description": "Why the delete action is unavailable. Deliberately carries no count: an archived row pins a group just as hard but is not counted in the subtitle, so a number here would appear to contradict it" },
+
+  "nameLabel": "Name",
+  "@nameLabel": { "description": "Label of the name field in the group, member and item editors" },
+
+  "groupLabel": "Group",
+  "@groupLabel": { "description": "Label of the group dropdown in the member editor" },
+
+  "categoryLabel": "Category",
+  "@categoryLabel": { "description": "Label of the category dropdown in the item editor" },
+
+  "colorLabel": "Color",
+  "@colorLabel": { "description": "Label above the color palette in the member editor" },
+
+  "priceLabel": "Price",
+  "@priceLabel": { "description": "Label of the price field in the item editor" },
+
+  "priceInvalid": "Enter an amount, for example 1.50",
+  "@priceInvalid": { "description": "Validation message for a price that cannot be read as an amount" },
+
+  "newMember": "New member",
+  "@newMember": { "description": "Title of the member editor when creating" },
+
+  "editMember": "Edit member",
+  "@editMember": { "description": "Title of the member editor when changing an existing one" },
+
+  "newItem": "New item",
+  "@newItem": { "description": "Title of the item editor when creating" },
+
+  "editItem": "Edit item",
+  "@editItem": { "description": "Title of the item editor when changing an existing one" },
+
+  "archivedSection": "Archived",
+  "@archivedSection": { "description": "Heading above the archived rows at the bottom of a list" },
+
+  "archive": "Archive",
+  "@archive": { "description": "Action that retires a member or item without deleting them" },
+
+  "unarchive": "Restore",
+  "@unarchive": { "description": "Action that brings an archived member or item back" },
+
+  "archiveMemberConfirm": "Archive {name}? Their history stays intact and you can restore them later.",
+  "@archiveMemberConfirm": {
+    "description": "Body of the confirmation dialog before archiving a member",
+    "placeholders": { "name": { "type": "String" } }
+  },
+
+  "archiveItemConfirm": "Archive {name}? It stays on past transactions and you can restore it later.",
+  "@archiveItemConfirm": {
+    "description": "Body of the confirmation dialog before archiving an item",
+    "placeholders": { "name": { "type": "String" } }
+  },
+
+  "archiveBlockedBalance": "{name} still has {amount}. Settle up or post an adjustment first.",
+  "@archiveBlockedBalance": {
+    "description": "Why a member cannot be archived. Archiving is not a way to make a debt disappear quietly",
+    "placeholders": {
+      "name": { "type": "String" },
+      "amount": { "type": "String" }
+    }
+  },
+
+  "adjustment": "Adjustment",
+  "@adjustment": { "description": "Action that posts a correction to a member's balance" },
+
+  "noMembersInGroup": "No members in this group yet",
+  "@noMembersInGroup": { "description": "Empty state on a group's member list" },
+
+  "noItemsInCategory": "No items in this category yet",
+  "@noItemsInCategory": { "description": "Empty state on a category's item list" },
+
+  "clearEmoji": "Remove emoji",
+  "@clearEmoji": { "description": "Tooltip of the button that clears a group's emoji" },
+
+  "dragToReorder": "Drag to reorder",
+  "@dragToReorder": { "description": "Tooltip of the drag handle in a reorderable list" },
+
+  "edit": "Edit",
+  "@edit": { "description": "Generic edit action" },
+
+  "delete": "Delete",
+  "@delete": { "description": "Generic delete action, for a permanent removal" },
+
+  "save": "Save",
+  "@save": { "description": "Generic save action, confirming a dialog" },
 
   "noGroupsYet": "No groups yet",
-  "@noGroupsYet": { "description": "Empty state on the group management screen" },
+  "@noGroupsYet": { "description": "Empty state on the user groups screen" },
+
+  "noCategoriesYet": "No categories yet",
+  "@noCategoriesYet": { "description": "Empty state on the categories screen" },
 
   "noItemsYet": "No items yet",
-  "@noItemsYet": { "description": "Empty state on the item management screen" },
+  "@noItemsYet": { "description": "Empty state on the item list of one category" },
+
+  "amountPositive": "+{amount}",
+  "@amountPositive": {
+    "description": "An amount that is money in the member's favour, shown with an explicit plus. Separate from the formatted amount so a locale can place the sign itself",
+    "placeholders": { "amount": { "type": "String" } }
+  },
+
+  "itemWithQuantity": "{name} ×{count}",
+  "@itemWithQuantity": {
+    "description": "A history line for more than one of the same item",
+    "placeholders": {
+      "name": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+
+  "transactionTopUp": "Top-up",
+  "@transactionTopUp": { "description": "History label for a top-up that carries no note" },
+
+  "transactionAdjustment": "Adjustment",
+  "@transactionAdjustment": { "description": "History label for an adjustment that carries no note" },
 
   "themeColor": "Theme color",
   "@themeColor": { "description": "Setting for the colour the whole app palette is generated from" },

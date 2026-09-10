@@ -2,13 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/database_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/palette_picker.dart';
 import '../widgets/pin_dialog.dart';
 import '../widgets/settings_fields.dart';
-import 'management_stub_screen.dart';
+import 'item_categories_screen.dart';
+import 'user_groups_screen.dart';
 
 /// Opens the settings screen, asking for the admin PIN first when one is set.
 Future<void> openSettings(BuildContext context) async {
@@ -46,7 +49,8 @@ class SettingsScreen extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           _SectionHeader(title: l10n.sectionManagement),
-          ..._managementCards(context, l10n),
+          const _UserGroupsCard(),
+          const _ItemCategoriesCard(),
 
           const Divider(height: 24, indent: 16, endIndent: 16),
 
@@ -65,67 +69,118 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  /// One record per management area — a fourth is one more entry here.
-  List<Widget> _managementCards(BuildContext context, AppLocalizations l10n) {
-    final areas = <_ManagementArea>[
-      (
-        icon: Icons.people_rounded,
-        title: l10n.manageMembers,
-        subtitle: l10n.manageMembersSubtitle,
-        empty: l10n.noMembersYet,
-      ),
-      (
-        icon: Icons.groups_rounded,
-        title: l10n.manageGroups,
-        subtitle: l10n.manageGroupsSubtitle,
-        empty: l10n.noGroupsYet,
-      ),
-      (
-        icon: Icons.local_cafe,
-        title: l10n.manageItems,
-        subtitle: l10n.manageItemsSubtitle,
-        empty: l10n.noItemsYet,
-      ),
-    ];
+const _cardMargin = EdgeInsets.symmetric(horizontal: 16, vertical: 4);
 
-    return [
-      for (final area in areas)
-        Card(
-          margin: _cardMargin,
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-            leading: Icon(area.icon, size: 32),
-            title: Text(area.title),
-            subtitle: Text(area.subtitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ManagementStubScreen(
-                  title: area.title,
-                  icon: area.icon,
-                  emptyMessage: area.empty,
-                ),
-              ),
-            ),
-          ),
+/// A management area, with live counts under its name.
+///
+/// Falls back to the static description until the query resolves, so the
+/// subtitle never flashes empty.
+class _ManagementCard extends StatelessWidget {
+  const _ManagementCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.counts,
+    required this.open,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Stream<String> counts;
+  final Widget Function() open;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: _cardMargin,
+    child: ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      leading: Icon(icon, size: 32),
+      title: Text(title),
+      subtitle: StreamBuilder<String>(
+        stream: counts,
+        builder: (context, snapshot) => Text(snapshot.data ?? subtitle),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => open()),
+      ),
+    ),
+  );
+}
+
+class _UserGroupsCard extends StatefulWidget {
+  const _UserGroupsCard();
+
+  @override
+  State<_UserGroupsCard> createState() => _UserGroupsCardState();
+}
+
+class _UserGroupsCardState extends State<_UserGroupsCard> {
+  // Built once: `Database.of` depends on an inherited widget, so it cannot run
+  // in initState, and rebuilding it in build would resubscribe every frame.
+  late final Stream<({int groups, int members})> _counts = Database.of(context)
+      .usersDao
+      .watchUserGroupsWithUsage()
+      .map(
+        (rows) => (
+          groups: rows.length,
+          // Archived members included: the point of the number is how much the
+          // group holds, and an archived row weighs the same here.
+          members: rows.fold(0, (sum, row) => sum + row.usage.total),
         ),
-    ];
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return _ManagementCard(
+      icon: Icons.groups_rounded,
+      title: l10n.userGroups,
+      subtitle: l10n.userGroupsSubtitle,
+      counts: _counts.map(
+        (counts) => l10n.userGroupsSummary(counts.groups, counts.members),
+      ),
+      open: UserGroupsScreen.new,
+    );
   }
 }
 
-typedef _ManagementArea = ({
-  IconData icon,
-  String title,
-  String subtitle,
-  String empty,
-});
+class _ItemCategoriesCard extends StatefulWidget {
+  const _ItemCategoriesCard();
 
-const _cardMargin = EdgeInsets.symmetric(horizontal: 16, vertical: 4);
+  @override
+  State<_ItemCategoriesCard> createState() => _ItemCategoriesCardState();
+}
+
+class _ItemCategoriesCardState extends State<_ItemCategoriesCard> {
+  late final Stream<({int categories, int items})> _counts =
+      Database.of(context).itemsDao.watchItemGroupsWithUsage().map(
+        (rows) => (
+          categories: rows.length,
+          items: rows.fold(0, (sum, row) => sum + row.usage.total),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return _ManagementCard(
+      icon: Icons.category_rounded,
+      title: l10n.itemCategories,
+      subtitle: l10n.itemCategoriesSubtitle,
+      counts: _counts.map(
+        (counts) => l10n.itemCategoriesSummary(counts.categories, counts.items),
+      ),
+      open: ItemCategoriesScreen.new,
+    );
+  }
+}
 
 /// A section heading above a group of settings.
 class _SectionHeader extends StatelessWidget {
@@ -206,9 +261,8 @@ class _AppearanceCard extends StatelessWidget {
           title: Text(l10n.themeColor),
           trailing: ColorPicker(
             selected: Color(settings.seedColorArgb),
-            onSelected: (color) => write(
-              settings.copyWith(seedColorArgb: color.toARGB32()),
-            ),
+            onSelected: (color) =>
+                write(settings.copyWith(seedColorArgb: color.toARGB32())),
           ),
         ),
         ListTile(
@@ -423,25 +477,14 @@ class _AdminPinField extends StatelessWidget {
   Future<void> _remove(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.pinRemove),
-        content: Text(l10n.pinRemoveConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(l10n.remove),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructive(
+      context,
+      title: l10n.pinRemove,
+      message: l10n.pinRemoveConfirm,
+      confirmLabel: l10n.remove,
     );
 
-    if (confirmed ?? false) {
+    if (confirmed) {
       write(settings.copyWith(adminPin: null));
     }
   }

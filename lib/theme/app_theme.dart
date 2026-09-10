@@ -32,3 +32,15 @@ ThemeData appTheme(int seedColorArgb, Brightness brightness) =>
         useMaterial3: true,
       ),
     );
+
+// Credit is a fixed green rather than a ColorScheme role. Every role shifts
+// with the admin's seed and again inside a member's own theme, so `tertiary`
+// would mean teal on one page and pink on the next; money must not change
+// meaning with the palette around it. Debit needs no equivalent — Material
+// keeps `error` in the red family whatever the seed.
+const _creditLight = Color(0xFF2E7D32);
+const _creditDark = Color(0xFF81C784);
+
+/// The colour of an amount that is money in the member's favour.
+Color creditColor(Brightness brightness) =>
+    brightness == Brightness.dark ? _creditDark : _creditLight;

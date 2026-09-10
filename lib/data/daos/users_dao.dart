@@ -24,17 +24,49 @@ class MemberWithBalance {
   final int balanceMinorUnits;
 }
 
+/// A group with how many members it holds, both halves counted.
+class UserGroupWithUsage {
+  const UserGroupWithUsage({required this.group, required this.usage});
+
+  final UserGroupRow group;
+  final GroupUsage usage;
+}
+
 /// Queries against members and the groups they belong to.
 @DriftAccessor(tables: [Users, UserGroups], views: [UserBalances])
 class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
   UsersDao(super.db);
 
-  Stream<List<UserGroupRow>> watchUserGroups() =>
-      (select(userGroups)..orderBy([(g) => OrderingTerm(expression: g.sortOrder)]))
-          .watch();
+  Stream<List<UserGroupRow>> watchUserGroups() => (select(
+    userGroups,
+  )..orderBy([(g) => OrderingTerm(expression: g.sortOrder)])).watch();
 
+  /// Every member, in group order then their place inside it. The join is what
+  /// makes the order meaningful: `sortOrder` is only unique within a group, so
+  /// several members legitimately share a 0.
   Stream<List<UserRow>> watchUsers({bool includeArchived = false}) {
     final query = select(users)
+        .join([innerJoin(userGroups, userGroups.id.equalsExp(users.groupId))]);
+    if (!includeArchived) {
+      query.where(users.archivedAt.isNull());
+    }
+    query.orderBy([
+      OrderingTerm(expression: userGroups.sortOrder),
+      OrderingTerm(expression: users.sortOrder),
+    ]);
+    return query.watch().map(
+      (rows) => rows.map((row) => row.readTable(users)).toList(),
+    );
+  }
+
+  /// One group's members. Needs no join: inside a single group the member's own
+  /// [Users.sortOrder] is the whole order.
+  Stream<List<UserRow>> watchUsersInGroup(
+    int groupId, {
+    bool includeArchived = false,
+  }) {
+    final query = select(users)
+      ..where((u) => u.groupId.equals(groupId))
       ..orderBy([(u) => OrderingTerm(expression: u.sortOrder)]);
     if (!includeArchived) {
       query.where((u) => u.archivedAt.isNull());
@@ -42,14 +74,52 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     return query.watch();
   }
 
+  /// Groups with their member counts, in one query rather than a count per row.
+  ///
+  /// The join is a left one so an empty group still appears — an empty group is
+  /// the only kind that can be deleted, so it is exactly the row the management
+  /// screen must show.
+  Stream<List<UserGroupWithUsage>> watchUserGroupsWithUsage() {
+    final active = users.id.count(filter: users.archivedAt.isNull());
+    final archived = users.id.count(filter: users.archivedAt.isNotNull());
+    final query =
+        select(
+            userGroups,
+          ).join([leftOuterJoin(users, users.groupId.equalsExp(userGroups.id))])
+          ..addColumns([active, archived])
+          ..groupBy([userGroups.id])
+          ..orderBy([OrderingTerm(expression: userGroups.sortOrder)]);
+
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (row) => UserGroupWithUsage(
+              group: row.readTable(userGroups),
+              usage: GroupUsage(
+                activeCount: row.read(active) ?? 0,
+                archivedCount: row.read(archived) ?? 0,
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+
   /// Members in group order, each with their group and running balance.
+  ///
+  /// [groupId] narrows it to one group, which is what the group contents screen
+  /// wants: the balance decides whether a member can be archived at all.
   Stream<List<MemberWithBalance>> watchMembersWithBalances({
+    int? groupId,
     bool includeArchived = false,
   }) {
     final query = select(users).join([
       innerJoin(userGroups, userGroups.id.equalsExp(users.groupId)),
       leftOuterJoin(userBalances, userBalances.userId.equalsExp(users.id)),
     ]);
+    if (groupId != null) {
+      query.where(users.groupId.equals(groupId));
+    }
     if (!includeArchived) {
       query.where(users.archivedAt.isNull());
     }
@@ -97,7 +167,7 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     required String avatarEmoji,
     required int seedColorArgb,
   }) => transaction(() async {
-    final order = await _nextSortOrder();
+    final order = await _nextSortOrder(groupId);
     return into(users).insert(
       UsersCompanion.insert(
         name: name,
@@ -113,6 +183,57 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     await (update(users)..where((u) => u.id.equals(id))).write(changes);
   }
 
+  /// Everything the edit dialog can change, in one transaction.
+  ///
+  /// A group move has to land the member last in the destination and close the
+  /// gap they left behind, and a half-applied move would put two members of the
+  /// same group on the same number.
+  Future<UserRow?> readUser(int id) =>
+      (select(users)..where((u) => u.id.equals(id))).getSingleOrNull();
+
+  Future<void> updateUserDetails({
+    required int id,
+    required String name,
+    required String avatarEmoji,
+    required int seedColorArgb,
+    required int groupId,
+  }) => transaction(() async {
+    final current = await (select(
+      users,
+    )..where((u) => u.id.equals(id))).getSingleOrNull();
+    if (current == null) return;
+
+    final moved = current.groupId != groupId;
+    await (update(users)..where((u) => u.id.equals(id))).write(
+      UsersCompanion(
+        name: Value(name),
+        avatarEmoji: Value(avatarEmoji),
+        seedColorArgb: Value(seedColorArgb),
+        groupId: Value(groupId),
+        // Untouched unless the group changed: a rename must not reshuffle the
+        // list the admin is looking at.
+        sortOrder: moved
+            ? Value(await _nextSortOrder(groupId))
+            : const Value.absent(),
+      ),
+    );
+    if (moved) await _renumberGroup(current.groupId);
+  });
+
+  /// Closes the gaps a departure left, so one group's numbers stay 0..n-1.
+  Future<void> _renumberGroup(int groupId) async {
+    final rows =
+        await (select(users)
+              ..where((u) => u.groupId.equals(groupId))
+              ..orderBy([(u) => OrderingTerm(expression: u.sortOrder)]))
+            .get();
+    for (var i = 0; i < rows.length; i++) {
+      await (update(users)..where((u) => u.id.equals(rows[i].id))).write(
+        UsersCompanion(sortOrder: Value(i)),
+      );
+    }
+  }
+
   /// Soft delete. Refuses a member who still owes or holds money — archiving is
   /// not a way to make a debt disappear quietly.
   Future<void> archiveUser(int id) => transaction(() async {
@@ -125,11 +246,21 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     );
   });
 
-  Future<void> restoreUser(int id) async {
+  /// Lands the member last in their group rather than back on their old
+  /// number: a reorder while they were archived renumbered everyone else, so
+  /// the position they left with is very likely taken.
+  Future<void> restoreUser(int id) => transaction(() async {
+    final user = await (select(
+      users,
+    )..where((u) => u.id.equals(id))).getSingleOrNull();
+    if (user == null) return;
     await (update(users)..where((u) => u.id.equals(id))).write(
-      const UsersCompanion(archivedAt: Value(null)),
+      UsersCompanion(
+        archivedAt: const Value(null),
+        sortOrder: Value(await _nextSortOrder(user.groupId)),
+      ),
     );
-  }
+  });
 
   Future<int> createUserGroup({required String name, String? emoji}) =>
       transaction(() async {
@@ -142,6 +273,9 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
           ),
         );
       });
+
+  Future<UserGroupRow?> readUserGroup(int id) =>
+      (select(userGroups)..where((g) => g.id.equals(id))).getSingleOrNull();
 
   Future<void> updateUserGroup(int id, UserGroupsCompanion changes) async {
     await (update(userGroups)..where((g) => g.id.equals(id))).write(changes);
@@ -183,11 +317,19 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
 
   // Both reorders renumber 0..n-1 in one transaction. Under a hundred rows
   // makes gap-based or fractional ordering pointless complexity.
-  Future<void> reorderUsers(List<int> idsInOrder) => transaction(() async {
+
+  /// Renumbers one group's members. [groupId] is required and constrains every
+  /// UPDATE: order is only meaningful within a group, so an id from another one
+  /// must not be renumbered into this sequence.
+  Future<void> reorderUsers({
+    required int groupId,
+    required List<int> idsInOrder,
+  }) => transaction(() async {
     for (var i = 0; i < idsInOrder.length; i++) {
-      await (update(users)..where((u) => u.id.equals(idsInOrder[i]))).write(
-        UsersCompanion(sortOrder: Value(i)),
-      );
+      await (update(users)..where(
+            (u) => u.id.equals(idsInOrder[i]) & u.groupId.equals(groupId),
+          ))
+          .write(UsersCompanion(sortOrder: Value(i)));
     }
   });
 
@@ -198,9 +340,13 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     }
   });
 
-  Future<int> _nextSortOrder() async {
+  Future<int> _nextSortOrder(int groupId) async {
     final max = users.sortOrder.max();
-    final row = await (selectOnly(users)..addColumns([max])).getSingle();
+    final row =
+        await (selectOnly(users)
+              ..addColumns([max])
+              ..where(users.groupId.equals(groupId)))
+            .getSingle();
     return (row.read(max) ?? -1) + 1;
   }
 

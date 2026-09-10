@@ -2105,9 +2105,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
   final int userId;
   final TransactionType type;
 
-  /// The signed **line total**, never a unit price: negative is spending,
-  /// positive is credit the member holds. Makes the balance one type-agnostic
-  /// SUM, so a fourth transaction type would need no balance changes.
+  /// The signed line total, never a unit price: negative is spending, positive
+  /// is credit. Keeps the balance a single type-agnostic SUM.
   final int amountMinorUnits;
 
   /// Display only — [amountMinorUnits] already has this multiplied in.

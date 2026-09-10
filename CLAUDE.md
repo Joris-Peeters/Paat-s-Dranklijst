@@ -22,6 +22,9 @@ networked app. There is no server, no account system, no sync.
 - Users are Chiro members — teenagers and leaders — tapping with cold, wet fingers on
   a fridge door. Touch targets must be generous. UI must be obvious without
   instruction.
+- **Portrait-first**, and a **tablet** is the primary form factor — a phone is a
+  secondary one that must still work, not a size the layout is designed around.
+  Landscape is not a target: the tablet is bolted to a fridge door one way up.
 - **No networking.** No audio. No device integrations beyond (eventually) the camera.
 
 ## Stack
@@ -30,7 +33,8 @@ networked app. There is no server, no account system, no sync.
 | --- | --- |
 | Framework | Flutter |
 | UI | Material 3 (`useMaterial3: true`), built-in widgets only |
-| App state | Drift `.watch()` streams + `StreamBuilder`; `setState` for ephemeral widget state. |
+| App state | Drift `.watch()` streams + `StreamBuilder`; `setState` for ephemeral widget state. **No state-management package** — no Provider, Riverpod, BLoC or GetX. |
+| Navigation | `Navigator.push` / `Navigator.pop`. **No `go_router`** — a kiosk has no URLs and no deep links to route. |
 | Database | `drift` + `drift_flutter` |
 | Settings | `shared_preferences` |
 | QR codes | `qr_flutter` |
@@ -64,9 +68,9 @@ These are deliberate and load-bearing. Do not work around them without asking.
 
 ### 1. The transaction log is an append-only ledger
 
-Every consumption, top-up and adjustment is a permanent row. **Never DELETE a
-transaction, and never rewrite one.** The only permitted update is the one-way void
-described below.
+Every consumption, top-up and adjustment is a permanent row. **Never rewrite a
+transaction**, and never DELETE one except through the five-second snackbar undo
+described below. The only permitted update is the one-way void, also below.
 
 #### Money and direction
 
@@ -106,16 +110,24 @@ inserted microseconds either side of 07:00 cannot take its timestamp and its day
 different days. It is **stored rather than derived** because the equivalent SQL
 expression can never be indexed — see the gotcha below.
 
-#### Voiding
+#### Undoing: two mechanisms, not one
 
-A mis-tap should vanish, not appear twice, so a row can be voided: `voidedAt` goes from
-null to a timestamp and `voidedNote` records why. The transition is **one-way** — never
-cleared, never DELETEd, and the DAO guards on `voidedAt IS NULL` so a second call is a
-no-op. The row itself is never rewritten, and voided rows still render in history,
-struck through: hidden from balances, not from the record.
+There is no login and anyone can tap anything, so which mechanism applies is decided by
+*when*, not by who asks.
 
-Gate it by time and PIN, because there is no login and anyone can tap anything: an
-inline **Undo** with no PIN within ~60 seconds, and the admin PIN plus a note after.
+**Within 5 seconds: the snackbar Undo hard-DELETEs the row.** Logging a consumption
+raises a snackbar with an **Undo** action, and taking it removes the row outright — no
+PIN, no trace, no strikethrough in history. This is the single deliberate exception to
+append-only. It is safe precisely because it is unreachable by anyone but the person
+still standing at the fridge, and a row that existed for five seconds has told nobody
+anything. Nothing else in the app may DELETE a transaction.
+
+**After that: voiding, and it always takes the admin PIN.** There is no grace period —
+once the snackbar is gone, correcting a row is an admin action every time. `voidedAt`
+goes from null to a timestamp and `voidedNote` records why. The transition is
+**one-way** — never cleared, never DELETEd, and the DAO guards on `voidedAt IS NULL` so
+a second call is a no-op. The row itself is never rewritten, and voided rows still
+render in history, struck through: hidden from balances, not from the record.
 
 Use an `adjustment`, not a void, for a genuine correction that is not a mistake ("Jonas
 paid €10 cash"). **Voiding erases; adjusting records.**
@@ -233,6 +245,9 @@ from the ARB files present — adding `app_de.arb` is all it takes to offer Germ
 display names live in the ARB files, each language named in its own language, so the
 label does not change with the active locale.
 
+**Every user-facing string goes through the ARB files — no hardcoded literals in a
+widget**.
+
 **Item names and user names are user data, not UI strings.** They never appear in ARB
 files.
 
@@ -301,6 +316,28 @@ The count and the delete run in **one transaction** so the check cannot go stale
 throws `GroupInUseException` rather than letting a constraint blow up. In the UI, disable
 the delete action with an explanation ("3 members, including 1 archived") rather than
 letting it fail after the tap.
+
+### 8. Sort order is scoped to the group
+
+Members and items are ordered **strictly within their group**. `sortOrder` therefore only
+has to be unique *inside* one group, and every list query orders two levels deep:
+
+```dart
+query.orderBy([
+  OrderingTerm(expression: userGroups.sortOrder),  // the group's own place
+  OrderingTerm(expression: users.sortOrder),       // the member's place in it
+]);
+```
+
+Reordering renumbers the affected rows `0..n-1` in one transaction — under a hundred
+rows makes gap-based or fractional ordering pointless complexity.
+
+Two places in the DAOs still work table-wide rather than per group. `_nextSortOrder`
+takes `MAX(sort_order)` over the whole table, which is *correct but loose*: a global max
+is by definition larger than anything in the target group, so a new row still lands last.
+`ItemsDao.watchItems` orders on the item's own `sortOrder` alone without joining
+`item_groups` — `UsersDao.watchMembersWithBalances` is the pattern to copy. Tightening
+both to be genuinely per-group is wanted, not yet done.
 
 ## Known gotchas
 

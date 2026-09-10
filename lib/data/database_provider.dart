@@ -10,9 +10,13 @@ import 'database.dart';
 /// StatelessWidget would open a new one on every rebuild. Mirrors the
 /// `AppSettings` shape — a plain widget wrapping a private InheritedWidget.
 class Database extends StatefulWidget {
-  const Database({super.key, required this.child});
+  const Database({super.key, required this.child, this.database});
 
   final Widget child;
+
+  /// Supplied only by tests, which hand in an in-memory database. A provided
+  /// one is not closed here: whoever opened it owns its lifetime.
+  final AppDatabase? database;
 
   static AppDatabase of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<_DatabaseScope>();
@@ -25,11 +29,11 @@ class Database extends StatefulWidget {
 }
 
 class _DatabaseState extends State<Database> {
-  late final AppDatabase _database = AppDatabase();
+  late final AppDatabase _database = widget.database ?? AppDatabase();
 
   @override
   void dispose() {
-    unawaited(_database.close());
+    if (widget.database == null) unawaited(_database.close());
     super.dispose();
   }
 

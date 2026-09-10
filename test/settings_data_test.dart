@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/settings/settings_data.dart';
 
 void main() {
+  _parseMoneyTests();
   group('AppSettingsData equality', () {
     test('two defaults are equal and hash alike', () {
       expect(const AppSettingsData(), const AppSettingsData());
@@ -93,6 +94,107 @@ void main() {
       // JPY has no minor units, so the divisor must not be a hardcoded 100.
       const jpy = AppSettingsData(currencyCode: 'JPY');
       expect(jpy.formatMoney(1250), contains('1,250'));
+    });
+  });
+}
+
+void _parseMoneyTests() {
+  const eur = AppSettingsData();
+  const jpy = AppSettingsData(currencyCode: 'JPY');
+
+  group('formatAmount', () {
+    const nl = AppSettingsData(languageCode: 'nl');
+
+    test('writes no symbol, so a prefixed field shows it once', () {
+      expect(eur.formatAmount(150), '1.50');
+      expect(nl.formatAmount(150), '1,50');
+      expect(eur.formatAmount(150), isNot(contains('\u20ac')));
+    });
+
+    test('does not group thousands', () {
+      expect(eur.formatAmount(123450), '1234.50');
+      expect(nl.formatAmount(123450), '1234,50');
+    });
+
+    test('respects a currency with no minor units', () {
+      expect(jpy.formatAmount(500), '500');
+    });
+
+    test('round-trips through parseMoney', () {
+      for (final settings in [eur, nl, jpy]) {
+        for (final minor in [0, 5, 150, 123450]) {
+          expect(
+            settings.parseMoney(settings.formatAmount(minor)),
+            minor,
+            reason: '${settings.languageCode} $minor',
+          );
+        }
+      }
+    });
+  });
+
+  group('parseMoney', () {
+    test('takes either separator as the decimal mark', () {
+      expect(eur.parseMoney('1,50'), 150);
+      expect(eur.parseMoney('1.50'), 150);
+      expect(eur.parseMoney('-3.50'), -350);
+      expect(eur.parseMoney('5,70'), 570);
+    });
+
+    test('fills in a short or missing fraction', () {
+      expect(eur.parseMoney('1,5'), 150);
+      expect(eur.parseMoney('2'), 200);
+      expect(eur.parseMoney('0,05'), 5);
+    });
+
+    test('a lone separator is the decimal mark, not a thousands group', () {
+      // Reading it the other way round would price a drink at a thousand
+      // times its value.
+      expect(eur.parseMoney('1.500'), 150);
+      expect(eur.parseMoney('1,500'), 150);
+    });
+
+    test('a grouped amount is not an amount', () {
+      // formatAmount writes no grouping, so nothing this reads back can carry
+      // it, and guessing which separator grouped is how a price gets misread.
+      expect(eur.parseMoney('1.234,50'), isNull);
+      expect(eur.parseMoney('1,234.50'), isNull);
+    });
+
+    test('rejects anything that is not an amount', () {
+      for (final junk in [
+        '',
+        '   ',
+        'abc',
+        '1,2,3',
+        '1..5',
+        '--1',
+        '1a',
+        // The field draws the symbol itself, so one in the text is a typo.
+        '€1,50',
+        // double.tryParse reads these, and round() throws on them.
+        'Infinity',
+        'NaN',
+      ]) {
+        expect(eur.parseMoney(junk), isNull, reason: junk);
+      }
+    });
+
+    test('rounds to the currency precision rather than refusing', () {
+      expect(eur.parseMoney('1,505'), 151);
+      expect(jpy.parseMoney('500,5'), 501);
+    });
+
+    test('respects a currency with no minor units', () {
+      expect(jpy.parseMoney('500'), 500);
+    });
+
+    test('is exact where binary floating point is not', () {
+      // 1.15 * 100 is 114.99999999999999, and a cent short every time would
+      // compound over a season.
+      expect(eur.parseMoney('1.15'), 115);
+      expect(eur.parseMoney('0.07'), 7);
+      expect(eur.parseMoney('8.35'), 835);
     });
   });
 }

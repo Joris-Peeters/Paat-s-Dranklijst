@@ -4,15 +4,28 @@ import '../database.dart';
 import '../logical_day.dart';
 import '../tables/items_table.dart';
 import '../tables/transactions_table.dart';
+import '../tables/users_table.dart';
 
 part 'transactions_dao.g.dart';
+
+/// A ledger row with the member it belongs to.
+///
+/// The row itself holds only a `userId` — users are identities, so history is
+/// never snapshotted — which leaves a history line one lookup short. Joining it
+/// once here beats a query per row.
+class TransactionWithUser {
+  const TransactionWithUser({required this.transaction, required this.user});
+
+  final TransactionRow transaction;
+  final UserRow user;
+}
 
 /// The append-only ledger.
 ///
 /// This is the only place in the app that writes a transaction row, so the sign
 /// convention and the item snapshot freeze are decided in exactly one file.
 /// Nothing here DELETEs.
-@DriftAccessor(tables: [Transactions, Items])
+@DriftAccessor(tables: [Transactions, Items, Users])
 class TransactionsDao extends DatabaseAccessor<AppDatabase>
     with _$TransactionsDaoMixin {
   TransactionsDao(super.db);
@@ -96,14 +109,14 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   /// `voidedAt IS NULL` guard makes a second call a no-op, and the amount,
   /// snapshots and createdAt are left untouched.
   Future<void> voidTransaction(int id, {String? note}) async {
-    await (update(transactions)
-          ..where((t) => t.id.equals(id) & t.voidedAt.isNull()))
-        .write(
-          TransactionsCompanion(
-            voidedAt: Value(DateTime.now()),
-            voidedNote: Value(note),
-          ),
-        );
+    await (update(
+      transactions,
+    )..where((t) => t.id.equals(id) & t.voidedAt.isNull())).write(
+      TransactionsCompanion(
+        voidedAt: Value(DateTime.now()),
+        voidedNote: Value(note),
+      ),
+    );
   }
 
   /// Newest first. Voided rows are included — they stay in the record, struck
@@ -118,6 +131,34 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
             ])
             ..limit(limit))
           .watch();
+
+  /// Newest first, each row carrying its member — for a feed that mixes
+  /// members and so cannot take the name from a page header.
+  Stream<List<TransactionWithUser>> watchRecentTransactionsWithUsers({
+    int limit = 50,
+  }) {
+    final query =
+        select(transactions)
+            .join([innerJoin(users, users.id.equalsExp(transactions.userId))])
+          ..orderBy([
+            OrderingTerm(
+              expression: transactions.createdAt,
+              mode: OrderingMode.desc,
+            ),
+          ])
+          ..limit(limit);
+
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (row) => TransactionWithUser(
+              transaction: row.readTable(transactions),
+              user: row.readTable(users),
+            ),
+          )
+          .toList(),
+    );
+  }
 
   Stream<List<TransactionRow>> watchUserHistory(int userId) =>
       (select(transactions)
@@ -157,14 +198,17 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   /// they stay in the record, struck through.
   Stream<List<TransactionRow>> watchTransactionsForDay({
     required DateTime at,
-  }) => (select(transactions)
-        ..where((t) => t.logicalDate.equals(logicalDayKey(at)))
-        ..orderBy([
-          (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
-        ]))
-      .watch();
+  }) =>
+      (select(transactions)
+            ..where((t) => t.logicalDate.equals(logicalDayKey(at)))
+            ..orderBy([
+              (t) => OrderingTerm(
+                expression: t.createdAt,
+                mode: OrderingMode.desc,
+              ),
+            ]))
+          .watch();
 
-  Future<TransactionRow?> readTransaction(int id) => (select(
-    transactions,
-  )..where((t) => t.id.equals(id))).getSingleOrNull();
+  Future<TransactionRow?> readTransaction(int id) =>
+      (select(transactions)..where((t) => t.id.equals(id))).getSingleOrNull();
 }
