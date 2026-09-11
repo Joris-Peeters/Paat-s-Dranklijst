@@ -48,7 +48,7 @@ class AppSettingsData {
   /// Plaintext. Doesn't have to be secure.
   final String? adminPin;
 
-  /// Beneficiary details for the settle-up payment QR code.
+  /// Beneficiary details for the top-up payment QR code.
   final String? payeeName;
   final String? payeeIban;
 
@@ -131,10 +131,22 @@ extension AppSettingsFormatting on AppSettingsData {
 
   /// Formats an integer amount of minor units, in the stored language and
   /// currency.
-  String formatMoney(int minorUnits) {
+  ///
+  /// [signed] puts an explicit plus on a positive amount, in whatever slot this
+  /// locale gives the minus — ahead of the symbol in English, behind it in
+  /// Dutch. It lands there by formatting the negative and swapping the sign
+  /// character: pasting a '+' on the front was right in English and wrong in
+  /// Dutch, where it disagreed with every negative row under it.
+  String formatMoney(int minorUnits, {bool signed = false}) {
     final format = _currencyFormat;
     // Not every currency has 100 minor units.
     final divisor = pow(10, format.decimalDigits ?? 2);
+
+    if (signed && minorUnits > 0) {
+      return format
+          .format(-minorUnits / divisor)
+          .replaceFirst(format.symbols.MINUS_SIGN, format.symbols.PLUS_SIGN);
+    }
     return format.format(minorUnits / divisor);
   }
 
@@ -159,6 +171,14 @@ extension AppSettingsFormatting on AppSettingsData {
   /// The symbol alone, for a price field's prefix.
   String get currencySymbol => _currencyFormat.currencySymbol;
 
+  /// How many minor units make one of the currency's whole units.
+  ///
+  /// For turning a preset written as "10" into an amount. Most currencies use
+  /// 100, but JPY uses 1 and some Gulf-state dinars 1000, so the divisor is
+  /// asked for rather than assumed here as everywhere else.
+  int get minorUnitsPerMajor =>
+      pow(10, _currencyFormat.decimalDigits ?? 2).toInt();
+
   /// Minor units from typed text, or null when it is not an amount.
   ///
   /// Takes either separator as the decimal mark rather than the one this
@@ -182,4 +202,8 @@ extension AppSettingsFormatting on AppSettingsData {
   /// reached for `DateFormat` itself would quietly use the wrong one.
   String formatDateTime(DateTime at) =>
       DateFormat.yMMMd(languageCode).add_Hm().format(at);
+
+  /// The date alone, with its weekday — for a day header over a list that
+  /// already prints each row's time.
+  String formatDate(DateTime at) => DateFormat.yMMMEd(languageCode).format(at);
 }

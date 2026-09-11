@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 /// Whether [input] passes the IBAN mod-97 checksum (ISO 13616).
@@ -22,6 +23,19 @@ bool isValidIban(String input) {
         : (remainder * 10 + value) % 97;
   }
   return remainder == 1;
+}
+
+/// An IBAN in groups of four, the way a bank prints it.
+///
+/// For showing an account someone has to copy by hand when a QR code will not
+/// scan. Purely cosmetic: [isValidIban] and [buildEpcPayload] both strip spaces
+/// again, and neither cares where they were.
+String formatIban(String input) {
+  final iban = input.replaceAll(' ', '').toUpperCase();
+  return [
+    for (var i = 0; i < iban.length; i += 4)
+      iban.substring(i, min(i + 4, iban.length)),
+  ].join(' ');
 }
 
 /// Whether [input] is shaped like an ISO 4217 currency code.

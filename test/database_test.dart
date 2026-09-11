@@ -775,4 +775,207 @@ void main() {
       expect(rows.map((t) => t.createdAt), [afterMidnight, evening]);
     });
   });
+
+  group('history', () {
+    /// Places a row on a chosen day, which the DAO's own writers cannot do —
+    /// they stamp from the clock on purpose.
+    Future<int> addRowOn(
+      DateTime at, {
+      required int userId,
+      ItemRow? item,
+      TransactionType type = TransactionType.consumption,
+      int amountMinorUnits = -150,
+    }) => db
+        .into(db.transactions)
+        .insert(
+          TransactionsCompanion.insert(
+            userId: userId,
+            type: type,
+            amountMinorUnits: amountMinorUnits,
+            itemId: Value(item?.id),
+            itemNameSnapshot: Value(item?.name),
+            itemUnitPriceSnapshot: Value(item?.priceMinorUnits),
+            createdAt: Value(at),
+            logicalDate: logicalDayKey(at),
+          ),
+        );
+
+    test('each row arrives with its user and its item joined on', () async {
+      final user = await addUser();
+      final cola = await addItem();
+      await db.transactionsDao.logConsumption(userId: user, item: cola);
+
+      final entry = (await db.transactionsDao.watchHistory().first).single;
+      expect(entry.user.name, 'Jonas');
+      expect(entry.item?.emoji, '🥤');
+    });
+
+    test('a top-up joins no item at all', () async {
+      final user = await addUser();
+      await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
+
+      final entry = (await db.transactionsDao.watchHistory().first).single;
+      expect(entry.item, null);
+    });
+
+    test('the user filter keeps only that user', () async {
+      final jonas = await addUser();
+      final other = await addUser(name: 'Wout');
+      final cola = await addItem();
+      await db.transactionsDao.logConsumption(userId: jonas, item: cola);
+      await db.transactionsDao.logConsumption(userId: other, item: cola);
+
+      final entries = await db.transactionsDao
+          .watchHistory(userId: jonas)
+          .first;
+      expect(entries.single.user.name, 'Jonas');
+    });
+
+    test(
+      'the category filter drops the types that reference no item',
+      () async {
+        final user = await addUser();
+        final snacks = await db.itemsDao.createItemGroup(name: 'Snacks');
+        final cola = await addItem();
+        final chips = await addItem(name: 'Chips', groupId: snacks);
+        await db.transactionsDao.logConsumption(userId: user, item: cola);
+        await db.transactionsDao.logConsumption(userId: user, item: chips);
+        await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
+
+        final entries = await db.transactionsDao
+            .watchHistory(itemGroupId: snacks)
+            .first;
+        // Asking for a category is asking about drinks, so the top-up goes too.
+        expect(entries.map((e) => e.transaction.itemNameSnapshot), ['Chips']);
+      },
+    );
+
+    test('the type filter keeps only that type', () async {
+      final user = await addUser();
+      final cola = await addItem();
+      await db.transactionsDao.logConsumption(userId: user, item: cola);
+      await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
+
+      final entries = await db.transactionsDao
+          .watchHistory(type: TransactionType.topUp)
+          .first;
+      expect(entries.single.transaction.amountMinorUnits, 1000);
+    });
+
+    test('the range is inclusive at both ends', () async {
+      final user = await addUser();
+      await addRowOn(DateTime(2026, 9, 8, 20), userId: user);
+      await addRowOn(DateTime(2026, 9, 9, 20), userId: user);
+      await addRowOn(DateTime(2026, 9, 10, 20), userId: user);
+      await addRowOn(DateTime(2026, 9, 11, 20), userId: user);
+
+      final entries = await db.transactionsDao
+          .watchHistory(
+            from: DateTime(2026, 9, 9, 12),
+            to: DateTime(2026, 9, 10, 12),
+          )
+          .first;
+      expect(entries.map((e) => e.transaction.logicalDate), [
+        '2026-09-10',
+        '2026-09-09',
+      ]);
+    });
+
+    test('a range picked from a calendar keeps both of its end days', () async {
+      final user = await addUser();
+      await addRowOn(DateTime(2026, 9, 5, 20), userId: user);
+      await addRowOn(DateTime(2026, 9, 6, 20), userId: user);
+      await addRowOn(DateTime(2026, 9, 10, 20), userId: user);
+      await addRowOn(DateTime(2026, 9, 11, 20), userId: user);
+
+      // What showDateRangePicker hands over: midnight, which is on the far
+      // side of the 07:00 boundary. Reading those as instants named the day
+      // before at both ends, so the 10th fell out and the 5th crept in.
+      final entries = await db.transactionsDao
+          .watchHistory(from: DateTime(2026, 9, 6), to: DateTime(2026, 9, 10))
+          .first;
+      expect(entries.map((e) => e.transaction.logicalDate), [
+        '2026-09-10',
+        '2026-09-06',
+      ]);
+    });
+
+    test('a row after midnight is filtered into the evening before', () async {
+      final user = await addUser();
+      // 01:00 on the 10th is still the 9th: the day runs 07:00 to 07:00.
+      await addRowOn(DateTime(2026, 9, 10, 1), userId: user);
+
+      expect(
+        await db.transactionsDao
+            .watchHistory(
+              from: DateTime(2026, 9, 9, 12),
+              to: DateTime(2026, 9, 9, 12),
+            )
+            .first,
+        hasLength(1),
+      );
+      expect(
+        await db.transactionsDao
+            .watchHistory(
+              from: DateTime(2026, 9, 10, 12),
+              to: DateTime(2026, 9, 10, 12),
+            )
+            .first,
+        isEmpty,
+      );
+    });
+
+    test('the limit takes the newest rows, not the oldest', () async {
+      final user = await addUser();
+      await addRowOn(DateTime(2026, 9, 8, 20), userId: user);
+      await addRowOn(DateTime(2026, 9, 9, 20), userId: user);
+      await addRowOn(DateTime(2026, 9, 10, 20), userId: user);
+
+      final entries = await db.transactionsDao.watchHistory(limit: 2).first;
+      expect(entries.map((e) => e.transaction.logicalDate), [
+        '2026-09-10',
+        '2026-09-09',
+      ]);
+    });
+
+    test('voided rows stay in the history', () async {
+      final user = await addUser();
+      final cola = await addItem();
+      final id = await db.transactionsDao.logConsumption(
+        userId: user,
+        item: cola,
+      );
+
+      await db.transactionsDao.voidTransaction(id, note: 'Wrong person');
+
+      final entry = (await db.transactionsDao.watchHistory().first).single;
+      expect(entry.transaction.voidedAt, isA<DateTime>());
+      expect(entry.transaction.voidedNote, 'Wrong person');
+      // Out of the balance, not out of the record.
+      expect(await db.usersDao.readBalance(user), 0);
+    });
+
+    test('voiding twice moves the balance exactly once', () async {
+      final user = await addUser();
+      final cola = await addItem();
+      await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
+      final id = await db.transactionsDao.logConsumption(
+        userId: user,
+        item: cola,
+      );
+
+      await db.transactionsDao.voidTransaction(id, note: 'First');
+      final firstNote = (await db.transactionsDao.readTransaction(id))!
+          .voidedNote;
+      await db.transactionsDao.voidTransaction(id, note: 'Second');
+
+      expect(await db.usersDao.readBalance(user), 1000);
+      // One-way: the second call is guarded off and rewrites nothing.
+      expect(firstNote, 'First');
+      expect(
+        (await db.transactionsDao.readTransaction(id))!.voidedNote,
+        'First',
+      );
+    });
+  });
 }

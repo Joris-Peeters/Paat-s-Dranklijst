@@ -39,4 +39,20 @@ void main() {
       expect(isValidIban('BE71${'0' * 40}'), isFalse); // too long
     });
   });
+
+  group('formatIban', () {
+    test('groups by four, leaving a short tail alone', () {
+      // BE has 16 characters: four groups of four exactly.
+      expect(formatIban('BE68539007547034'), 'BE68 5390 0754 7034');
+      // NL has 18: four groups and a pair.
+      expect(formatIban('NL91ABNA0417164300'), 'NL91 ABNA 0417 1643 00');
+    });
+
+    test('normalises whatever it is handed', () {
+      // Purely cosmetic, so it has to survive being given its own output back.
+      expect(formatIban('be68 5390 0754 7034'), 'BE68 5390 0754 7034');
+      expect(formatIban('BE68 5390 0754 7034'), 'BE68 5390 0754 7034');
+      expect(formatIban(''), '');
+    });
+  });
 }

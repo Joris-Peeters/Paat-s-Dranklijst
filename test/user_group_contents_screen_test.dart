@@ -89,7 +89,7 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
     expect(
       find.text(
-        'Jonas still has €4.50. Settle up or post an adjustment first.',
+        'Jonas still has €4.50. Settle up or post a balance adjustment first.',
       ),
       findsOneWidget,
     );
@@ -119,17 +119,29 @@ void main() {
     expect(find.byIcon(Icons.unarchive_outlined), findsOneWidget);
   });
 
-  testWidgetsWithDatabase(
-    'the adjustment action is present but not yet wired',
-    (tester) async {
-      await addUser(name: 'Jonas');
-      await pump(tester);
+  testWidgetsWithDatabase('the adjustment action opens the dialog', (
+    tester,
+  ) async {
+    await addUser(name: 'Jonas');
+    await pump(tester);
 
-      final button = find.widgetWithIcon(IconButton, Icons.tune);
-      expect(button, findsOneWidget);
-      expect(tester.widget<IconButton>(button).onPressed, isNull);
-    },
-  );
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.tune));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Current balance'), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('an archived user cannot be adjusted', (
+    tester,
+  ) async {
+    final id = await addUser(name: 'Jonas');
+    await db.usersDao.archiveUser(id);
+    await pump(tester);
+
+    // Their balance is already zero — that is what archiving them required.
+    final button = find.widgetWithIcon(IconButton, Icons.tune);
+    expect(tester.widget<IconButton>(button).onPressed, isNull);
+  });
 
   testWidgetsWithDatabase('three trailing actions fit a phone-width row', (
     tester,

@@ -270,7 +270,7 @@ class _UserTile extends StatelessWidget {
               MoneyText(amountMinorUnits: entry.balanceMinorUnits),
               IconButton(
                 icon: const Icon(Icons.info_outline),
-                tooltip: l10n.balance,
+                tooltip: l10n.userOverview,
                 onPressed: () => _openDetail(context),
               ),
             ],

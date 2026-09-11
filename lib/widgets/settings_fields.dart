@@ -60,6 +60,7 @@ class PayeeNameField extends StatelessWidget {
   Widget build(BuildContext context) => SettingsTextField(
     label: AppLocalizations.of(context).payeeName,
     value: settings.payeeName,
+    textCapitalization: TextCapitalization.words,
     maxLength: epcMaxNameLength,
     onCommit: (value) => write(settings.copyWith(payeeName: value)),
   );

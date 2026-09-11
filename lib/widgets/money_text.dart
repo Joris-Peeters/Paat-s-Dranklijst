@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
 import '../theme/app_theme.dart';
@@ -23,9 +22,9 @@ class MoneyText extends StatelessWidget {
 
   final int amountMinorUnits;
 
-  /// Puts an explicit `+` on a positive amount. For a list of ledger lines,
-  /// where the direction of each row is the point; a standalone balance reads
-  /// better without it.
+  /// Puts an explicit sign on a positive amount, placed the way this locale
+  /// places the minus. For a list of ledger lines, where the direction of each
+  /// row is the point; a standalone balance reads better without it.
   final bool signed;
 
   /// Whether the amount is coloured by what it means.
@@ -43,9 +42,10 @@ class MoneyText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // The formatter carries the stored language and currency, so the minus and
+    final settings = AppSettings.of(context);
+    // The formatter carries the stored language and currency, so both signs and
     // the symbol are already placed the way this locale places them.
-    final amount = AppSettings.of(context).formatMoney(amountMinorUnits);
+    final amount = settings.formatMoney(amountMinorUnits, signed: signed);
 
     final color = switch (amountMinorUnits.sign) {
       > 0 => creditColor(theme.brightness),
@@ -54,9 +54,7 @@ class MoneyText extends StatelessWidget {
     };
 
     return Text(
-      signed && amountMinorUnits > 0
-          ? AppLocalizations.of(context).amountPositive(amount)
-          : amount,
+      amount,
       textAlign: textAlign,
       // The caller's style is the base and the meaning goes on top. Merging the
       // other way round let a themed style win on colour — `titleLarge` carries

@@ -14,6 +14,7 @@ class SettingsTextField extends StatefulWidget {
     required this.onCommit,
     this.validator,
     this.uppercase = false,
+    this.textCapitalization = TextCapitalization.none,
     this.maxLength,
   });
 
@@ -29,7 +30,15 @@ class SettingsTextField extends StatefulWidget {
   /// value is shown as an error and **not** written.
   final String? Function(String value)? validator;
 
+  /// Uppercases the committed value. It also drives the soft keyboard, so a
+  /// field that stores uppercase asks for uppercase and ignores
+  /// [textCapitalization].
   final bool uppercase;
+
+  /// How the soft keyboard capitalizes typing. Purely a keyboard hint — unlike
+  /// [uppercase] it does not change what is stored.
+  final TextCapitalization textCapitalization;
+
   final int? maxLength;
 
   @override
@@ -89,6 +98,9 @@ class _SettingsTextFieldState extends State<SettingsTextField> {
       controller: _controller,
       focusNode: _focusNode,
       maxLength: widget.maxLength,
+      textCapitalization: widget.uppercase
+          ? TextCapitalization.characters
+          : widget.textCapitalization,
       textInputAction: TextInputAction.done,
       onSubmitted: (_) => _commit(),
       decoration: InputDecoration(

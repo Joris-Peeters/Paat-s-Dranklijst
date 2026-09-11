@@ -110,7 +110,7 @@ void main() {
     // Nothing written yet, and the screen is still open.
     expect(await db.usersDao.readBalance(jonas.id), 0);
     expect(find.text('1'), findsOneWidget);
-    expect(find.text('1 drink · €1.50'), findsOneWidget);
+    expect(find.text('1 item · €1.50'), findsOneWidget);
   });
 
   testWidgetsWithDatabase('taps accumulate and confirm writes one row', (
@@ -125,7 +125,7 @@ void main() {
     await tester.tap(find.text('Cola'));
     await tester.pumpAndSettle();
 
-    expect(find.text('3 drinks · €4.50'), findsOneWidget);
+    expect(find.text('3 items · €4.50'), findsOneWidget);
 
     await tester.tap(find.text('Confirm'));
     await tester.pumpAndSettle();
@@ -135,7 +135,7 @@ void main() {
     final rows = await history();
     expect(rows, hasLength(1));
     expect(rows.single.quantity, 3);
-    expect(find.text('3 drinks registered for Jonas'), findsOneWidget);
+    expect(find.text('3 items registered for Jonas'), findsOneWidget);
   });
 
   testWidgetsWithDatabase('an order spans items and writes a row each', (

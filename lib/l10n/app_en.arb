@@ -42,7 +42,7 @@
   "noSearchResults": "Nobody found",
   "@noSearchResults": { "description": "Empty state when a search matches no one" },
 
-  "selectMultiple": "Take several",
+  "selectMultiple": "Select multiple",
   "@selectMultiple": { "description": "Tooltip of the action that starts picking more than one drink at once" },
 
   "confirm": "Confirm",
@@ -61,7 +61,7 @@
   "@topUp": { "description": "Button that starts adding credit to a user's tab" },
 
   "undo": "Undo",
-  "@undo": { "description": "Snackbar action that takes back a just-logged drink" },
+  "@undo": { "description": "Takes back a transaction. Labels both the snackbar action, which deletes the row outright, and the admin action in the transaction dialog, which leaves it in the record struck through" },
 
   "consumptionLogged": "{item} registered for {name}",
   "@consumptionLogged": {
@@ -105,7 +105,7 @@
   "sectionAdmin": "Admin",
   "@sectionAdmin": { "description": "Settings section heading for the PIN, language, currency and self-registration options" },
 
-  "sectionSettlingUp": "Settling up",
+  "sectionSettlingUp": "Payment details",
   "@sectionSettlingUp": { "description": "Settings section heading for the bank details behind the payment QR code" },
 
   "sectionAbout": "About",
@@ -243,7 +243,7 @@
     "placeholders": { "name": { "type": "String" } }
   },
 
-  "archiveBlockedBalance": "{name} still has {amount}. Settle up or post an adjustment first.",
+  "archiveBlockedBalance": "{name} still has {amount}. Settle up or post a balance adjustment first.",
   "@archiveBlockedBalance": {
     "description": "Why a user cannot be archived. Archiving is not a way to make a debt disappear quietly",
     "placeholders": {
@@ -252,7 +252,7 @@
     }
   },
 
-  "adjustment": "Adjustment",
+  "adjustment": "Balance adjustment",
   "@adjustment": { "description": "Action that posts a correction to a user's balance" },
 
   "noUsersInGroup": "No users in this group yet",
@@ -285,12 +285,6 @@
   "noItemsYet": "No items yet",
   "@noItemsYet": { "description": "Empty state on the item list of one category" },
 
-  "amountPositive": "+{amount}",
-  "@amountPositive": {
-    "description": "An amount that is money in the user's favour, shown with an explicit plus. Separate from the formatted amount so a locale can place the sign itself",
-    "placeholders": { "amount": { "type": "String" } }
-  },
-
   "itemWithQuantity": "{name} ×{count}",
   "@itemWithQuantity": {
     "description": "A history line for more than one of the same item",
@@ -303,7 +297,7 @@
   "transactionTopUp": "Top-up",
   "@transactionTopUp": { "description": "History label for a top-up that carries no note" },
 
-  "transactionAdjustment": "Adjustment",
+  "transactionAdjustment": "Balance adjustment",
   "@transactionAdjustment": { "description": "History label for an adjustment that carries no note" },
 
   "themeColor": "Theme color",
@@ -438,7 +432,7 @@
   "setupPinBody": "An optional 4-digit PIN keeps users out of the settings. Without one, anyone can change them.",
   "@setupPinBody": { "description": "Explanation on the wizard's PIN step" },
 
-  "setupPayeeTitle": "Settling up",
+  "setupPayeeTitle": "Payment details",
   "@setupPayeeTitle": { "description": "Title of the wizard's payment details step" },
 
   "setupPayeeBody": "Bank details for the payment QR code. Without them, no QR code is shown.",
@@ -452,6 +446,150 @@
 
   "setupNext": "Next",
   "@setupNext": { "description": "Advances to the next wizard step" },
+
+  "userOverview": "User overview",
+  "@userOverview": { "description": "App bar title of one user's own page, and the tooltip of the button that opens it. The name is already large in the header below, so the bar says what the page is" },
+
+  "takeSomething": "Add to your tab",
+  "@takeSomething": { "description": "App bar title of the screen where a user taps what they took. Names the consequence rather than the tap, so the cost is not a surprise" },
+
+  "recentTransactions": "Recent transactions",
+  "@recentTransactions": { "description": "Heading of the card listing a user's last transactions" },
+
+  "allTransactions": "All transactions",
+  "@allTransactions": { "description": "Button opening the full history, filtered to the user whose page it sits on" },
+
+  "history": "History",
+  "@history": { "description": "Title of the full transaction history screen" },
+
+  "noTransactionsYet": "Nothing yet",
+  "@noTransactionsYet": { "description": "Empty state where a list of transactions would be" },
+
+  "amountLabel": "Amount",
+  "@amountLabel": { "description": "Label of an editable money field, in the top-up sheet and the adjustment dialog" },
+
+  "currentBalance": "Current balance",
+  "@currentBalance": { "description": "Label of the balance an adjustment starts from, which is shown but not editable" },
+
+  "fieldRequired": "Required",
+  "@fieldRequired": { "description": "Helper text under a field that must be filled in" },
+
+  "adjustmentLogged": "Balance corrected for {name}",
+  "@adjustmentLogged": {
+    "description": "Snackbar confirming an adjustment was posted",
+    "placeholders": { "name": { "type": "String" } }
+  },
+
+  "topUpDebt": "Debt",
+  "@topUpDebt": { "description": "Preset that tops up exactly what the user owes. Only offered while the balance is negative" },
+
+  "showQr": "Continue",
+  "@showQr": { "description": "Button that moves from the amount to the payment QR code" },
+
+  "paid": "Paid",
+  "@paid": { "description": "Button confirming the money has actually been handed over, which is what writes the top-up" },
+
+  "scanToPay": "Scan with your banking app",
+  "@scanToPay": { "description": "Instruction above the payment QR code" },
+
+  "paymentMessage": "Message",
+  "@paymentMessage": { "description": "Label of the reference a bank transfer carries, listed under the QR code alongside the payee and IBAN" },
+
+  "topUpQrMessage": "Dranklijst top up {name}",
+  "@topUpQrMessage": {
+    "description": "The message a transfer carries, so the payer's bank statement says what it was for and for whom. Goes into the QR code and is shown as text under it for anyone typing the transfer by hand",
+    "placeholders": { "name": { "type": "String" } }
+  },
+
+  "topUpLogged": "{amount} added for {name}",
+  "@topUpLogged": {
+    "description": "Snackbar confirming a top-up was written. It carries no undo — a correction afterwards is an admin adjustment",
+    "placeholders": {
+      "amount": { "type": "String" },
+      "name": { "type": "String" }
+    }
+  },
+
+  "newBalance": "New balance",
+  "@newBalance": { "description": "Label of the balance the top-up would leave behind" },
+
+  "transactionDetail": "Transaction",
+  "@transactionDetail": { "description": "Title of the dialog showing one ledger row in full" },
+
+  "transactionConsumption": "Consumption",
+  "@transactionConsumption": { "description": "Type label for a row recording something taken from the fridge" },
+
+  "typeLabel": "Type",
+  "@typeLabel": { "description": "Label of the transaction type row in the detail dialog" },
+
+  "userLabel": "User",
+  "@userLabel": { "description": "Label of the user row in the transaction detail dialog" },
+
+  "quantityLabel": "Quantity",
+  "@quantityLabel": { "description": "Label of the quantity row in the transaction detail dialog" },
+
+  "unitPriceLabel": "Unit price",
+  "@unitPriceLabel": { "description": "Label of the frozen per-item price in the transaction detail dialog" },
+
+  "totalLabel": "Total",
+  "@totalLabel": { "description": "Label of the line total in the transaction detail dialog" },
+
+  "noteLabel": "Note",
+  "@noteLabel": { "description": "Label of the note row in the transaction detail dialog" },
+
+  "dateLabel": "Date",
+  "@dateLabel": { "description": "Label of the timestamp row in the transaction detail dialog" },
+
+  "undoReasonTitle": "Undo this transaction?",
+  "@undoReasonTitle": { "description": "Title of the dialog confirming an admin undo. The row stays in the record, struck through" },
+
+  "undoReasonBody": "It stays in the history, crossed out, and stops counting towards the balance.",
+  "@undoReasonBody": { "description": "Explains what an admin undo actually does, since the row does not disappear" },
+
+  "undoReasonLabel": "Reason",
+  "@undoReasonLabel": { "description": "Label of the optional reason field when undoing a transaction" },
+
+  "undoReasonOptional": "Optional",
+  "@undoReasonOptional": { "description": "Helper text making it plain that the reason may be left blank" },
+
+  "undoneOn": "Undone on {date}",
+  "@undoneOn": {
+    "description": "Shown in place of the undo action once a transaction has been undone",
+    "placeholders": { "date": { "type": "String" } }
+  },
+
+  "transactionUndone": "Transaction undone",
+  "@transactionUndone": { "description": "Snackbar confirming an admin undo" },
+
+  "filters": "Filters",
+  "@filters": { "description": "App bar action and sheet title for the history filters" },
+
+  "filterUser": "User",
+  "@filterUser": { "description": "History filter selecting one user" },
+
+  "filterCategory": "Category",
+  "@filterCategory": { "description": "History filter selecting one item category" },
+
+  "filterType": "Type",
+  "@filterType": { "description": "History filter selecting one transaction type" },
+
+  "filterDateRange": "Period",
+  "@filterDateRange": { "description": "History filter selecting a range of days" },
+
+  "filterAll": "All",
+  "@filterAll": { "description": "Option clearing a single-select history filter" },
+
+  "filterEveryone": "Everyone",
+  "@filterEveryone": { "description": "Option clearing the history's user filter" },
+
+  "dateRangeChip": "{start} – {end}",
+  "@dateRangeChip": {
+    "description": "The active date range, on its dismissible chip",
+    "placeholders": {
+      "start": { "type": "String" },
+      "end": { "type": "String" }
+    }
+  },
 
   "setupFinish": "Finish",
   "@setupFinish": { "description": "Saves the wizard's choices and opens the app" }

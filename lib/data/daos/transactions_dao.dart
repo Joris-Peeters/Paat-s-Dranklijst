@@ -8,16 +8,26 @@ import '../tables/users_table.dart';
 
 part 'transactions_dao.g.dart';
 
-/// A ledger row with the user it belongs to.
+/// A ledger row with everything a history line needs to draw itself.
 ///
-/// The row itself holds only a `userId` — users are identities, so history is
-/// never snapshotted — which leaves a history line one lookup short. Joining it
-/// once here beats a query per row.
-class TransactionWithUser {
-  const TransactionWithUser({required this.transaction, required this.user});
+/// The row holds a `userId` and an `itemId` and snapshots neither the user nor
+/// the item's emoji, so a line is two joins short of renderable. Doing them once
+/// here beats two queries per row.
+///
+/// [item] is null for top-ups and adjustments, which reference none. It is also
+/// the *current* item, so an emoji that has since changed shows as it is now —
+/// the same trade the user's name makes, and the opposite of the price, which is
+/// snapshotted because what was paid is a fact.
+class TransactionEntry {
+  const TransactionEntry({
+    required this.transaction,
+    required this.user,
+    required this.item,
+  });
 
   final TransactionRow transaction;
   final UserRow user;
+  final ItemRow? item;
 }
 
 /// The append-only ledger.
@@ -188,14 +198,29 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
             ..limit(limit))
           .watch();
 
-  /// Newest first, each row carrying its user — for a feed that mixes
-  /// users and so cannot take the name from a page header.
-  Stream<List<TransactionWithUser>> watchRecentTransactionsWithUsers({
+  /// Newest first, with every filter the history screen offers.
+  ///
+  /// Voided rows are always included — they stay in the record, struck through,
+  /// and are only hidden from balances.
+  ///
+  /// [from] and [to] are logical *days*, both ends inclusive, and their time of
+  /// day is ignored — they name which days to keep, not an instant to measure
+  /// from. So a range of "6 to 10 September" holds a drink taken at 01:00 on
+  /// the 11th, the way every other per-day question in the app does.
+  Stream<List<TransactionEntry>> watchHistory({
+    int? userId,
+    int? itemGroupId,
+    TransactionType? type,
+    DateTime? from,
+    DateTime? to,
     int limit = 50,
   }) {
     final query =
-        select(transactions)
-            .join([innerJoin(users, users.id.equalsExp(transactions.userId))])
+        select(transactions).join([
+            innerJoin(users, users.id.equalsExp(transactions.userId)),
+            // Outer, because a top-up references no item at all.
+            leftOuterJoin(items, items.id.equalsExp(transactions.itemId)),
+          ])
           ..orderBy([
             OrderingTerm(
               expression: transactions.createdAt,
@@ -204,12 +229,37 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
           ])
           ..limit(limit);
 
+    if (userId != null) {
+      query.where(transactions.userId.equals(userId));
+    }
+    // Over the outer join this also drops top-ups and adjustments, which is
+    // right: asking for a category is asking about drinks.
+    if (itemGroupId != null) {
+      query.where(items.groupId.equals(itemGroupId));
+    }
+    if (type != null) {
+      query.where(transactions.type.equalsValue(type));
+    }
+    // Compared as `YYYY-MM-DD` text, which sorts the same way the dates do and
+    // is what `transactions_logical_date` indexes.
+    if (from != null) {
+      query.where(
+        transactions.logicalDate.isBiggerOrEqualValue(logicalDayToKey(from)),
+      );
+    }
+    if (to != null) {
+      query.where(
+        transactions.logicalDate.isSmallerOrEqualValue(logicalDayToKey(to)),
+      );
+    }
+
     return query.watch().map(
       (rows) => rows
           .map(
-            (row) => TransactionWithUser(
+            (row) => TransactionEntry(
               transaction: row.readTable(transactions),
               user: row.readTable(users),
+              item: row.readTableOrNull(items),
             ),
           )
           .toList(),

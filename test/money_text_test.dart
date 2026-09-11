@@ -58,6 +58,32 @@ void main() {
     expect(find.text('-€2.50'), findsOneWidget);
   });
 
+  testWidgets('the plus lands where the locale puts the minus', (tester) async {
+    // Dutch writes the sign after the symbol. Pasting a '+' on the front gave
+    // '+€ 2,50' above a '€ -2,50', so the two signs disagreed down a column.
+    // The gap intl writes is a non-breaking space, hence the escape.
+    await tester.pumpWidget(
+      await settingsHarness(
+        const MoneyText(amountMinorUnits: 250, signed: true),
+        preferences: {'languageCode': 'nl'},
+      ),
+    );
+    expect(find.text('€ +2,50'), findsOneWidget);
+  });
+
+  testWidgets('a Dutch debt keeps its minus in that same place', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      await settingsHarness(
+        const MoneyText(amountMinorUnits: -250, signed: true),
+        preferences: {'languageCode': 'nl'},
+      ),
+    );
+
+    expect(find.text('€ -2,50'), findsOneWidget);
+  });
+
   testWidgets('a caller style keeps its own decoration', (tester) async {
     await tester.pumpWidget(
       await settingsHarness(

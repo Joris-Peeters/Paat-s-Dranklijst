@@ -183,14 +183,22 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     await (update(users)..where((u) => u.id.equals(id))).write(changes);
   }
 
+  Future<UserRow?> readUser(int id) =>
+      (select(users)..where((u) => u.id.equals(id))).getSingleOrNull();
+
+  /// One user, for a page that outlives an edit to them.
+  ///
+  /// A screen handed a `UserRow` holds a copy, so a rename or a recolour made
+  /// from that same screen would leave its own header stale. Null once the row
+  /// is gone, which archiving does not do.
+  Stream<UserRow?> watchUser(int id) =>
+      (select(users)..where((u) => u.id.equals(id))).watchSingleOrNull();
+
   /// Everything the edit dialog can change, in one transaction.
   ///
   /// A group move has to land the user last in the destination and close the
   /// gap they left behind, and a half-applied move would put two users of the
   /// same group on the same number.
-  Future<UserRow?> readUser(int id) =>
-      (select(users)..where((u) => u.id.equals(id))).getSingleOrNull();
-
   Future<void> updateUserDetails({
     required int id,
     required String name,

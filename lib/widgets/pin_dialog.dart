@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
+import '../settings/app_settings.dart';
 
 /// The admin PIN is always exactly this many digits, everywhere.
 const pinLength = 4;
@@ -13,6 +14,22 @@ const pinLength = 4;
 /// Asks for a new PIN twice. Resolves to the confirmed PIN, or null if dismissed.
 Future<String?> showPinSetDialog(BuildContext context) =>
     showDialog<String>(context: context, builder: (_) => const _PinSetDialog());
+
+/// The gate in front of anything only an admin may do.
+///
+/// True when no PIN is set at all, which is a supported configuration rather
+/// than an oversight — a group that trusts its fridge leaves it open. Otherwise
+/// the answer is the dialog's, and a dismissal is a no.
+Future<bool> requireAdminPin(BuildContext context) async {
+  final pin = AppSettings.of(context).adminPin;
+  if (pin == null) return true;
+
+  final unlocked = await showDialog<bool>(
+    context: context,
+    builder: (_) => PinEnterDialog(expectedPin: pin),
+  );
+  return unlocked ?? false;
+}
 
 /// Asks for the admin PIN. Pops `true` on a match, `null` if dismissed.
 ///

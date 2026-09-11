@@ -26,13 +26,24 @@ DateTime logicalDayOf(
   );
 }
 
-/// The stored form of a logical day: `YYYY-MM-DD`.
+/// The stored form of the logical day [instant] falls in: `YYYY-MM-DD`.
+String logicalDayKey(
+  DateTime instant, {
+  TimeOfDay dayStart = logicalDayStart,
+}) => logicalDayToKey(logicalDayOf(instant, dayStart: dayStart));
+
+/// The stored form of a day that is already a date rather than an instant.
+///
+/// The inverse of [logicalDayFromKey], and deliberately not [logicalDayKey]:
+/// that one asks which day an *instant* fell in, and a date chosen from a
+/// calendar arrives at local midnight. Midnight is on the wrong side of the
+/// 07:00 boundary, so putting one through [logicalDayKey] names the day before
+/// — which silently moved both ends of a picked date range back a day.
 ///
 /// Padded by hand rather than with `DateFormat`, which follows
 /// `Intl.defaultLocale` — a storage key must not move when the admin switches
 /// language.
-String logicalDayKey(DateTime instant, {TimeOfDay dayStart = logicalDayStart}) {
-  final day = logicalDayOf(instant, dayStart: dayStart);
+String logicalDayToKey(DateTime day) {
   final year = day.year.toString().padLeft(4, '0');
   final month = day.month.toString().padLeft(2, '0');
   final dayOfMonth = day.day.toString().padLeft(2, '0');

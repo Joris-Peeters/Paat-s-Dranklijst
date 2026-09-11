@@ -8,6 +8,7 @@ import '../data/database_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
+import '../widgets/adjustment_dialog.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/reorderable_sliver_section.dart';
@@ -187,10 +188,17 @@ class _UserTile extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.tune),
               tooltip: l10n.adjustment,
-              // Not wired yet. When it is, an archived entry keeps it
-              // disabled: their balance is already zero, which is what
-              // archiving them required.
-              onPressed: null,
+              // Archived entries keep it disabled: their balance is already
+              // zero, which is what archiving them required.
+              //
+              // Only from here, never from a user's own page. This screen sits
+              // behind the settings PIN; an adjustment on the open kiosk would
+              // let anyone write their own balance to whatever they liked.
+              onPressed: _archived
+                  ? null
+                  : () => unawaited(
+                      showAdjustmentDialog(context, user: entry.user),
+                    ),
             ),
             IconButton(
               icon: const Icon(Icons.edit_outlined),

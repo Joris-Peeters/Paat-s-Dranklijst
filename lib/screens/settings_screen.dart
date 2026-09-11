@@ -15,15 +15,7 @@ import 'user_groups_screen.dart';
 
 /// Opens the settings screen, asking for the admin PIN first when one is set.
 Future<void> openSettings(BuildContext context) async {
-  final pin = AppSettings.of(context).adminPin;
-
-  if (pin != null) {
-    final unlocked = await showDialog<bool>(
-      context: context,
-      builder: (_) => PinEnterDialog(expectedPin: pin),
-    );
-    if (unlocked != true) return;
-  }
+  if (!await requireAdminPin(context)) return;
 
   if (!context.mounted) return;
   await Navigator.push<void>(

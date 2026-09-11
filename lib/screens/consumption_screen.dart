@@ -11,7 +11,9 @@ import '../widgets/empty_state.dart';
 import '../widgets/money_text.dart';
 import '../widgets/responsive_tile_grid.dart';
 import '../widgets/user_avatar.dart';
+import '../widgets/user_header.dart';
 import '../widgets/user_theme_scope.dart';
+import 'user_detail_screen.dart';
 
 /// How long the undo stays reachable. After this the row is permanent and only
 /// an admin can void it.
@@ -34,7 +36,6 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
   late final AppDatabase _db = Database.of(context);
   late final Stream<List<({ItemGroupRow group, List<ItemRow> items})>>
   _sections = _db.itemsDao.watchItemsByCategory();
-  late final Stream<int> _balance = _db.usersDao.watchBalance(widget.user.id);
 
   /// Item id to how many of it. Empty and false means the ordinary one-tap
   /// flow; there is no decrement, so Cancel is the only way back out.
@@ -152,8 +153,23 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
             },
             child: Scaffold(
               appBar: AppBar(
-                title: Text(widget.user.name),
+                title: Text(l10n.takeSomething),
                 actions: [
+                  IconButton(
+                    icon: const Icon(Icons.account_circle_outlined),
+                    tooltip: l10n.userOverview,
+                    // Replaces rather than pushes: two views of one user, both
+                    // opened from the user list, so hopping between them must
+                    // not stack up routes to back out of.
+                    onPressed: () => unawaited(
+                      Navigator.pushReplacement<void, void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => UserDetailScreen(user: widget.user),
+                        ),
+                      ),
+                    ),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.playlist_add),
                     tooltip: l10n.selectMultiple,
@@ -169,33 +185,36 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
               // One scroll view over the header and the catalogue together, so
               // the avatar and balance scroll away rather than eating a third
               // of a phone screen while someone browses.
-              body: loaded == null
-                  ? const SizedBox.shrink()
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _Header(user: widget.user, balance: _balance),
-                          if (sections.isEmpty)
-                            EmptyState(
-                              icon: Icons.local_cafe,
-                              message: l10n.noItemsYet,
-                            )
-                          else
-                            _Catalogue(
-                              sections: sections,
-                              basket: _basket,
-                              onTap: (item) => _selecting
-                                  ? _add(item)
-                                  : unawaited(_tap(item)),
-                              onLongPress: (item) => _selecting
-                                  ? _add(item)
-                                  : _startSelecting(item),
-                            ),
-                        ],
+              body: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Deliberately outside the catalogue's loading gate below.
+                    // The header opens its own balance query when it mounts, so
+                    // withholding it until the items arrive runs the two round
+                    // trips one after the other and the balance lands visibly
+                    // late.
+                    UserHeader(user: widget.user),
+                    if (loaded == null)
+                      const SizedBox.shrink()
+                    else if (sections.isEmpty)
+                      EmptyState(
+                        icon: Icons.local_cafe,
+                        message: l10n.noItemsYet,
+                      )
+                    else
+                      _Catalogue(
+                        sections: sections,
+                        basket: _basket,
+                        onTap: (item) =>
+                            _selecting ? _add(item) : unawaited(_tap(item)),
+                        onLongPress: (item) =>
+                            _selecting ? _add(item) : _startSelecting(item),
                       ),
-                    ),
+                  ],
+                ),
+              ),
               bottomNavigationBar: _selecting
                   ? _ConfirmBar(
                       count: _basketCount,
@@ -209,45 +228,6 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({required this.user, required this.balance});
-
-  final UserRow user;
-  final Stream<int> balance;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      child: Column(
-        spacing: 8,
-        children: [
-          // AvatarCircle, not UserAvatar: this page is already inside the
-          // user's theme, so the circle only has to read it.
-          AvatarCircle(emoji: user.avatarEmoji, size: 88),
-          Text(user.name, style: theme.textTheme.headlineSmall),
-          StreamBuilder<int>(
-            stream: balance,
-            builder: (context, snapshot) => MoneyText(
-              amountMinorUnits: snapshot.data ?? 0,
-              style: theme.textTheme.titleLarge,
-            ),
-          ),
-          FilledButton.tonalIcon(
-            icon: const Icon(Icons.add_card),
-            label: Text(l10n.topUp),
-            // Wired up in the top-up step; disabled rather than pretending.
-            onPressed: null,
-          ),
-        ],
       ),
     );
   }
