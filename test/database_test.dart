@@ -693,6 +693,10 @@ void main() {
       },
     );
 
+    Future<int> itemsOn(DateTime at, {int? userId}) async =>
+        (await db.transactionsDao.watchDayTotals(at: at, userId: userId).first)
+            .quantity;
+
     test('rows either side of 07:00 land on different days', () async {
       final user = await addUser();
       final cola = await addItem();
@@ -705,18 +709,9 @@ void main() {
       await addConsumptionAt(nextMorning, userId: user, itemId: cola.id);
 
       // 23:00 and 01:00 are the same night; 08:00 is a new day.
-      expect(
-        await db.transactionsDao.watchConsumptionCount(at: evening).first,
-        2,
-      );
-      expect(
-        await db.transactionsDao.watchConsumptionCount(at: afterMidnight).first,
-        2,
-      );
-      expect(
-        await db.transactionsDao.watchConsumptionCount(at: nextMorning).first,
-        1,
-      );
+      expect(await itemsOn(evening), 2);
+      expect(await itemsOn(afterMidnight), 2);
+      expect(await itemsOn(nextMorning), 1);
     });
 
     test('the count ignores voided rows, top-ups and adjustments', () async {
@@ -733,7 +728,7 @@ void main() {
         note: 'Broke a glass',
       );
 
-      expect(await db.transactionsDao.watchConsumptionCount(at: at).first, 1);
+      expect(await itemsOn(at), 1);
     });
 
     test('the count can be narrowed to one user', () async {
@@ -746,13 +741,56 @@ void main() {
       await addConsumptionAt(at, userId: jonas, itemId: cola.id);
       await addConsumptionAt(at, userId: marie, itemId: cola.id);
 
-      expect(await db.transactionsDao.watchConsumptionCount(at: at).first, 3);
-      expect(
-        await db.transactionsDao
-            .watchConsumptionCount(at: at, userId: jonas)
-            .first,
-        2,
+      expect(await itemsOn(at), 3);
+      expect(await itemsOn(at, userId: jonas), 2);
+    });
+
+    test('an order counts its items, not its row', () async {
+      final user = await addUser();
+      final cola = await addItem(price: 150);
+
+      await db.transactionsDao.logConsumption(
+        userId: user,
+        item: cola,
+        quantity: 3,
       );
+
+      // One row, three drinks out of the fridge. countAll() would say 1.
+      final totals = await db.transactionsDao
+          .watchDayTotals(at: DateTime.now())
+          .first;
+      expect(totals.quantity, 3);
+      expect(totals.turnoverMinorUnits, 450);
+    });
+
+    test('turnover is positive and counts consumptions only', () async {
+      final user = await addUser();
+      final cola = await addItem(price: 150);
+      final at = DateTime(2026, 9, 8, 20);
+
+      await addConsumptionAt(at, userId: user, itemId: cola.id);
+      await addConsumptionAt(at, userId: user, itemId: cola.id);
+      // Neither of these is money taken at the fridge.
+      await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
+      await db.transactionsDao.logAdjustment(
+        userId: user,
+        amountMinorUnits: -50,
+        note: 'Broke a glass',
+      );
+
+      final totals = await db.transactionsDao.watchDayTotals(at: at).first;
+      // The rows are negative, being balance movements; turnover is not.
+      expect(totals.turnoverMinorUnits, 300);
+    });
+
+    test('a day with nothing in it reads as zero, not null', () async {
+      await addUser();
+
+      final totals = await db.transactionsDao
+          .watchDayTotals(at: DateTime(2026, 1, 1, 20))
+          .first;
+      expect(totals.quantity, 0);
+      expect(totals.turnoverMinorUnits, 0);
     });
 
     test('watchTransactionsForDay returns the night, newest first', () async {

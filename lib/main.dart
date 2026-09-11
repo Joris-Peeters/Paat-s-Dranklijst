@@ -71,7 +71,13 @@ class _AppShellState extends State<AppShell> {
       // IndexedStack so each tab keeps its scroll position and state.
       body: IndexedStack(
         index: _index,
-        children: const [StartScreen(), UsersScreen(), StatsScreen()],
+        children: [
+          // The Users page is a tab rather than a route, so the Start page's
+          // big button switches the index instead of pushing.
+          StartScreen(onOpenUsers: () => setState(() => _index = 1)),
+          const UsersScreen(),
+          const StatsScreen(),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,

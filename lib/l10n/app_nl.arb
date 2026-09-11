@@ -20,7 +20,9 @@
   "consumptionLoggedMultiple": "{count, plural, =1{1 stuk} other{{count} stuks}} geregistreerd voor {name}",
   "navStats": "Statistieken",
 
-  "startPlaceholder": "Hier komt het overzicht en de recente activiteit",
+  "today": "Vandaag",
+  "statConsumptions": "Consumpties",
+  "statTurnover": "Omzet",
   "statsPlaceholder": "Hier komen de statistieken",
   "noUsersYet": "Nog geen gebruikers",
   "addUser": "Gebruiker toevoegen",

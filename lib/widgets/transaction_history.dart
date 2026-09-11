@@ -10,6 +10,7 @@ import '../l10n/app_localizations.dart';
 import '../screens/history_screen.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
+import 'card_heading.dart';
 import 'money_text.dart';
 import 'transaction_detail_dialog.dart';
 import 'user_avatar.dart';
@@ -176,13 +177,23 @@ class _ItemLeading extends StatelessWidget {
 /// footer leads, all of which follow from [user] alone. Everything it shows is
 /// one of the two forms [TransactionListTile] already has.
 class RecentTransactionsCard extends StatefulWidget {
-  const RecentTransactionsCard({super.key, this.user, this.limit = 10});
+  const RecentTransactionsCard({
+    super.key,
+    this.user,
+    this.limit = 4,
+    this.fill = false,
+  });
 
   /// Whose rows to show, or null for everyone's — which also decides the form
   /// the rows take and how the full history opens.
   final UserRow? user;
 
   final int limit;
+
+  /// Stretches to the height it is given and scrolls its rows, instead of
+  /// sizing to them. For a page that hands it the space left over rather than
+  /// scrolling as a whole; the heading and the footer stay put either way.
+  final bool fill;
 
   @override
   State<RecentTransactionsCard> createState() => _RecentTransactionsCardState();
@@ -196,7 +207,6 @@ class _RecentTransactionsCardState extends State<RecentTransactionsCard> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -205,71 +215,15 @@ class _RecentTransactionsCardState extends State<RecentTransactionsCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              // Material's overline treatment: small, spaced and upper case, so
-              // it labels the card without competing with the rows in it.
-              child: Row(
-                spacing: 8,
-                children: [
-                  Icon(
-                    Icons.history,
-                    size: 18,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  Text(
-                    l10n.recentTransactions.toUpperCase(),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            StreamBuilder<List<TransactionEntry>>(
-              stream: _entries,
-              builder: (context, snapshot) {
-                final entries = snapshot.data;
-                // No spinner on the first frame: the query is local and a flash
-                // of one reads worse than nothing.
-                if (entries == null) return const SizedBox.shrink();
-                if (entries.isEmpty) {
-                  return Padding(
-                    // A whole-screen EmptyState is far too tall for a card.
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    child: Text(
-                      l10n.noTransactionsYet,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                  );
-                }
-
-                return Column(
-                  children: [
-                    for (final entry in entries)
-                      // Naming the user only when the card is not already
-                      // about one.
-                      if (widget.user == null)
-                        TransactionListTile(
-                          entry: entry,
-                          onTap: () => unawaited(
-                            showTransactionDetailDialog(context, entry: entry),
-                          ),
-                        )
-                      else
-                        TransactionListTile.forUser(
-                          entry: entry,
-                          onTap: () => unawaited(
-                            showTransactionDetailDialog(context, entry: entry),
-                          ),
-                        ),
-                  ],
-                );
-              },
-            ),
+            CardHeading(icon: Icons.history, label: l10n.recentTransactions),
+            // Flexible only when filling: inside a scroll view the height is
+            // unbounded and Flexible has nothing to divide up.
+            if (widget.fill)
+              Expanded(
+                child: _Rows(card: widget, entries: _entries),
+              )
+            else
+              _Rows(card: widget, entries: _entries),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
               child: Center(
@@ -292,6 +246,62 @@ class _RecentTransactionsCardState extends State<RecentTransactionsCard> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The rows themselves, so the card can place them either sized to their
+/// content or filling what is left.
+class _Rows extends StatelessWidget {
+  const _Rows({required this.card, required this.entries});
+
+  final RecentTransactionsCard card;
+  final Stream<List<TransactionEntry>> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return StreamBuilder<List<TransactionEntry>>(
+      stream: entries,
+      builder: (context, snapshot) {
+        final entries = snapshot.data;
+        // No spinner on the first frame: the query is local and a flash of one
+        // reads worse than nothing.
+        if (entries == null) return const SizedBox.shrink();
+        if (entries.isEmpty) {
+          return Padding(
+            // A whole-screen EmptyState is far too tall for a card.
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Text(
+              l10n.noTransactionsYet,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          );
+        }
+
+        Widget row(TransactionEntry entry) {
+          void open() =>
+              unawaited(showTransactionDetailDialog(context, entry: entry));
+
+          // Naming the user only when the card is not already about one.
+          return card.user == null
+              ? TransactionListTile(entry: entry, onTap: open)
+              : TransactionListTile.forUser(entry: entry, onTap: open);
+        }
+
+        if (!card.fill) {
+          return Column(children: [for (final entry in entries) row(entry)]);
+        }
+        return ListView.builder(
+          padding: EdgeInsets.zero,
+          itemCount: entries.length,
+          itemBuilder: (context, index) => row(entries[index]),
+        );
+      },
     );
   }
 }

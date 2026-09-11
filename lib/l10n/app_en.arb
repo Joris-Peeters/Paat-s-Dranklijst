@@ -84,8 +84,14 @@
   "navStats": "Stats",
   "@navStats": { "description": "Navigation bar label for the statistics page" },
 
-  "startPlaceholder": "Summary and recent activity will appear here",
-  "@startPlaceholder": { "description": "Empty state on the not-yet-built Start page" },
+  "today": "Today",
+  "@today": { "description": "Heading of the Start page card holding the day's figures. The day runs 07:00 to 07:00" },
+
+  "statConsumptions": "Consumptions",
+  "@statConsumptions": { "description": "Label of the count of items taken from the fridge today" },
+
+  "statTurnover": "Turnover",
+  "@statTurnover": { "description": "Label of what today's consumptions came to. Money taken, so top-ups and adjustments are not in it" },
 
   "statsPlaceholder": "Statistics will appear here",
   "@statsPlaceholder": { "description": "Empty state on the not-yet-built Stats page" },

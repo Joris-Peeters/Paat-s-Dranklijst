@@ -277,18 +277,30 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
             ]))
           .watch();
 
-  /// Consumptions on the logical day containing [at], optionally for one
-  /// user. Voided rows and non-consumption types are excluded: a mis-tap is
-  /// not a drink, and a top-up is not one either.
+  /// What left the fridge on the logical day containing [at]: how many items,
+  /// and what they came to. Optionally for one user.
+  ///
+  /// Voided rows and the non-consumption types are excluded — a mis-tap is not
+  /// a drink, and a top-up is not turnover. [quantity] sums the column rather
+  /// than counting rows, because an order of three colas is one row.
+  ///
+  /// `turnoverMinorUnits` comes back positive. Consumption amounts are
+  /// negative, being balance movements; turnover is money taken, so the sign is
+  /// flipped once here rather than at every call site.
   ///
   /// [at] is required rather than defaulting to now: a stream resolves its day
   /// once, at subscription, so on a kiosk left running for months an implicit
   /// "now" would keep reporting yesterday after 07:00. The caller decides how
   /// it refreshes.
-  Stream<int> watchConsumptionCount({required DateTime at, int? userId}) {
-    final count = countAll();
+  Stream<({int quantity, int turnoverMinorUnits})> watchDayTotals({
+    required DateTime at,
+    int? userId,
+  }) {
+    final quantity = transactions.quantity.sum();
+    final amount = transactions.amountMinorUnits.sum();
+
     final query = selectOnly(transactions)
-      ..addColumns([count])
+      ..addColumns([quantity, amount])
       ..where(
         transactions.logicalDate.equals(logicalDayKey(at)) &
             transactions.type.equalsValue(TransactionType.consumption) &
@@ -297,7 +309,15 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     if (userId != null) {
       query.where(transactions.userId.equals(userId));
     }
-    return query.watchSingle().map((row) => row.read(count)!);
+
+    // Both sums are null over a day with nothing in it, so the `?? 0` lands
+    // here rather than at every call site.
+    return query.watchSingle().map(
+      (row) => (
+        quantity: row.read(quantity) ?? 0,
+        turnoverMinorUnits: -(row.read(amount) ?? 0),
+      ),
+    );
   }
 
   /// Everything on that logical day, newest first. Voided rows are included —
