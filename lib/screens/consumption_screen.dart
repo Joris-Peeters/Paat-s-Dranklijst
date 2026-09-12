@@ -8,8 +8,10 @@ import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/low_balance_dialog.dart';
 import '../widgets/money_text.dart';
 import '../widgets/responsive_tile_grid.dart';
+import '../widgets/top_up_sheet.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_header.dart';
 import '../widgets/user_theme_scope.dart';
@@ -41,6 +43,40 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
   /// flow; there is no decrement, so Cancel is the only way back out.
   final _basket = <int, int>{};
   bool _selecting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // After the first frame: a dialog cannot be raised during a build, and the
+    // inherited lookups below want a mounted context.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_warnIfLow());
+    });
+  }
+
+  /// Warns once, on the way in.
+  ///
+  /// A one-shot read rather than the balance stream: this is about where they
+  /// stood when they arrived, and a balance moving while the screen is open —
+  /// which every tap does — must not raise it again.
+  Future<void> _warnIfLow() async {
+    final settings = AppSettings.of(context);
+    if (!settings.lowBalanceWarningEnabled) return;
+
+    final balance = await _db.usersDao.readBalance(widget.user.id);
+    // Strict, so a threshold of zero warns on a debt and not on a settled tab.
+    if (balance >= settings.lowBalanceThresholdMinorUnits) return;
+    if (!mounted) return;
+
+    final topUp = await showLowBalanceDialog(
+      context,
+      user: widget.user,
+      balanceMinorUnits: balance,
+    );
+    if (topUp && mounted) {
+      await showTopUpSheet(context, user: widget.user);
+    }
+  }
 
   void _add(ItemRow item) =>
       setState(() => _basket.update(item.id, (n) => n + 1, ifAbsent: () => 1));

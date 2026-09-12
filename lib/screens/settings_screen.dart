@@ -10,6 +10,7 @@ import '../widgets/confirm_dialog.dart';
 import '../widgets/palette_picker.dart';
 import '../widgets/pin_dialog.dart';
 import '../widgets/settings_fields.dart';
+import '../widgets/settings_text_field.dart';
 import 'item_categories_screen.dart';
 import 'user_groups_screen.dart';
 
@@ -48,6 +49,9 @@ class SettingsScreen extends StatelessWidget {
 
           _SectionHeader(title: l10n.sectionAppearance),
           _AppearanceCard(settings: settings, write: write),
+
+          _SectionHeader(title: l10n.sectionPermissions),
+          _PermissionsCard(settings: settings, write: write),
 
           _SectionHeader(title: l10n.sectionAdmin),
           _AdminCard(settings: settings, write: write),
@@ -415,7 +419,7 @@ class _AdminCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final selfRegistration = settings.allowSelfRegistration;
+    final warning = settings.lowBalanceWarningEnabled;
 
     return _SettingsCard(
       children: [
@@ -433,6 +437,100 @@ class _AdminCard extends StatelessWidget {
             ),
           ],
         ),
+        // A three-letter code does not want the full card width.
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: SizedBox(
+            width: 200,
+            child: CurrencyField(settings: settings, write: write),
+          ),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.lowBalanceWarning),
+          subtitle: Text(
+            warning ? l10n.lowBalanceWarningOn : l10n.lowBalanceWarningOff,
+          ),
+          value: warning,
+          onChanged: (value) =>
+              write(settings.copyWith(lowBalanceWarningEnabled: value)),
+        ),
+        // An amount asked for only once it is going to be used.
+        if (warning)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: SizedBox(
+              width: 260,
+              child: _LowBalanceThresholdField(
+                settings: settings,
+                write: write,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// The balance the warning fires under, as an ordinary money field.
+///
+/// Signed, so an admin can warn before the tab runs out rather than only once
+/// it has. [parseMoney] already reads a leading minus and either decimal mark.
+class _LowBalanceThresholdField extends StatelessWidget {
+  const _LowBalanceThresholdField({
+    required this.settings,
+    required this.write,
+  });
+
+  final AppSettingsData settings;
+  final WriteSettings write;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return SettingsTextField(
+      label: l10n.lowBalanceThreshold,
+      value: settings.formatAmount(settings.lowBalanceThresholdMinorUnits),
+      prefixText: '${settings.currencySymbol} ',
+      helperText: l10n.lowBalanceThresholdHelp,
+      keyboardType: const TextInputType.numberWithOptions(
+        decimal: true,
+        signed: true,
+      ),
+      validator: (value) =>
+          settings.parseMoney(value) == null ? l10n.priceInvalid : null,
+      // Like the currency code, this one has no empty state: clearing it leaves
+      // the threshold as it was.
+      onCommit: (value) {
+        if (settings.parseMoney(value ?? '') case final amount?) {
+          write(settings.copyWith(lowBalanceThresholdMinorUnits: amount));
+        }
+      },
+    );
+  }
+}
+
+/// What anyone may do on the open kiosk, with no PIN in the way.
+///
+/// None of these reach the management screens inside settings: an admin who has
+/// already passed the PIN can always edit and always move someone.
+class _PermissionsCard extends StatelessWidget {
+  const _PermissionsCard({required this.settings, required this.write});
+
+  final AppSettingsData settings;
+  final WriteSettings write;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final selfRegistration = settings.allowSelfRegistration;
+    final editing = settings.allowUserEditing;
+    final switching = settings.allowGroupSwitching;
+    final undoing = settings.allowAnyoneToUndo;
+
+    return _SettingsCard(
+      children: [
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(l10n.allowSelfRegistration),
@@ -445,13 +543,40 @@ class _AdminCard extends StatelessWidget {
           onChanged: (value) =>
               write(settings.copyWith(allowSelfRegistration: value)),
         ),
-        // A three-letter code does not want the full card width.
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: SizedBox(
-            width: 200,
-            child: CurrencyField(settings: settings, write: write),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.allowUserEditing),
+          subtitle: Text(
+            editing ? l10n.allowUserEditingOn : l10n.allowUserEditingOff,
           ),
+          value: editing,
+          onChanged: (value) =>
+              write(settings.copyWith(allowUserEditing: value)),
+        ),
+        // Nothing to say about the editor's group field while there is no
+        // editor to reach.
+        if (editing)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(l10n.allowGroupSwitching),
+            subtitle: Text(
+              switching
+                  ? l10n.allowGroupSwitchingOn
+                  : l10n.allowGroupSwitchingOff,
+            ),
+            value: switching,
+            onChanged: (value) =>
+                write(settings.copyWith(allowGroupSwitching: value)),
+          ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.allowAnyoneToUndo),
+          subtitle: Text(
+            undoing ? l10n.allowAnyoneToUndoOn : l10n.allowAnyoneToUndoOff,
+          ),
+          value: undoing,
+          onChanged: (value) =>
+              write(settings.copyWith(allowAnyoneToUndo: value)),
         ),
       ],
     );

@@ -17,16 +17,45 @@ void main() {
   setUp(() => db = AppDatabase(executor: NativeDatabase.memory()));
   tearDown(() => db.close());
 
-  Future<void> pump(WidgetTester tester, {UserRow? user}) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    UserRow? user,
+    bool canChangeGroup = true,
+  }) async {
     await tester.pumpWidget(
       await settingsHarness(
         null,
         database: db,
-        screen: UserEditDialog(user: user, presetGroupId: seededGroup),
+        screen: UserEditDialog(
+          user: user,
+          presetGroupId: seededGroup,
+          canChangeGroup: canChangeGroup,
+        ),
       ),
     );
     await tester.pumpAndSettle();
   }
+
+  Future<UserRow> addUser(String name) async {
+    final id = await db.usersDao.createUser(
+      name: name,
+      groupId: seededGroup,
+      avatarEmoji: '🦊',
+      seedColorArgb: 0xFFE91E63,
+    );
+    return (await db.usersDao.readUser(id))!;
+  }
+
+  bool saveEnabled(WidgetTester tester) =>
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, 'Save'))
+          .onPressed !=
+      null;
+
+  DropdownButtonFormField<int> groupField(WidgetTester tester) =>
+      tester.widget<DropdownButtonFormField<int>>(
+        find.byType(DropdownButtonFormField<int>),
+      );
 
   UserAvatar avatar(WidgetTester tester) =>
       tester.widget<UserAvatar>(find.byType(UserAvatar));
@@ -97,5 +126,77 @@ void main() {
     expect(avatar(tester).emoji, '🦊');
     expect(avatar(tester).seedColorArgb, 0xFFE91E63);
     expect(find.text('Edit user'), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('a name someone else already has is flagged', (
+    tester,
+  ) async {
+    await addUser('Jonas');
+    await pump(tester);
+
+    await tester.enterText(find.byType(TextField), 'Jonas');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Someone is already called this'), findsOneWidget);
+    // A warning, not a refusal: the schema allows two people to share a name.
+    expect(saveEnabled(tester), isTrue);
+  });
+
+  testWidgetsWithDatabase('the check ignores case', (tester) async {
+    await addUser('Jonas');
+    await pump(tester);
+
+    await tester.enterText(find.byType(TextField), 'jonas');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Someone is already called this'), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('nobody is a duplicate of themselves', (
+    tester,
+  ) async {
+    final jonas = await addUser('Jonas');
+    await pump(tester, user: jonas);
+
+    // Opening the editor and saving an untouched name must say nothing.
+    expect(find.text('Someone is already called this'), findsNothing);
+  });
+
+  testWidgetsWithDatabase('an archived user no longer holds their name', (
+    tester,
+  ) async {
+    final jonas = await addUser('Jonas');
+    await db.usersDao.archiveUser(jonas.id);
+    await pump(tester);
+
+    await tester.enterText(find.byType(TextField), 'Jonas');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Someone is already called this'), findsNothing);
+  });
+
+  testWidgetsWithDatabase('a locked group is shown but inert while editing', (
+    tester,
+  ) async {
+    final jonas = await addUser('Jonas');
+    await pump(tester, user: jonas, canChangeGroup: false);
+
+    // Shown, not hidden: which group someone is in is worth reading either way.
+    expect(find.byType(DropdownButtonFormField<int>), findsOneWidget);
+    expect(groupField(tester).onChanged, isNull);
+  });
+
+  testWidgetsWithDatabase('creating keeps the group live even when locked', (
+    tester,
+  ) async {
+    await pump(tester, canChangeGroup: false);
+
+    // Picking a first group is not switching groups — and the kiosk's add
+    // button passes no preset, so a locked field there would strand Save.
+    expect(groupField(tester).onChanged, isNotNull);
+
+    await tester.enterText(find.byType(TextField), 'Wout');
+    await tester.pumpAndSettle();
+    expect(saveEnabled(tester), isTrue);
   });
 }

@@ -408,6 +408,69 @@
   "ibanInvalid": "That IBAN is not valid",
   "@ibanInvalid": { "description": "Validation message when the IBAN checksum fails" },
 
+  "sectionPermissions": "What users may do",
+  "@sectionPermissions": { "description": "Settings section heading for what anyone may do on the open kiosk, without the admin PIN" },
+
+  "allowUserEditing": "Anyone can edit users",
+  "@allowUserEditing": { "description": "Setting controlling whether the edit button appears on a user's own page" },
+
+  "allowUserEditingOn": "The user page has an edit button",
+  "@allowUserEditingOn": { "description": "Subtitle when kiosk user editing is enabled" },
+
+  "allowUserEditingOff": "Users can only be edited here in settings",
+  "@allowUserEditingOff": { "description": "Subtitle when kiosk user editing is disabled" },
+
+  "allowGroupSwitching": "Anyone can move users between groups",
+  "@allowGroupSwitching": { "description": "Setting controlling whether the kiosk editor lets an existing user change group. Choosing a group for a new user is never gated" },
+
+  "allowGroupSwitchingOn": "The group can be changed while editing",
+  "@allowGroupSwitchingOn": { "description": "Subtitle when kiosk group switching is enabled" },
+
+  "allowGroupSwitchingOff": "The group is shown but cannot be changed",
+  "@allowGroupSwitchingOff": { "description": "Subtitle when kiosk group switching is disabled" },
+
+  "allowAnyoneToUndo": "Anyone can undo a transaction",
+  "@allowAnyoneToUndo": { "description": "Setting controlling whether undoing a transaction skips the admin PIN" },
+
+  "allowAnyoneToUndoOn": "No PIN is asked for before undoing",
+  "@allowAnyoneToUndoOn": { "description": "Subtitle when undoing is open to everyone" },
+
+  "allowAnyoneToUndoOff": "Undoing needs the admin PIN",
+  "@allowAnyoneToUndoOff": { "description": "Subtitle when undoing is behind the PIN" },
+
+  "lowBalanceWarning": "Warn on a low balance",
+  "@lowBalanceWarning": { "description": "Setting controlling whether opening the consumption screen warns a user who is in the red" },
+
+  "lowBalanceWarningOn": "A user below the amount is warned before ordering",
+  "@lowBalanceWarningOn": { "description": "Subtitle when the low balance warning is enabled" },
+
+  "lowBalanceWarningOff": "Nobody is warned, whatever they owe",
+  "@lowBalanceWarningOff": { "description": "Subtitle when the low balance warning is disabled" },
+
+  "lowBalanceThreshold": "Warn below",
+  "@lowBalanceThreshold": { "description": "Label of the balance the warning triggers under" },
+
+  "lowBalanceThresholdHelp": "May be negative, to warn only on a real debt.",
+  "@lowBalanceThresholdHelp": { "description": "Helper text under the low balance threshold field, making it plain that a minus sign is allowed" },
+
+  "lowBalanceTitle": "Careful",
+  "@lowBalanceTitle": { "description": "Title of the dialog warning a user that their balance is low" },
+
+  "lowBalanceBody": "{name} is at {amount}. Please settle up soon.",
+  "@lowBalanceBody": {
+    "description": "Body of the low balance warning, naming the user and what they stand at",
+    "placeholders": {
+      "name": { "type": "String" },
+      "amount": { "type": "String" }
+    }
+  },
+
+  "continueAnyway": "Continue",
+  "@continueAnyway": { "description": "Dismisses the low balance warning and carries on. The fridge cannot take payment, so nothing is blocked" },
+
+  "nameTakenWarning": "Someone is already called this",
+  "@nameTakenWarning": { "description": "Warning under the name field when another active user has the same name. A warning, not an error: a duplicate is allowed" },
+
   "cancel": "Cancel",
   "@cancel": { "description": "Dismisses a dialog without acting" },
 

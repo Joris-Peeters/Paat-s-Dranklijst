@@ -62,9 +62,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<TransactionEntry>? _entries;
 
   @override
-  void initState() {
-    super.initState();
-    _subscribe();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Not initState: `_db` resolves `Database.of`, which depends on an
+    // inherited widget and asserts if it is reached before initState returns.
+    // Guarded, so a later dependency change does not open a second one.
+    if (_subscription == null) _subscribe();
   }
 
   void _subscribe() {

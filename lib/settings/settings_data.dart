@@ -26,6 +26,11 @@ class AppSettingsData {
     this.languageCode = 'en',
     this.currencyCode = 'EUR',
     this.allowSelfRegistration = true,
+    this.allowUserEditing = true,
+    this.allowGroupSwitching = true,
+    this.allowAnyoneToUndo = false,
+    this.lowBalanceWarningEnabled = false,
+    this.lowBalanceThresholdMinorUnits = -1000,
     this.adminPin,
     this.payeeName,
     this.payeeIban,
@@ -44,6 +49,25 @@ class AppSettingsData {
   final String currencyCode;
 
   final bool allowSelfRegistration;
+
+  /// Whether anyone may rename or recolour a user from the open kiosk. The
+  /// management screens behind the PIN ignore this and always allow it.
+  final bool allowUserEditing;
+
+  /// Whether the kiosk editor lets an existing user be moved to another group.
+  /// Choosing a group for a *new* user is never gated by this.
+  final bool allowGroupSwitching;
+
+  /// Whether undoing a transaction skips the admin PIN.
+  final bool allowAnyoneToUndo;
+
+  /// Whether opening the consumption screen warns a user who is in the red.
+  final bool lowBalanceWarningEnabled;
+
+  /// The balance to warn below, signed: a group that wants a nudge before the
+  /// tab runs out sets it above zero, one that only cares about real debt sets
+  /// it below.
+  final int lowBalanceThresholdMinorUnits;
 
   /// Plaintext. Doesn't have to be secure.
   final String? adminPin;
@@ -65,6 +89,11 @@ class AppSettingsData {
     String? languageCode,
     String? currencyCode,
     bool? allowSelfRegistration,
+    bool? allowUserEditing,
+    bool? allowGroupSwitching,
+    bool? allowAnyoneToUndo,
+    bool? lowBalanceWarningEnabled,
+    int? lowBalanceThresholdMinorUnits,
     Object? adminPin = _unset,
     Object? payeeName = _unset,
     Object? payeeIban = _unset,
@@ -77,6 +106,13 @@ class AppSettingsData {
     languageCode: languageCode ?? this.languageCode,
     currencyCode: currencyCode ?? this.currencyCode,
     allowSelfRegistration: allowSelfRegistration ?? this.allowSelfRegistration,
+    allowUserEditing: allowUserEditing ?? this.allowUserEditing,
+    allowGroupSwitching: allowGroupSwitching ?? this.allowGroupSwitching,
+    allowAnyoneToUndo: allowAnyoneToUndo ?? this.allowAnyoneToUndo,
+    lowBalanceWarningEnabled:
+        lowBalanceWarningEnabled ?? this.lowBalanceWarningEnabled,
+    lowBalanceThresholdMinorUnits:
+        lowBalanceThresholdMinorUnits ?? this.lowBalanceThresholdMinorUnits,
     adminPin: identical(adminPin, _unset) ? this.adminPin : adminPin as String?,
     payeeName: identical(payeeName, _unset)
         ? this.payeeName
@@ -101,6 +137,11 @@ class AppSettingsData {
       other.languageCode == languageCode &&
       other.currencyCode == currencyCode &&
       other.allowSelfRegistration == allowSelfRegistration &&
+      other.allowUserEditing == allowUserEditing &&
+      other.allowGroupSwitching == allowGroupSwitching &&
+      other.allowAnyoneToUndo == allowAnyoneToUndo &&
+      other.lowBalanceWarningEnabled == lowBalanceWarningEnabled &&
+      other.lowBalanceThresholdMinorUnits == lowBalanceThresholdMinorUnits &&
       other.adminPin == adminPin &&
       other.payeeName == payeeName &&
       other.payeeIban == payeeIban &&
@@ -115,6 +156,11 @@ class AppSettingsData {
     languageCode,
     currencyCode,
     allowSelfRegistration,
+    allowUserEditing,
+    allowGroupSwitching,
+    allowAnyoneToUndo,
+    lowBalanceWarningEnabled,
+    lowBalanceThresholdMinorUnits,
     adminPin,
     payeeName,
     payeeIban,

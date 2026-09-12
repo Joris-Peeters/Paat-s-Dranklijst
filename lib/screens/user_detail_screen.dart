@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/database.dart';
 import '../data/database_provider.dart';
 import '../l10n/app_localizations.dart';
+import '../settings/app_settings.dart';
 import '../widgets/transaction_history.dart';
 import '../widgets/user_edit_dialog.dart';
 import '../widgets/user_header.dart';
@@ -53,6 +54,7 @@ class _Page extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final settings = AppSettings.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -75,11 +77,20 @@ class _Page extends StatelessWidget {
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: l10n.edit,
-            onPressed: () => unawaited(showUserEditDialog(context, user: user)),
-          ),
+          // The one editing surface with no PIN in front of it, so it is the
+          // one an admin can close off. The management screens ignore this.
+          if (settings.allowUserEditing)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: l10n.edit,
+              onPressed: () => unawaited(
+                showUserEditDialog(
+                  context,
+                  user: user,
+                  canChangeGroup: settings.allowGroupSwitching,
+                ),
+              ),
+            ),
         ],
       ),
       body: SingleChildScrollView(

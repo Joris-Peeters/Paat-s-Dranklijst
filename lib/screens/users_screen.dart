@@ -137,7 +137,12 @@ class _UsersScreenState extends State<UsersScreen> {
       // added from settings.
       floatingActionButton: AppSettings.of(context).allowSelfRegistration
           ? FloatingActionButton.extended(
-              onPressed: () => unawaited(showUserEditDialog(context)),
+              onPressed: () => unawaited(
+                showUserEditDialog(
+                  context,
+                  canChangeGroup: AppSettings.of(context).allowGroupSwitching,
+                ),
+              ),
               icon: const Icon(Icons.person_add_alt_1),
               label: Text(l10n.addUser),
             )

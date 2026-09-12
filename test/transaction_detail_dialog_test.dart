@@ -52,12 +52,13 @@ void main() {
     WidgetTester tester,
     TransactionRow transaction, {
     String? pin,
+    Map<String, Object> preferences = const {},
   }) async {
     await tester.pumpWidget(
       await settingsHarness(
         null,
         database: db,
-        preferences: pin == null ? const {} : {'adminPin': pin},
+        preferences: {...preferences, 'adminPin': ?pin},
         screen: Builder(
           builder: (context) => Scaffold(
             body: Center(
@@ -194,5 +195,24 @@ void main() {
     expect(find.text('Undo'), findsNothing);
     expect(find.textContaining('Undone on'), findsOneWidget);
     expect(find.text('Mistake'), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('an admin can hand undoing to everyone', (
+    tester,
+  ) async {
+    final transaction = await logDrink();
+    await pump(
+      tester,
+      transaction,
+      pin: '1234',
+      preferences: {'allowAnyoneToUndo': true},
+    );
+
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+
+    // A PIN is set, but the setting says not to ask for it.
+    expect(find.text('Enter the admin PIN'), findsNothing);
+    expect(find.text('Undo this transaction?'), findsOneWidget);
   });
 }

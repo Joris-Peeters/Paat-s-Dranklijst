@@ -10,6 +10,11 @@ const _seedColorArgb = 'seedColorArgb';
 const _languageCode = 'languageCode';
 const _currencyCode = 'currencyCode';
 const _allowSelfRegistration = 'allowSelfRegistration';
+const _allowUserEditing = 'allowUserEditing';
+const _allowGroupSwitching = 'allowGroupSwitching';
+const _allowAnyoneToUndo = 'allowAnyoneToUndo';
+const _lowBalanceWarningEnabled = 'lowBalanceWarningEnabled';
+const _lowBalanceThresholdMinorUnits = 'lowBalanceThresholdMinorUnits';
 const _adminPin = 'adminPin';
 const _payeeName = 'payeeName';
 const _payeeIban = 'payeeIban';
@@ -26,6 +31,11 @@ const _keys = <String>{
   _languageCode,
   _currencyCode,
   _allowSelfRegistration,
+  _allowUserEditing,
+  _allowGroupSwitching,
+  _allowAnyoneToUndo,
+  _lowBalanceWarningEnabled,
+  _lowBalanceThresholdMinorUnits,
   _adminPin,
   _payeeName,
   _payeeIban,
@@ -68,6 +78,18 @@ class SettingsStore {
       allowSelfRegistration:
           _prefs.getBool(_allowSelfRegistration) ??
           defaults.allowSelfRegistration,
+      allowUserEditing:
+          _prefs.getBool(_allowUserEditing) ?? defaults.allowUserEditing,
+      allowGroupSwitching:
+          _prefs.getBool(_allowGroupSwitching) ?? defaults.allowGroupSwitching,
+      allowAnyoneToUndo:
+          _prefs.getBool(_allowAnyoneToUndo) ?? defaults.allowAnyoneToUndo,
+      lowBalanceWarningEnabled:
+          _prefs.getBool(_lowBalanceWarningEnabled) ??
+          defaults.lowBalanceWarningEnabled,
+      lowBalanceThresholdMinorUnits:
+          _prefs.getInt(_lowBalanceThresholdMinorUnits) ??
+          defaults.lowBalanceThresholdMinorUnits,
       adminPin: _prefs.getString(_adminPin),
       payeeName: _prefs.getString(_payeeName),
       payeeIban: _prefs.getString(_payeeIban),
@@ -88,6 +110,17 @@ class SettingsStore {
       _prefs.setString(_languageCode, settings.languageCode),
       _prefs.setString(_currencyCode, settings.currencyCode),
       _prefs.setBool(_allowSelfRegistration, settings.allowSelfRegistration),
+      _prefs.setBool(_allowUserEditing, settings.allowUserEditing),
+      _prefs.setBool(_allowGroupSwitching, settings.allowGroupSwitching),
+      _prefs.setBool(_allowAnyoneToUndo, settings.allowAnyoneToUndo),
+      _prefs.setBool(
+        _lowBalanceWarningEnabled,
+        settings.lowBalanceWarningEnabled,
+      ),
+      _prefs.setInt(
+        _lowBalanceThresholdMinorUnits,
+        settings.lowBalanceThresholdMinorUnits,
+      ),
       _setStringOrRemove(_adminPin, settings.adminPin),
       _setStringOrRemove(_payeeName, settings.payeeName),
       _setStringOrRemove(_payeeIban, settings.payeeIban),

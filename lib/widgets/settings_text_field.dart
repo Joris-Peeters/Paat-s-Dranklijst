@@ -16,6 +16,9 @@ class SettingsTextField extends StatefulWidget {
     this.uppercase = false,
     this.textCapitalization = TextCapitalization.none,
     this.maxLength,
+    this.keyboardType,
+    this.prefixText,
+    this.helperText,
   });
 
   final String label;
@@ -40,6 +43,16 @@ class SettingsTextField extends StatefulWidget {
   final TextCapitalization textCapitalization;
 
   final int? maxLength;
+
+  /// For a field that is not free text — a signed amount, say.
+  final TextInputType? keyboardType;
+
+  /// Drawn inside the field, ahead of the text. A currency symbol belongs here
+  /// rather than in the stored value.
+  final String? prefixText;
+
+  /// Sits under the field until a validation message replaces it.
+  final String? helperText;
 
   @override
   State<SettingsTextField> createState() => _SettingsTextFieldState();
@@ -98,6 +111,7 @@ class _SettingsTextFieldState extends State<SettingsTextField> {
       controller: _controller,
       focusNode: _focusNode,
       maxLength: widget.maxLength,
+      keyboardType: widget.keyboardType,
       textCapitalization: widget.uppercase
           ? TextCapitalization.characters
           : widget.textCapitalization,
@@ -105,6 +119,8 @@ class _SettingsTextFieldState extends State<SettingsTextField> {
       onSubmitted: (_) => _commit(),
       decoration: InputDecoration(
         labelText: widget.label,
+        prefixText: widget.prefixText,
+        helperText: widget.helperText,
         errorText: _error,
         // A validation message is a sentence, and these fields can be narrow;
         // one line would ellipsize it away. The character counter would also

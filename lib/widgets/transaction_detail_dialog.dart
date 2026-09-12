@@ -39,7 +39,12 @@ class TransactionDetailDialog extends StatelessWidget {
     final navigator = Navigator.of(context);
     final dao = Database.of(context).transactionsDao;
 
-    if (!await requireAdminPin(context)) return;
+    // An admin can hand undoing to everyone; by default it stays behind the
+    // PIN, since this rewrites what the ledger counts.
+    if (!AppSettings.of(context).allowAnyoneToUndo &&
+        !await requireAdminPin(context)) {
+      return;
+    }
     if (!context.mounted) return;
 
     final outcome = await showDialog<({String? note})>(

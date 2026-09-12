@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/database.dart';
+import 'package:paats_dranklijst/data/tables/transactions_table.dart';
 import 'package:paats_dranklijst/screens/consumption_screen.dart';
 
 import 'support/harness.dart';
@@ -40,11 +41,15 @@ void main() {
     db.transactions,
   )..where((t) => t.userId.equals(jonas.id))).get();
 
-  Future<void> pump(WidgetTester tester) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    Map<String, Object> preferences = const {},
+  }) async {
     await tester.pumpWidget(
       await settingsHarness(
         null,
         database: db,
+        preferences: preferences,
         // Pushed onto a route so the screen can pop off it, as it does in the
         // app; a screen used as `home` has nothing to pop to.
         screen: Builder(
@@ -204,5 +209,129 @@ void main() {
     expect(find.text('Cola registered for Jonas'), findsNothing);
     // And the row it offered back is still there.
     expect(await db.usersDao.readBalance(jonas.id), -150);
+  });
+
+  /// Puts the user in the red by the given amount.
+  Future<void> owe(int minorUnits) => db.transactionsDao.logAdjustment(
+    userId: jonas.id,
+    amountMinorUnits: -minorUnits,
+    note: 'Opening',
+  );
+
+  testWidgetsWithDatabase('a low balance is warned about on the way in', (
+    tester,
+  ) async {
+    await addItem(name: 'Cola');
+    await owe(1200);
+    await pump(
+      tester,
+      preferences: {
+        'lowBalanceWarningEnabled': true,
+        'lowBalanceThresholdMinorUnits': -1000,
+      },
+    );
+
+    expect(find.text('Careful'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.textContaining('-€12.00'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgetsWithDatabase('a balance above the threshold is left alone', (
+    tester,
+  ) async {
+    await addItem(name: 'Cola');
+    await owe(500);
+    await pump(
+      tester,
+      preferences: {
+        'lowBalanceWarningEnabled': true,
+        'lowBalanceThresholdMinorUnits': -1000,
+      },
+    );
+
+    expect(find.text('Careful'), findsNothing);
+  });
+
+  testWidgetsWithDatabase(
+    'a positive threshold warns before the tab runs out',
+    (tester) async {
+      await addItem(name: 'Cola');
+      await db.transactionsDao.logTopUp(
+        userId: jonas.id,
+        amountMinorUnits: 300,
+      );
+      await pump(
+        tester,
+        preferences: {
+          'lowBalanceWarningEnabled': true,
+          'lowBalanceThresholdMinorUnits': 500,
+        },
+      );
+
+      // Still in credit, but under what the admin asked to be warned below.
+      expect(find.text('Careful'), findsOneWidget);
+    },
+  );
+
+  testWidgetsWithDatabase('nothing is said while the warning is off', (
+    tester,
+  ) async {
+    await addItem(name: 'Cola');
+    await owe(5000);
+    await pump(tester);
+
+    expect(find.text('Careful'), findsNothing);
+  });
+
+  testWidgetsWithDatabase('continuing dismisses and logs nothing', (
+    tester,
+  ) async {
+    await addItem(name: 'Cola');
+    await owe(1200);
+    await pump(
+      tester,
+      preferences: {
+        'lowBalanceWarningEnabled': true,
+        'lowBalanceThresholdMinorUnits': -1000,
+      },
+    );
+
+    await tester.tap(find.widgetWithText(TextButton, 'Continue'));
+    await tester.pumpAndSettle();
+
+    // Nothing blocked and nothing written: the fridge cannot take payment.
+    expect(find.text('Careful'), findsNothing);
+    expect(find.text('Cola'), findsOneWidget);
+    expect(
+      (await history()).where((r) => r.type == TransactionType.consumption),
+      isEmpty,
+    );
+  });
+
+  testWidgetsWithDatabase('the top-up button opens the sheet', (tester) async {
+    await addItem(name: 'Cola');
+    await owe(1200);
+    await pump(
+      tester,
+      preferences: {
+        'lowBalanceWarningEnabled': true,
+        'lowBalanceThresholdMinorUnits': -1000,
+      },
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.widgetWithText(FilledButton, 'Top up'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Debt €12.00'), findsOneWidget);
   });
 }
