@@ -31,6 +31,7 @@ class AppSettingsData {
     this.allowAnyoneToUndo = false,
     this.lowBalanceWarningEnabled = false,
     this.lowBalanceThresholdMinorUnits = -1000,
+    this.returnToStartWhenIdle = true,
     this.adminPin,
     this.payeeName,
     this.payeeIban,
@@ -69,6 +70,9 @@ class AppSettingsData {
   /// it below.
   final int lowBalanceThresholdMinorUnits;
 
+  /// Whether a minute without a touch sends the app back to the Start page.
+  final bool returnToStartWhenIdle;
+
   /// Plaintext. Doesn't have to be secure.
   final String? adminPin;
 
@@ -94,6 +98,7 @@ class AppSettingsData {
     bool? allowAnyoneToUndo,
     bool? lowBalanceWarningEnabled,
     int? lowBalanceThresholdMinorUnits,
+    bool? returnToStartWhenIdle,
     Object? adminPin = _unset,
     Object? payeeName = _unset,
     Object? payeeIban = _unset,
@@ -113,6 +118,7 @@ class AppSettingsData {
         lowBalanceWarningEnabled ?? this.lowBalanceWarningEnabled,
     lowBalanceThresholdMinorUnits:
         lowBalanceThresholdMinorUnits ?? this.lowBalanceThresholdMinorUnits,
+    returnToStartWhenIdle: returnToStartWhenIdle ?? this.returnToStartWhenIdle,
     adminPin: identical(adminPin, _unset) ? this.adminPin : adminPin as String?,
     payeeName: identical(payeeName, _unset)
         ? this.payeeName
@@ -142,6 +148,7 @@ class AppSettingsData {
       other.allowAnyoneToUndo == allowAnyoneToUndo &&
       other.lowBalanceWarningEnabled == lowBalanceWarningEnabled &&
       other.lowBalanceThresholdMinorUnits == lowBalanceThresholdMinorUnits &&
+      other.returnToStartWhenIdle == returnToStartWhenIdle &&
       other.adminPin == adminPin &&
       other.payeeName == payeeName &&
       other.payeeIban == payeeIban &&
@@ -161,6 +168,7 @@ class AppSettingsData {
     allowAnyoneToUndo,
     lowBalanceWarningEnabled,
     lowBalanceThresholdMinorUnits,
+    returnToStartWhenIdle,
     adminPin,
     payeeName,
     payeeIban,

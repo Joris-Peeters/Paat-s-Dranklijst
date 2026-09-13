@@ -7,6 +7,7 @@ import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
 import '../widgets/confirm_dialog.dart';
+import '../widgets/inactivity_guard.dart';
 import '../widgets/palette_picker.dart';
 import '../widgets/pin_dialog.dart';
 import '../widgets/settings_fields.dart';
@@ -37,33 +38,37 @@ class SettingsScreen extends StatelessWidget {
     // no save button and no restart.
     final write = AppSettings.writeOf(context);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.settings)),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
-        children: [
-          _SectionHeader(title: l10n.sectionManagement),
-          const _UserGroupsCard(),
-          const _ItemCategoriesCard(),
-          const _PendingTopUpsCard(),
+    // Held for as long as this screen is in the stack, so the screens opened
+    // from it are covered too.
+    return InactivityPause(
+      child: Scaffold(
+        appBar: AppBar(title: Text(l10n.settings)),
+        body: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
+            _SectionHeader(title: l10n.sectionManagement),
+            const _UserGroupsCard(),
+            const _ItemCategoriesCard(),
+            const _PendingTopUpsCard(),
 
-          const Divider(height: 24, indent: 16, endIndent: 16),
+            const Divider(height: 24, indent: 16, endIndent: 16),
 
-          _SectionHeader(title: l10n.sectionAppearance),
-          _AppearanceCard(settings: settings, write: write),
+            _SectionHeader(title: l10n.sectionAppearance),
+            _AppearanceCard(settings: settings, write: write),
 
-          _SectionHeader(title: l10n.sectionPermissions),
-          _PermissionsCard(settings: settings, write: write),
+            _SectionHeader(title: l10n.sectionPermissions),
+            _PermissionsCard(settings: settings, write: write),
 
-          _SectionHeader(title: l10n.sectionAdmin),
-          _AdminCard(settings: settings, write: write),
+            _SectionHeader(title: l10n.sectionAdmin),
+            _AdminCard(settings: settings, write: write),
 
-          _SectionHeader(title: l10n.sectionSettlingUp),
-          _PayeeCard(settings: settings, write: write),
+            _SectionHeader(title: l10n.sectionSettlingUp),
+            _PayeeCard(settings: settings, write: write),
 
-          _SectionHeader(title: l10n.sectionAbout),
-          const _AboutCard(),
-        ],
+            _SectionHeader(title: l10n.sectionAbout),
+            const _AboutCard(),
+          ],
+        ),
       ),
     );
   }
@@ -471,6 +476,18 @@ class _AdminCard extends StatelessWidget {
             width: 200,
             child: CurrencyField(settings: settings, write: write),
           ),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.returnToStartWhenIdle),
+          subtitle: Text(
+            settings.returnToStartWhenIdle
+                ? l10n.returnToStartWhenIdleOn
+                : l10n.returnToStartWhenIdleOff,
+          ),
+          value: settings.returnToStartWhenIdle,
+          onChanged: (value) =>
+              write(settings.copyWith(returnToStartWhenIdle: value)),
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,

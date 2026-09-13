@@ -468,6 +468,15 @@
   "allowAnyoneToUndoOff": "Undoing needs the admin PIN",
   "@allowAnyoneToUndoOff": { "description": "Subtitle when undoing is behind the PIN" },
 
+  "returnToStartWhenIdle": "Return to Start when idle",
+  "@returnToStartWhenIdle": { "description": "Setting controlling whether the app goes back to the Start page after a minute without a touch" },
+
+  "returnToStartWhenIdleOn": "After a minute without a touch, the app goes back to the Start page",
+  "@returnToStartWhenIdleOn": { "description": "Subtitle of the idle return setting while on" },
+
+  "returnToStartWhenIdleOff": "The app stays wherever it was left",
+  "@returnToStartWhenIdleOff": { "description": "Subtitle of the idle return setting while off" },
+
   "lowBalanceWarning": "Warn on a low balance",
   "@lowBalanceWarning": { "description": "Setting controlling whether opening the consumption screen warns a user who is in the red" },
 

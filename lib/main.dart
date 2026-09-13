@@ -10,6 +10,7 @@ import 'screens/users_screen.dart';
 import 'settings/app_settings.dart';
 import 'settings/settings_store.dart';
 import 'theme/app_theme.dart';
+import 'widgets/inactivity_guard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,8 +27,29 @@ Future<void> main() async {
 
 /// Must be its own widget class: a closure inside [AppSettings] would build
 /// with the enclosing context, and `AppSettings.of` would find nothing.
-class MainApp extends StatelessWidget {
+class MainApp extends StatefulWidget {
   const MainApp({super.key});
+
+  @override
+  State<MainApp> createState() => _MainAppState();
+}
+
+class _MainAppState extends State<MainApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  final _returnToStart = _ReturnToStart();
+
+  @override
+  void dispose() {
+    _returnToStart.dispose();
+    super.dispose();
+  }
+
+  /// Closes every screen, dialog and sheet — they are all routes on the one
+  /// navigator — and has the shell select its Start tab.
+  void _goToStart() {
+    _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    _returnToStart.fire();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +57,16 @@ class MainApp extends StatelessWidget {
     final seedColor = settings.seedColorArgb;
 
     return MaterialApp(
+      navigatorKey: _navigatorKey,
+      // Wraps the Navigator itself, so the guard sees touches on every route
+      // and every route can find it.
+      builder: (context, child) => InactivityGuard(
+        // The wizard has no Start page to go back to.
+        enabled:
+            settings.setupCompletedAt != null && settings.returnToStartWhenIdle,
+        onTimeout: _goToStart,
+        child: child!,
+      ),
       // Always one of `supportedLocales`, so Flutter resolves it to itself.
       locale: Locale(settings.languageCode),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -48,13 +80,22 @@ class MainApp extends StatelessWidget {
       // to the shell.
       home: settings.setupCompletedAt == null
           ? const SetupWizard()
-          : const AppShell(),
+          : AppShell(returnToStart: _returnToStart),
     );
   }
 }
 
+/// Tells the shell to select its Start tab, without the guard knowing tabs
+/// exist.
+class _ReturnToStart extends ChangeNotifier {
+  void fire() => notifyListeners();
+}
+
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, required this.returnToStart});
+
+  /// Selects the Start tab whenever it notifies.
+  final Listenable returnToStart;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -62,6 +103,20 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.returnToStart.addListener(_selectStart);
+  }
+
+  @override
+  void dispose() {
+    widget.returnToStart.removeListener(_selectStart);
+    super.dispose();
+  }
+
+  void _selectStart() => setState(() => _index = 0);
 
   @override
   Widget build(BuildContext context) {

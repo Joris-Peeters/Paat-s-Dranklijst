@@ -15,6 +15,7 @@ const _allowGroupSwitching = 'allowGroupSwitching';
 const _allowAnyoneToUndo = 'allowAnyoneToUndo';
 const _lowBalanceWarningEnabled = 'lowBalanceWarningEnabled';
 const _lowBalanceThresholdMinorUnits = 'lowBalanceThresholdMinorUnits';
+const _returnToStartWhenIdle = 'returnToStartWhenIdle';
 const _adminPin = 'adminPin';
 const _payeeName = 'payeeName';
 const _payeeIban = 'payeeIban';
@@ -36,6 +37,7 @@ const _keys = <String>{
   _allowAnyoneToUndo,
   _lowBalanceWarningEnabled,
   _lowBalanceThresholdMinorUnits,
+  _returnToStartWhenIdle,
   _adminPin,
   _payeeName,
   _payeeIban,
@@ -90,6 +92,9 @@ class SettingsStore {
       lowBalanceThresholdMinorUnits:
           _prefs.getInt(_lowBalanceThresholdMinorUnits) ??
           defaults.lowBalanceThresholdMinorUnits,
+      returnToStartWhenIdle:
+          _prefs.getBool(_returnToStartWhenIdle) ??
+          defaults.returnToStartWhenIdle,
       adminPin: _prefs.getString(_adminPin),
       payeeName: _prefs.getString(_payeeName),
       payeeIban: _prefs.getString(_payeeIban),
@@ -121,6 +126,7 @@ class SettingsStore {
         _lowBalanceThresholdMinorUnits,
         settings.lowBalanceThresholdMinorUnits,
       ),
+      _prefs.setBool(_returnToStartWhenIdle, settings.returnToStartWhenIdle),
       _setStringOrRemove(_adminPin, settings.adminPin),
       _setStringOrRemove(_payeeName, settings.payeeName),
       _setStringOrRemove(_payeeIban, settings.payeeIban),

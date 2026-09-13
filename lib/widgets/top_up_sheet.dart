@@ -9,6 +9,7 @@ import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
 import '../utils/banking.dart';
 import 'epc_qr_code.dart';
+import 'inactivity_guard.dart';
 import 'money_text.dart';
 
 /// The round amounts offered as presets, in whole currency units. Scaled to
@@ -27,7 +28,8 @@ Future<void> showTopUpSheet(BuildContext context, {required UserRow user}) =>
       // free to take the height it needs.
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => TopUpSheet(user: user),
+      // Paying means looking at a phone, not touching this screen.
+      builder: (_) => InactivityPause(child: TopUpSheet(user: user)),
     );
 
 class TopUpSheet extends StatefulWidget {

@@ -28,6 +28,7 @@ void main() {
         base.copyWith(allowAnyoneToUndo: true),
         base.copyWith(lowBalanceWarningEnabled: true),
         base.copyWith(lowBalanceThresholdMinorUnits: -2500),
+        base.copyWith(returnToStartWhenIdle: false),
         base.copyWith(adminPin: '1234'),
         base.copyWith(payeeName: 'Chiro'),
         base.copyWith(payeeIban: 'BE68539007547034'),

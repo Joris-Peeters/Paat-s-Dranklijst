@@ -42,6 +42,7 @@ void main() {
       allowAnyoneToUndo: true,
       lowBalanceWarningEnabled: true,
       lowBalanceThresholdMinorUnits: -2500,
+      returnToStartWhenIdle: false,
       adminPin: '1234',
       payeeName: 'Chiro Paat',
       payeeIban: 'BE68539007547034',
