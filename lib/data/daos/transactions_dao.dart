@@ -185,6 +185,62 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// A top-up the admin has not yet confirmed or voided. Written once so the
+  /// list and the count agree, and matching `transactions_pending_top_ups`.
+  Expression<bool> get _isPendingTopUp =>
+      transactions.type.equalsValue(TransactionType.topUp) &
+      transactions.confirmedAt.isNull() &
+      transactions.voidedAt.isNull();
+
+  /// Marks a top-up's money as received. Balances ignore this entirely; a
+  /// pending top-up already counts. A no-op on anything not pending.
+  Future<void> confirmTopUp(int id) async {
+    await (update(transactions)
+          ..where((_) => transactions.id.equals(id) & _isPendingTopUp))
+        .write(TransactionsCompanion(confirmedAt: Value(DateTime.now())));
+  }
+
+  /// Clears a confirmation again. Only for the snackbar Undo right after
+  /// [confirmTopUp]; otherwise a confirmation stays.
+  Future<void> undoTopUpConfirmation(int id) async {
+    await (update(transactions)..where((t) => t.id.equals(id))).write(
+      const TransactionsCompanion(confirmedAt: Value(null)),
+    );
+  }
+
+  /// Unconfirmed, unvoided top-ups, oldest first.
+  Stream<List<TransactionEntry>> watchPendingTopUps() {
+    final query =
+        select(transactions)
+            .join([innerJoin(users, users.id.equalsExp(transactions.userId))])
+          ..where(_isPendingTopUp)
+          ..orderBy([
+            OrderingTerm(expression: transactions.createdAt),
+            // createdAt is stored to the second; the id breaks a tie in order.
+            OrderingTerm(expression: transactions.id),
+          ]);
+
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (row) => TransactionEntry(
+              transaction: row.readTable(transactions),
+              user: row.readTable(users),
+              item: null,
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Stream<int> watchPendingTopUpCount() {
+    final count = countAll();
+    final query = selectOnly(transactions)
+      ..addColumns([count])
+      ..where(_isPendingTopUp);
+    return query.watchSingle().map((row) => row.read(count) ?? 0);
+  }
+
   /// Newest first. Voided rows are included — they stay in the record, struck
   /// through; they are only hidden from balances.
   Stream<List<TransactionRow>> watchRecentTransactions({int limit = 50}) =>

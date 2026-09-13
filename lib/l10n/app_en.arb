@@ -159,6 +159,36 @@
     }
   },
 
+  "pendingTopUps": "Pending top-ups",
+  "@pendingTopUps": { "description": "Title of the management card and screen listing top-ups whose payment an admin has not yet confirmed" },
+
+  "pendingTopUpsSubtitle": "Check that top-ups were paid",
+  "@pendingTopUpsSubtitle": { "description": "Subtitle of the pending top-ups card before its count has loaded" },
+
+  "pendingTopUpsSummary": "{count, plural, =0{All payments confirmed} =1{1 top-up to confirm} other{{count} top-ups to confirm}}",
+  "@pendingTopUpsSummary": {
+    "description": "Live count under the pending top-ups management card",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "noPendingTopUps": "Every top-up has been confirmed",
+  "@noPendingTopUps": { "description": "Empty state of the pending top-ups screen" },
+
+  "confirmTopUp": "Payment received",
+  "@confirmTopUp": { "description": "Tooltip of the button confirming a top-up's money arrived" },
+
+  "voidTopUp": "Not paid",
+  "@voidTopUp": { "description": "Tooltip of the button voiding a top-up whose money never arrived" },
+
+  "topUpConfirmed": "{amount} from {name} confirmed",
+  "@topUpConfirmed": {
+    "description": "Snackbar after confirming a top-up's payment, offering undo",
+    "placeholders": {
+      "amount": { "type": "String" },
+      "name": { "type": "String" }
+    }
+  },
+
   "groupUserCount": "{count, plural, =0{No users} =1{1 user} other{{count} users}}",
   "@groupUserCount": {
     "description": "How many users a group holds. Archived users are not counted here — see deleteBlockedInUse for why the delete action can still be refused",

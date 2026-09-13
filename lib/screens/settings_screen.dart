@@ -12,6 +12,7 @@ import '../widgets/pin_dialog.dart';
 import '../widgets/settings_fields.dart';
 import '../widgets/settings_text_field.dart';
 import 'item_categories_screen.dart';
+import 'pending_top_ups_screen.dart';
 import 'user_groups_screen.dart';
 
 /// Opens the settings screen, asking for the admin PIN first when one is set.
@@ -44,6 +45,7 @@ class SettingsScreen extends StatelessWidget {
           _SectionHeader(title: l10n.sectionManagement),
           const _UserGroupsCard(),
           const _ItemCategoriesCard(),
+          const _PendingTopUpsCard(),
 
           const Divider(height: 24, indent: 16, endIndent: 16),
 
@@ -174,6 +176,31 @@ class _ItemCategoriesCardState extends State<_ItemCategoriesCard> {
         (counts) => l10n.itemCategoriesSummary(counts.categories, counts.items),
       ),
       open: ItemCategoriesScreen.new,
+    );
+  }
+}
+
+class _PendingTopUpsCard extends StatefulWidget {
+  const _PendingTopUpsCard();
+
+  @override
+  State<_PendingTopUpsCard> createState() => _PendingTopUpsCardState();
+}
+
+class _PendingTopUpsCardState extends State<_PendingTopUpsCard> {
+  late final Stream<int> _count = Database.of(context).transactionsDao
+      .watchPendingTopUpCount();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return _ManagementCard(
+      icon: Icons.price_check_rounded,
+      title: l10n.pendingTopUps,
+      subtitle: l10n.pendingTopUpsSubtitle,
+      counts: _count.map(l10n.pendingTopUpsSummary),
+      open: PendingTopUpsScreen.new,
     );
   }
 }

@@ -17,10 +17,6 @@ import '../widgets/user_header.dart';
 import '../widgets/user_theme_scope.dart';
 import 'user_detail_screen.dart';
 
-/// How long the undo stays reachable. After this the row is permanent and only
-/// an admin can void it.
-const _undoWindow = Duration(seconds: 5);
-
 /// Recording a drink: the screen the whole app exists for.
 ///
 /// Everything below sits in the user's own theme, so the page they tap on is
@@ -118,7 +114,6 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
     messenger.showSnackBar(
       SnackBar(
         content: Text(message(l10n)),
-        duration: _undoWindow,
         // Load-bearing: a SnackBar carrying an action defaults to persisting
         // until it is tapped, and the expiry is the whole point here. The row
         // becomes permanent when this closes, so the window has to close on

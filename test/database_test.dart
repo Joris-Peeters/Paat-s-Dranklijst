@@ -1016,4 +1016,112 @@ void main() {
       );
     });
   });
+
+  group('confirming top-ups', () {
+    Future<List<int>> pendingIds() async => [
+      for (final entry in await db.transactionsDao.watchPendingTopUps().first)
+        entry.transaction.id,
+    ];
+
+    Future<int> pendingCount() =>
+        db.transactionsDao.watchPendingTopUpCount().first;
+
+    test(
+      'only unconfirmed, unvoided top-ups are pending, oldest first',
+      () async {
+        final jonas = await addUser();
+        final wout = await addUser(name: 'Wout');
+        final cola = await addItem();
+
+        final first = await db.transactionsDao.logTopUp(
+          userId: wout,
+          amountMinorUnits: 1000,
+        );
+        await db.transactionsDao.logConsumption(userId: jonas, item: cola);
+        await db.transactionsDao.logAdjustment(
+          userId: jonas,
+          amountMinorUnits: 500,
+          note: 'Cash',
+        );
+        final voided = await db.transactionsDao.logTopUp(
+          userId: jonas,
+          amountMinorUnits: 500,
+        );
+        await db.transactionsDao.voidTransaction(voided);
+        final second = await db.transactionsDao.logTopUp(
+          userId: jonas,
+          amountMinorUnits: 2000,
+        );
+
+        expect(await pendingIds(), [first, second]);
+        expect(await pendingCount(), 2);
+
+        final entries = await db.transactionsDao.watchPendingTopUps().first;
+        expect(entries.first.user.name, 'Wout');
+        expect(entries.first.item, null);
+      },
+    );
+
+    test('confirming clears it from pending and leaves the balance', () async {
+      final user = await addUser();
+      final id = await db.transactionsDao.logTopUp(
+        userId: user,
+        amountMinorUnits: 1000,
+      );
+
+      await db.transactionsDao.confirmTopUp(id);
+
+      expect(await pendingIds(), isEmpty);
+      expect(await pendingCount(), 0);
+      expect(await db.usersDao.readBalance(user), 1000);
+      expect(
+        (await db.transactionsDao.readTransaction(id))!.confirmedAt,
+        isA<DateTime>(),
+      );
+    });
+
+    test('confirming twice keeps the first stamp', () async {
+      final user = await addUser();
+      final id = await db.transactionsDao.logTopUp(
+        userId: user,
+        amountMinorUnits: 1000,
+      );
+
+      await db.transactionsDao.confirmTopUp(id);
+      final first = (await db.transactionsDao.readTransaction(id))!.confirmedAt;
+      await Future<void>.delayed(const Duration(milliseconds: 1100));
+      await db.transactionsDao.confirmTopUp(id);
+
+      expect(
+        (await db.transactionsDao.readTransaction(id))!.confirmedAt,
+        first,
+      );
+    });
+
+    test('only a top-up can be confirmed', () async {
+      final user = await addUser();
+      final cola = await addItem();
+      final id = await db.transactionsDao.logConsumption(
+        userId: user,
+        item: cola,
+      );
+
+      await db.transactionsDao.confirmTopUp(id);
+
+      expect((await db.transactionsDao.readTransaction(id))!.confirmedAt, null);
+    });
+
+    test('undoing a confirmation makes it pending again', () async {
+      final user = await addUser();
+      final id = await db.transactionsDao.logTopUp(
+        userId: user,
+        amountMinorUnits: 1000,
+      );
+
+      await db.transactionsDao.confirmTopUp(id);
+      await db.transactionsDao.undoTopUpConfirmation(id);
+
+      expect(await pendingIds(), [id]);
+    });
+  });
 }

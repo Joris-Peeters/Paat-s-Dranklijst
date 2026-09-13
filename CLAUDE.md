@@ -70,7 +70,8 @@ These are deliberate and load-bearing. Do not work around them without asking.
 
 Every consumption, top-up and adjustment is a permanent row. **Never rewrite a
 transaction**, and never DELETE one except through the five-second snackbar undo
-described below. The only permitted update is the one-way void, also below.
+described below. The only permitted updates are the one-way void and confirming a
+top-up, both also below.
 
 #### Money and direction
 
@@ -131,6 +132,25 @@ render in history, struck through: hidden from balances, not from the record.
 
 Use an `adjustment`, not a void, for a genuine correction that is not a mistake ("Jonas
 paid €10 cash"). **Voiding erases; adjusting records.**
+
+#### Confirming top-ups
+
+A top-up is logged the moment someone taps **Paid** and counts toward the balance
+straight away; nothing at the fridge can check the money arrived. `confirmedAt` is the
+admin's tick against the bank statement or cash box. It is **bookkeeping, not
+accounting**: balances ignore it, and a pending top-up counts exactly like a confirmed
+one.
+
+A top-up is *pending* while `confirmedAt` and `voidedAt` are both null — bank transfer
+or cash alike, since the app does not record which. The pending list and its count share
+one predicate in `TransactionsDao`, and the partial index `transactions_pending_top_ups`
+repeats it, so it holds only the backlog rather than every ledger row.
+
+`confirmTopUp` guards on that predicate, so a second call or a non-top-up is a no-op.
+The one way back is the snackbar Undo raised right after confirming, which clears it
+again — the same short window the consumption snackbar gets, for the same reason. A
+payment that never came is **voided**, not left unconfirmed: that is what takes the
+credit back out.
 
 ### 2. Money is an integer in minor units. Always
 
@@ -452,6 +472,7 @@ lib/
   utils/                     # banking (IBAN + EPC), random_emoji, time_of_day
   screens/
     settings_screen.dart     # admin settings; openSettings() is the PIN gate
+    pending_top_ups_screen.dart  # admin checklist: confirm or void unchecked top-ups
     setup_wizard.dart        # first-run wizard
     start_screen.dart, users_screen.dart, stats_screen.dart   # the three tabs
     management_stub_screen.dart
@@ -482,7 +503,7 @@ chosen in place.
 `groupId`, `sortOrder` and `archivedAt`), plus `transactions`. One view, `user_balances`:
 `SUM` per member with voided rows excluded, not a cache but an indexed query. Members
 with no live transactions have no row in it, so readers left-join and read a missing row
-as 0. Five indexes carry it; the composites the Stats page will want are deliberately
+as 0. Five indexes carry it, plus a partial one for pending top-ups; the composites the Stats page will want are deliberately
 not added, because an unused index is write cost on every ledger row.
 
 Three DAOs cover the queries. `TransactionsDao` is the only writer of a ledger row, and

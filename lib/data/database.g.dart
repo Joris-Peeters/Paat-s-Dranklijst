@@ -607,7 +607,7 @@ class UserRow extends DataClass implements Insertable<UserRow> {
   final int groupId;
   final int sortOrder;
 
-  /// Soft delete: a departed member's ledger history stays intact and readable.
+  /// Soft delete: a departed user's ledger history stays intact and readable.
   final DateTime? archivedAt;
   final DateTime createdAt;
   const UserRow({
@@ -1910,6 +1910,17 @@ class $TransactionsTable extends Transactions
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _confirmedAtMeta = const VerificationMeta(
+    'confirmedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> confirmedAt = GeneratedColumn<DateTime>(
+    'confirmed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1925,6 +1936,7 @@ class $TransactionsTable extends Transactions
     logicalDate,
     voidedAt,
     voidedNote,
+    confirmedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2025,6 +2037,15 @@ class $TransactionsTable extends Transactions
         voidedNote.isAcceptableOrUnknown(data['voided_note']!, _voidedNoteMeta),
       );
     }
+    if (data.containsKey('confirmed_at')) {
+      context.handle(
+        _confirmedAtMeta,
+        confirmedAt.isAcceptableOrUnknown(
+          data['confirmed_at']!,
+          _confirmedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2088,6 +2109,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.string,
         data['${effectivePrefix}voided_note'],
       ),
+      confirmedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}confirmed_at'],
+      ),
     );
   }
 
@@ -2128,6 +2153,10 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
   /// rewritten, and voided rows still render in history, just struck through.
   final DateTime? voidedAt;
   final String? voidedNote;
+
+  /// Top-ups only: when an admin confirmed the money arrived. Bookkeeping, not
+  /// accounting — balances ignore it.
+  final DateTime? confirmedAt;
   const TransactionRow({
     required this.id,
     required this.userId,
@@ -2142,6 +2171,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     required this.logicalDate,
     this.voidedAt,
     this.voidedNote,
+    this.confirmedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2175,6 +2205,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     if (!nullToAbsent || voidedNote != null) {
       map['voided_note'] = Variable<String>(voidedNote);
     }
+    if (!nullToAbsent || confirmedAt != null) {
+      map['confirmed_at'] = Variable<DateTime>(confirmedAt);
+    }
     return map;
   }
 
@@ -2203,6 +2236,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       voidedNote: voidedNote == null && nullToAbsent
           ? const Value.absent()
           : Value(voidedNote),
+      confirmedAt: confirmedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(confirmedAt),
     );
   }
 
@@ -2229,6 +2265,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       logicalDate: serializer.fromJson<String>(json['logicalDate']),
       voidedAt: serializer.fromJson<DateTime?>(json['voidedAt']),
       voidedNote: serializer.fromJson<String?>(json['voidedNote']),
+      confirmedAt: serializer.fromJson<DateTime?>(json['confirmedAt']),
     );
   }
   @override
@@ -2250,6 +2287,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       'logicalDate': serializer.toJson<String>(logicalDate),
       'voidedAt': serializer.toJson<DateTime?>(voidedAt),
       'voidedNote': serializer.toJson<String?>(voidedNote),
+      'confirmedAt': serializer.toJson<DateTime?>(confirmedAt),
     };
   }
 
@@ -2267,6 +2305,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     String? logicalDate,
     Value<DateTime?> voidedAt = const Value.absent(),
     Value<String?> voidedNote = const Value.absent(),
+    Value<DateTime?> confirmedAt = const Value.absent(),
   }) => TransactionRow(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -2285,6 +2324,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     logicalDate: logicalDate ?? this.logicalDate,
     voidedAt: voidedAt.present ? voidedAt.value : this.voidedAt,
     voidedNote: voidedNote.present ? voidedNote.value : this.voidedNote,
+    confirmedAt: confirmedAt.present ? confirmedAt.value : this.confirmedAt,
   );
   TransactionRow copyWithCompanion(TransactionsCompanion data) {
     return TransactionRow(
@@ -2311,6 +2351,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       voidedNote: data.voidedNote.present
           ? data.voidedNote.value
           : this.voidedNote,
+      confirmedAt: data.confirmedAt.present
+          ? data.confirmedAt.value
+          : this.confirmedAt,
     );
   }
 
@@ -2329,7 +2372,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           ..write('createdAt: $createdAt, ')
           ..write('logicalDate: $logicalDate, ')
           ..write('voidedAt: $voidedAt, ')
-          ..write('voidedNote: $voidedNote')
+          ..write('voidedNote: $voidedNote, ')
+          ..write('confirmedAt: $confirmedAt')
           ..write(')'))
         .toString();
   }
@@ -2349,6 +2393,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     logicalDate,
     voidedAt,
     voidedNote,
+    confirmedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -2366,7 +2411,8 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
           other.createdAt == this.createdAt &&
           other.logicalDate == this.logicalDate &&
           other.voidedAt == this.voidedAt &&
-          other.voidedNote == this.voidedNote);
+          other.voidedNote == this.voidedNote &&
+          other.confirmedAt == this.confirmedAt);
 }
 
 class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
@@ -2383,6 +2429,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
   final Value<String> logicalDate;
   final Value<DateTime?> voidedAt;
   final Value<String?> voidedNote;
+  final Value<DateTime?> confirmedAt;
   const TransactionsCompanion({
     this.id = const Value.absent(),
     this.userId = const Value.absent(),
@@ -2397,6 +2444,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     this.logicalDate = const Value.absent(),
     this.voidedAt = const Value.absent(),
     this.voidedNote = const Value.absent(),
+    this.confirmedAt = const Value.absent(),
   });
   TransactionsCompanion.insert({
     this.id = const Value.absent(),
@@ -2412,6 +2460,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     required String logicalDate,
     this.voidedAt = const Value.absent(),
     this.voidedNote = const Value.absent(),
+    this.confirmedAt = const Value.absent(),
   }) : userId = Value(userId),
        type = Value(type),
        amountMinorUnits = Value(amountMinorUnits),
@@ -2430,6 +2479,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Expression<String>? logicalDate,
     Expression<DateTime>? voidedAt,
     Expression<String>? voidedNote,
+    Expression<DateTime>? confirmedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2446,6 +2496,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       if (logicalDate != null) 'logical_date': logicalDate,
       if (voidedAt != null) 'voided_at': voidedAt,
       if (voidedNote != null) 'voided_note': voidedNote,
+      if (confirmedAt != null) 'confirmed_at': confirmedAt,
     });
   }
 
@@ -2463,6 +2514,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Value<String>? logicalDate,
     Value<DateTime?>? voidedAt,
     Value<String?>? voidedNote,
+    Value<DateTime?>? confirmedAt,
   }) {
     return TransactionsCompanion(
       id: id ?? this.id,
@@ -2479,6 +2531,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       logicalDate: logicalDate ?? this.logicalDate,
       voidedAt: voidedAt ?? this.voidedAt,
       voidedNote: voidedNote ?? this.voidedNote,
+      confirmedAt: confirmedAt ?? this.confirmedAt,
     );
   }
 
@@ -2528,6 +2581,9 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     if (voidedNote.present) {
       map['voided_note'] = Variable<String>(voidedNote.value);
     }
+    if (confirmedAt.present) {
+      map['confirmed_at'] = Variable<DateTime>(confirmedAt.value);
+    }
     return map;
   }
 
@@ -2546,7 +2602,8 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
           ..write('createdAt: $createdAt, ')
           ..write('logicalDate: $logicalDate, ')
           ..write('voidedAt: $voidedAt, ')
-          ..write('voidedNote: $voidedNote')
+          ..write('voidedNote: $voidedNote, ')
+          ..write('confirmedAt: $confirmedAt')
           ..write(')'))
         .toString();
   }
@@ -2701,6 +2758,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'transactions_logical_date',
     'CREATE INDEX transactions_logical_date ON transactions (logical_date)',
   );
+  late final Index transactionsPendingTopUps = Index(
+    'transactions_pending_top_ups',
+    'CREATE INDEX transactions_pending_top_ups ON transactions (created_at) WHERE type = \'topUp\' AND confirmed_at IS NULL AND voided_at IS NULL',
+  );
   late final UsersDao usersDao = UsersDao(this as AppDatabase);
   late final ItemsDao itemsDao = ItemsDao(this as AppDatabase);
   late final TransactionsDao transactionsDao = TransactionsDao(
@@ -2722,5 +2783,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     transactionsUserIdVoidedAt,
     transactionsCreatedAt,
     transactionsLogicalDate,
+    transactionsPendingTopUps,
   ];
 }

@@ -47,10 +47,7 @@ class TransactionDetailDialog extends StatelessWidget {
     }
     if (!context.mounted) return;
 
-    final outcome = await showDialog<({String? note})>(
-      context: context,
-      builder: (_) => const _UndoReasonDialog(),
-    );
+    final outcome = await showUndoReasonDialog(context);
     if (outcome == null) return;
 
     await dao.voidTransaction(entry.transaction.id, note: outcome.note);
@@ -180,10 +177,17 @@ class _Field extends StatelessWidget {
   }
 }
 
-/// Confirms the undo and collects an optional reason.
+/// Confirms an undo and collects an optional reason. Null when dismissed.
 ///
-/// Pops a record rather than the string itself, so "dismissed" and "confirmed
-/// with nothing typed" stay distinguishable — the second is a real answer.
+/// Returns a record rather than the string itself, so "dismissed" and
+/// "confirmed with nothing typed" stay distinguishable — the second is a real
+/// answer.
+Future<({String? note})?> showUndoReasonDialog(BuildContext context) =>
+    showDialog<({String? note})>(
+      context: context,
+      builder: (_) => const _UndoReasonDialog(),
+    );
+
 class _UndoReasonDialog extends StatefulWidget {
   const _UndoReasonDialog();
 

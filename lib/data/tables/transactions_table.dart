@@ -10,7 +10,7 @@ import 'users_table.dart';
 enum TransactionType { consumption, topUp, adjustment }
 
 /// The append-only ledger: rows are never DELETEd, and the only permitted
-/// update is the one-way `voidedAt` transition.
+/// updates are the one-way `voidedAt` transition and confirming a top-up.
 @DataClassName('TransactionRow')
 // For balance lookups
 @TableIndex(
@@ -20,6 +20,12 @@ enum TransactionType { consumption, topUp, adjustment }
 @TableIndex(name: 'transactions_created_at', columns: {#createdAt})
 // For per-day counts and, later, the stats page's group-by-day aggregations.
 @TableIndex(name: 'transactions_logical_date', columns: {#logicalDate})
+// Partial, so it holds only the admin's backlog rather than every ledger row.
+// The pending queries must repeat this predicate exactly for SQLite to use it.
+@TableIndex.sql('''
+  CREATE INDEX transactions_pending_top_ups ON transactions (created_at)
+  WHERE type = 'topUp' AND confirmed_at IS NULL AND voided_at IS NULL
+''')
 class Transactions extends Table {
   IntColumn get id => integer().autoIncrement()();
 
@@ -58,6 +64,10 @@ class Transactions extends Table {
   /// rewritten, and voided rows still render in history, just struck through.
   DateTimeColumn get voidedAt => dateTime().nullable()();
   TextColumn get voidedNote => text().nullable()();
+
+  /// Top-ups only: when an admin confirmed the money arrived. Bookkeeping, not
+  /// accounting — balances ignore it.
+  DateTimeColumn get confirmedAt => dateTime().nullable()();
 
   @override
   List<String> get customConstraints => const ['CHECK (quantity > 0)'];
