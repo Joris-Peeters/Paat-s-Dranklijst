@@ -347,7 +347,6 @@ class _ItemTile extends StatelessWidget {
     final count = this.count;
 
     return Card(
-      clipBehavior: Clip.antiAlias,
       color: count == null ? null : theme.colorScheme.primaryContainer,
       child: InkWell(
         onTap: onTap,

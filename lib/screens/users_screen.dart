@@ -239,11 +239,9 @@ class _UserTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     final user = entry.user;
 
     return Card(
-      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => unawaited(
           Navigator.push<void>(
@@ -273,11 +271,6 @@ class _UserTile extends StatelessWidget {
                 ),
               ),
               MoneyText(amountMinorUnits: entry.balanceMinorUnits),
-              IconButton(
-                icon: const Icon(Icons.info_outline),
-                tooltip: l10n.userOverview,
-                onPressed: () => _openDetail(context),
-              ),
             ],
           ),
         ),

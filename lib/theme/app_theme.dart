@@ -30,6 +30,9 @@ ThemeData appTheme(int seedColorArgb, Brightness brightness) =>
       () => ThemeData(
         colorScheme: schemeFor(seedColorArgb, brightness),
         useMaterial3: true,
+        // Ink is painted on the card but not clipped to it by default, so a
+        // tappable row's hover showed square corners past the rounded ones.
+        cardTheme: const CardThemeData(clipBehavior: Clip.antiAlias),
       ),
     );
 

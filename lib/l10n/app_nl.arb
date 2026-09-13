@@ -173,7 +173,7 @@
   "paid": "Betaald",
   "scanToPay": "Scan met je bankapp",
   "paymentMessage": "Mededeling",
-  "topUpQrMessage": "Dranklijst opwaardering {name}",
+  "topUpQrMessage": "Dranklijst {name}",
   "topUpLogged": "{amount} toegevoegd voor {name}",
   "newBalance": "Nieuw saldo",
   "transactionDetail": "Transactie",

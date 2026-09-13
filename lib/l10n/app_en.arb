@@ -564,9 +564,9 @@
   "paymentMessage": "Message",
   "@paymentMessage": { "description": "Label of the reference a bank transfer carries, listed under the QR code alongside the payee and IBAN" },
 
-  "topUpQrMessage": "Dranklijst top up {name}",
+  "topUpQrMessage": "Dranklijst {name}",
   "@topUpQrMessage": {
-    "description": "The message a transfer carries, so the payer's bank statement says what it was for and for whom. Goes into the QR code and is shown as text under it for anyone typing the transfer by hand",
+    "description": "The message a transfer carries, so the payer's bank statement says what it was for and for whom. Goes into the QR code and is shown as text under it for anyone typing the transfer by hand. Keep it short: some banking apps cut the message off at around 30 characters, and the name has to fit too",
     "placeholders": { "name": { "type": "String" } }
   },
 
