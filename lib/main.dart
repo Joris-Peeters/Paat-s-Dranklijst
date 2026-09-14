@@ -3,6 +3,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'data/database_provider.dart';
 import 'l10n/app_localizations.dart';
+import 'screens/leaderboard_screen.dart';
 import 'screens/setup_wizard.dart';
 import 'screens/start_screen.dart';
 import 'screens/stats_screen.dart';
@@ -131,7 +132,10 @@ class _AppShellState extends State<AppShell> {
           // big button switches the index instead of pushing.
           StartScreen(onOpenUsers: () => setState(() => _index = 1)),
           const UsersScreen(),
-          const StatsScreen(),
+          // IndexedStack keeps these built while hidden, so each is told when
+          // it is on screen and loads its figures only then.
+          LeaderboardScreen(active: _index == 2),
+          StatsScreen(active: _index == 3),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -145,6 +149,10 @@ class _AppShellState extends State<AppShell> {
           NavigationDestination(
             icon: const Icon(Icons.people_rounded),
             label: l10n.navUsers,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.emoji_events_rounded),
+            label: l10n.navLeaderboard,
           ),
           NavigationDestination(
             icon: const Icon(Icons.bar_chart_rounded),

@@ -2758,6 +2758,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'transactions_logical_date',
     'CREATE INDEX transactions_logical_date ON transactions (logical_date)',
   );
+  late final Index transactionsConsumptionsByDay = Index(
+    'transactions_consumptions_by_day',
+    'CREATE INDEX transactions_consumptions_by_day ON transactions (logical_date, user_id, item_id, quantity, created_at, type, voided_at) WHERE type = \'consumption\' AND voided_at IS NULL',
+  );
+  late final Index transactionsConsumptionsByUser = Index(
+    'transactions_consumptions_by_user',
+    'CREATE INDEX transactions_consumptions_by_user ON transactions (user_id, logical_date, item_id, quantity, amount_minor_units, type, voided_at) WHERE type = \'consumption\' AND voided_at IS NULL',
+  );
   late final Index transactionsPendingTopUps = Index(
     'transactions_pending_top_ups',
     'CREATE INDEX transactions_pending_top_ups ON transactions (created_at) WHERE type = \'topUp\' AND confirmed_at IS NULL AND voided_at IS NULL',
@@ -2767,6 +2775,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final TransactionsDao transactionsDao = TransactionsDao(
     this as AppDatabase,
   );
+  late final StatsDao statsDao = StatsDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2783,6 +2792,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     transactionsUserIdVoidedAt,
     transactionsCreatedAt,
     transactionsLogicalDate,
+    transactionsConsumptionsByDay,
+    transactionsConsumptionsByUser,
     transactionsPendingTopUps,
   ];
 }

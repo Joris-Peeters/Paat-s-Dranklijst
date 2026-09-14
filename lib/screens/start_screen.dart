@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/daos/stats_dao.dart';
 import '../data/database.dart';
 import '../data/database_provider.dart';
 import '../data/logical_day.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/card_heading.dart';
 import '../widgets/money_text.dart';
+import '../widgets/podium.dart';
+import '../widgets/stat_tile.dart';
 import '../widgets/transaction_history.dart';
 import 'settings_screen.dart';
 
@@ -26,12 +29,17 @@ class StartScreen extends StatefulWidget {
 }
 
 class _StartScreenState extends State<StartScreen> with WidgetsBindingObserver {
+  /// The body height below which the podium would leave the recent
+  /// transactions card too short to read.
+  static const _podiumMinHeight = 760.0;
+
   late final AppDatabase _db = Database.of(context);
 
   /// The logical day the figures below are for. A stream resolves its day once,
   /// at subscription, so this is what has to change for them to move on.
   late String _day = logicalDayKey(DateTime.now());
   late Stream<({int quantity, int turnoverMinorUnits})> _totals = _watch();
+  late Stream<List<PodiumEntry>> _podium = _watchPodium();
 
   Timer? _ticker;
 
@@ -47,6 +55,9 @@ class _StartScreenState extends State<StartScreen> with WidgetsBindingObserver {
   Stream<({int quantity, int turnoverMinorUnits})> _watch() =>
       _db.transactionsDao.watchDayTotals(at: DateTime.now());
 
+  Stream<List<PodiumEntry>> _watchPodium() =>
+      _db.statsDao.watchPodium(at: DateTime.now());
+
   /// Re-subscribes only when the day has actually turned over.
   void _rollOver() {
     final day = logicalDayKey(DateTime.now());
@@ -54,6 +65,7 @@ class _StartScreenState extends State<StartScreen> with WidgetsBindingObserver {
     setState(() {
       _day = day;
       _totals = _watch();
+      _podium = _watchPodium();
     });
   }
 
@@ -91,35 +103,54 @@ class _StartScreenState extends State<StartScreen> with WidgetsBindingObserver {
         // otherwise end flush against the navigation bar.
         child: Padding(
           padding: const EdgeInsets.only(bottom: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: 16,
-            children: [
-              _TodayCard(totals: _totals),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: FilledButton.icon(
-                  onPressed: widget.onOpenUsers,
-                  icon: const Icon(Icons.people_rounded, size: 32),
-                  label: Text(
-                    l10n.chooseYourName,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onPrimary,
+          child: LayoutBuilder(
+            builder: (context, constraints) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 16,
+              children: [
+                _TodayCard(totals: _totals),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: FilledButton.icon(
+                    onPressed: widget.onOpenUsers,
+                    icon: const Icon(Icons.people_rounded, size: 32),
+                    label: Text(
+                      l10n.chooseYourName,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                    ),
+                    // The one thing anyone comes to this screen to do, tapped with
+                    // cold wet fingers on a fridge door.
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(96),
                     ),
                   ),
-                  // The one thing anyone comes to this screen to do, tapped with
-                  // cold wet fingers on a fridge door.
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(96),
-                  ),
                 ),
-              ),
-              // No user, so the global form: avatars and names, and a footer that
-              // opens the unfiltered history.
-              const Expanded(
-                child: RecentTransactionsCard(fill: true, limit: 30),
-              ),
-            ],
+                // Below the button rather than above it, so the button does not
+                // move when the podium appears; the card underneath gives way.
+                // Left out where that card would be crushed, which is a phone
+                // rather than the tablet on the fridge.
+                if (constraints.maxHeight >= _podiumMinHeight)
+                  StreamBuilder<List<PodiumEntry>>(
+                    stream: _podium,
+                    builder: (context, snapshot) {
+                      final entries = snapshot.data;
+                      // Fewer than three rows means fewer than three people tapped.
+                      if (entries == null || entries.length < 3) {
+                        return const SizedBox.shrink();
+                      }
+                      return Podium(entries: entries);
+                    },
+                  ),
+                // No user, so the global form: avatars and names, and a footer that
+                // opens the unfiltered history.
+                const Expanded(
+                  child: RecentTransactionsCard(fill: true, limit: 30),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -155,7 +186,7 @@ class _TodayCard extends StatelessWidget {
                     spacing: 12,
                     children: [
                       Expanded(
-                        child: _Stat(
+                        child: StatTile(
                           label: l10n.statConsumptions,
                           // Hidden rather than absent until the query lands, so
                           // the card does not resize under a finger.
@@ -167,7 +198,7 @@ class _TodayCard extends StatelessWidget {
                         ),
                       ),
                       Expanded(
-                        child: _Stat(
+                        child: StatTile(
                           label: l10n.statTurnover,
                           ready: totals != null,
                           child: MoneyText(
@@ -182,41 +213,6 @@ class _TodayCard extends StatelessWidget {
                   ),
                 );
               },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.ready, required this.child});
-
-  final String label;
-  final bool ready;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card.filled(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        child: Column(
-          spacing: 4,
-          children: [
-            Opacity(opacity: ready ? 1 : 0, child: child),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
             ),
           ],
         ),

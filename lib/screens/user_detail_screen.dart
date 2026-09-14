@@ -2,11 +2,22 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/daos/stats_dao.dart';
 import '../data/database.dart';
 import '../data/database_provider.dart';
+import '../data/logical_day.dart';
+import '../data/stat_period.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
+import '../settings/settings_data.dart';
+import '../widgets/money_text.dart';
+import '../widgets/period_chips.dart';
+import '../widgets/ranked_bar_list.dart';
+import '../widgets/stat_tile.dart';
+import '../widgets/stats_card.dart';
 import '../widgets/transaction_history.dart';
+import '../widgets/trend_line_chart.dart';
+import '../widgets/user_avatar.dart';
 import '../widgets/user_edit_dialog.dart';
 import '../widgets/user_header.dart';
 import '../widgets/user_theme_scope.dart';
@@ -101,10 +112,146 @@ class _Page extends StatelessWidget {
           children: [
             UserHeader(user: user),
             RecentTransactionsCard(user: user),
-            // Per-user statistics land under here.
+            _UserStats(userId: user.id),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Spend, favourites and the weekly trend. Live, because a row voided from the
+/// history card above has to leave these figures too.
+class _UserStats extends StatefulWidget {
+  const _UserStats({required this.userId});
+
+  final int userId;
+
+  @override
+  State<_UserStats> createState() => _UserStatsState();
+}
+
+class _UserStatsState extends State<_UserStats> {
+  late final StatsDao _stats = Database.of(context).statsDao;
+
+  // The day is fixed when the page opens; nobody stands on one user's page
+  // across 07:00.
+  final DateTime _openedAt = DateTime.now();
+
+  late final Stream<UserSpend> _spend = _stats.watchUserSpend(
+    widget.userId,
+    at: _openedAt,
+  );
+  late final Stream<List<RankedItem>> _topItems = _stats.watchUserTopItems(
+    widget.userId,
+  );
+  late final Stream<UserWeekly> _weekly = _stats.watchUserWeekly(
+    widget.userId,
+    at: _openedAt,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final settings = AppSettings.of(context);
+    final figure = Theme.of(context).textTheme.titleLarge;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 16,
+      children: [
+        StreamBuilder<UserSpend>(
+          stream: _spend,
+          builder: (context, snapshot) {
+            final spend = snapshot.data;
+            Widget money(int? amount) => MoneyText(
+              amountMinorUnits: amount ?? 0,
+              colored: false,
+              style: figure,
+            );
+
+            return StatsCard(
+              icon: Icons.payments_outlined,
+              label: l10n.userSpend,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 8,
+                  children: [
+                    Expanded(
+                      child: StatTile(
+                        label: periodLabel(l10n, StatPeriod.month),
+                        ready: spend != null,
+                        child: money(spend?.month),
+                      ),
+                    ),
+                    Expanded(
+                      child: StatTile(
+                        label: periodLabel(l10n, StatPeriod.year),
+                        ready: spend != null,
+                        child: money(spend?.year),
+                      ),
+                    ),
+                    Expanded(
+                      child: StatTile(
+                        label: periodLabel(l10n, StatPeriod.all),
+                        ready: spend != null,
+                        child: money(spend?.allTime),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+        StreamBuilder<List<RankedItem>>(
+          stream: _topItems,
+          builder: (context, snapshot) {
+            final items = snapshot.data ?? const <RankedItem>[];
+            if (items.isEmpty) return const SizedBox.shrink();
+
+            return StatsCard(
+              icon: Icons.local_drink_outlined,
+              label: l10n.statsTopItems,
+              child: RankedBarList(
+                entries: [
+                  for (final ranked in items)
+                    RankedBar(
+                      // Already inside this user's theme, so only the circle.
+                      leading: AvatarCircle(emoji: ranked.item.emoji, size: 40),
+                      label: ranked.item.name,
+                      count: ranked.count,
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+        StreamBuilder<UserWeekly>(
+          stream: _weekly,
+          builder: (context, snapshot) {
+            final weekly = snapshot.data;
+            final firstDay = weekly?.firstDay;
+            // Under six weeks of history a trend is mostly empty weeks.
+            if (weekly == null ||
+                firstDay == null ||
+                daysBetween(firstDay, logicalDayOf(_openedAt)) < 42) {
+              return const SizedBox.shrink();
+            }
+
+            return StatsCard(
+              icon: Icons.show_chart,
+              label: l10n.userTrend,
+              child: TrendLineChart(
+                counts: [for (final week in weekly.weeks) week.count],
+                labelOf: (i) => settings.formatDayMonth(weekly.weeks[i].start),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

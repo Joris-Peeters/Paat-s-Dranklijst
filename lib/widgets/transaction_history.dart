@@ -211,7 +211,7 @@ class _RecentTransactionsCardState extends State<RecentTransactionsCard> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.only(bottom: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

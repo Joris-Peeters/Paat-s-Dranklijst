@@ -260,4 +260,22 @@ extension AppSettingsFormatting on AppSettingsData {
   /// The date alone, with its weekday — for a day header over a list that
   /// already prints each row's time.
   String formatDate(DateTime at) => DateFormat.yMMMEd(languageCode).format(at);
+
+  /// Day and month, for a chart axis.
+  String formatDayMonth(DateTime day) =>
+      DateFormat.MMMd(languageCode).format(day);
+
+  /// Month and year, for a chart axis.
+  String formatMonthYear(DateTime month) =>
+      DateFormat.yMMM(languageCode).format(month);
+
+  /// An hour of the clock, the way this language writes one: `22` or `10 PM`.
+  String formatHour(int hour) =>
+      DateFormat.j(languageCode).format(DateTime(2000, 1, 1, hour));
+
+  /// A relative change as a signed percentage, or a dash when there was
+  /// nothing to compare against.
+  String formatPercentChange(double? change) => change == null
+      ? '–'
+      : NumberFormat('+#,##0%;-#,##0%', languageCode).format(change);
 }

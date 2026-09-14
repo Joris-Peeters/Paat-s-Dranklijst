@@ -3,6 +3,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'daos/items_dao.dart';
+import 'daos/stats_dao.dart';
 import 'daos/transactions_dao.dart';
 import 'daos/users_dao.dart';
 import 'tables/item_groups_table.dart';
@@ -20,7 +21,7 @@ part 'database.g.dart';
 @DriftDatabase(
   tables: [UserGroups, Users, ItemGroups, Items, Transactions],
   views: [UserBalances],
-  daos: [UsersDao, ItemsDao, TransactionsDao],
+  daos: [UsersDao, ItemsDao, TransactionsDao, StatsDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor})

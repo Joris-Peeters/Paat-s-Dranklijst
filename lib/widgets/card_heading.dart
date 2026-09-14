@@ -16,8 +16,9 @@ class CardHeading extends StatelessWidget {
     final theme = Theme.of(context);
     final color = theme.colorScheme.onSurfaceVariant;
 
+    // The gap above lives here rather than in each card, so no card can drift.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.all(12),
       child: Row(
         spacing: 8,
         children: [

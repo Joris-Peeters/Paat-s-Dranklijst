@@ -18,8 +18,24 @@ enum TransactionType { consumption, topUp, adjustment }
   columns: {#userId, #voidedAt},
 )
 @TableIndex(name: 'transactions_created_at', columns: {#createdAt})
-// For per-day counts and, later, the stats page's group-by-day aggregations.
+// For the history and day lists, which include voided rows and every type.
 @TableIndex(name: 'transactions_logical_date', columns: {#logicalDate})
+// Statistics only ever read live consumptions, so these two hold nothing else
+// and cover every column a stats query touches: each is an index-only scan.
+// A query must repeat the predicate for SQLite to use them. `type` and
+// `voided_at` trail because SQLite does not count the WHERE's own columns as
+// covered, and would otherwise read every row back from the table.
+@TableIndex.sql('''
+  CREATE INDEX transactions_consumptions_by_day ON transactions (
+    logical_date, user_id, item_id, quantity, created_at, type, voided_at
+  ) WHERE type = 'consumption' AND voided_at IS NULL
+''')
+@TableIndex.sql('''
+  CREATE INDEX transactions_consumptions_by_user ON transactions (
+    user_id, logical_date, item_id, quantity, amount_minor_units, type,
+    voided_at
+  ) WHERE type = 'consumption' AND voided_at IS NULL
+''')
 // Partial, so it holds only the admin's backlog rather than every ledger row.
 // The pending queries must repeat this predicate exactly for SQLite to use it.
 @TableIndex.sql('''

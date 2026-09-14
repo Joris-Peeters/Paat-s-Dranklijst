@@ -259,7 +259,7 @@ class _SettingsCard extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) => Card.filled(
+  Widget build(BuildContext context) => Card(
     margin: _cardMargin,
     child: Padding(
       padding: const EdgeInsets.all(16),

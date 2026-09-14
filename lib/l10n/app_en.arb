@@ -88,13 +88,58 @@
   "@today": { "description": "Heading of the Start page card holding the day's figures. The day runs 07:00 to 07:00" },
 
   "statConsumptions": "Consumptions",
-  "@statConsumptions": { "description": "Label of the count of items taken from the fridge today" },
+  "@statConsumptions": { "description": "Label of the count of items taken from the fridge, today or in a statistics period" },
 
   "statTurnover": "Turnover",
   "@statTurnover": { "description": "Label of what today's consumptions came to. Money taken, so top-ups and adjustments are not in it" },
 
-  "statsPlaceholder": "Statistics will appear here",
-  "@statsPlaceholder": { "description": "Empty state on the not-yet-built Stats page" },
+  "navLeaderboard": "Leaderboard",
+  "@navLeaderboard": { "description": "Navigation bar label for the page ranking users by consumptions and presence" },
+
+  "periodMonth": "Month",
+  "@periodMonth": { "description": "Statistics period: the last 30 days, not the calendar month" },
+
+  "periodYear": "Year",
+  "@periodYear": { "description": "Statistics period: the last 365 days, not the calendar year" },
+
+  "periodAllTime": "All time",
+  "@periodAllTime": { "description": "Statistics period: everything ever recorded" },
+
+  "statActiveUsers": "Active users",
+  "@statActiveUsers": { "description": "Label of how many different users took something in the period" },
+
+  "statActiveDays": "Active days",
+  "@statActiveDays": { "description": "Label of how many days had at least one consumption in the period" },
+
+  "statsVolume": "Consumptions over time",
+  "@statsVolume": { "description": "Heading of the bar chart of consumptions per day, week or month" },
+
+  "statsTopItems": "Top items",
+  "@statsTopItems": { "description": "Heading of the list of most-taken items" },
+
+  "statsHourOfNight": "Time of night",
+  "@statsHourOfNight": { "description": "Heading of the chart of consumptions per hour of the clock" },
+
+  "statsNotEnoughData": "Not enough data yet",
+  "@statsNotEnoughData": { "description": "Shown where a statistic needs more consumptions or more people before it means anything" },
+
+  "podiumTitle": "Today's podium",
+  "@podiumTitle": { "description": "Heading of the Start page top three: who took most of a single item today" },
+
+  "userSpend": "Spent",
+  "@userSpend": { "description": "Heading of a user's card showing what they spent on consumptions" },
+
+  "userTrend": "Per week",
+  "@userTrend": { "description": "Heading of a user's line chart of consumptions per week" },
+
+  "leaderboardTopConsumers": "Top consumers",
+  "@leaderboardTopConsumers": { "description": "Heading of the ranking by number of consumptions" },
+
+  "leaderboardMostPresent": "Most present",
+  "@leaderboardMostPresent": { "description": "Heading of the ranking by number of days with at least one consumption" },
+
+  "filterItem": "Item",
+  "@filterItem": { "description": "Label of the leaderboard dropdown that counts one item only" },
 
   "noUsersYet": "No users yet",
   "@noUsersYet": { "description": "Empty state on the user list" },

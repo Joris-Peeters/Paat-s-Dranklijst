@@ -40,7 +40,7 @@ networked app. There is no server, no account system, no sync.
 | QR codes | `qr_flutter` |
 | Emoji picker | `emoji_picker_flutter` |
 | i18n | `flutter_localizations` + `intl` + ARB / `gen-l10n` |
-| Charts (planned, not yet a dependency) | `fl_chart` |
+| Charts | `fl_chart` — vertical bars and lines; ranked lists are plain widgets |
 | Camera (planned, low priority) | `image_picker` (not `camera`) |
 
 **Target platforms:** Android, iOS, Linux. **Development happens exclusively on Arch
@@ -447,6 +447,12 @@ both to be genuinely per-group is wanted, not yet done.
   `DriftNativeOptions.databaseDirectory`, because drift_flutter's own default is the
   *documents* directory, which on Linux is the user's real `~/Documents`.
   `path_provider` is a direct dependency only because that override needs it.
+- **SQLite does not count a partial index's own WHERE columns as covered.** An index
+  `ON t (a, b) WHERE type = 'x' AND voided_at IS NULL` still reads every matching row
+  back from the table to re-check `type` and `voided_at`. Both
+  `transactions_consumptions_*` indexes therefore end in those two columns, and
+  `test/stats_dao_test.dart` asserts every `StatsDao` query plan says `COVERING INDEX` —
+  a new stats query has to pass it too.
 - **Drift's `.watch()` streams only see writes made through the same `AppDatabase`
   instance.** Editing the file with the `sqlite3` CLI while the app runs changes nothing
   on screen until a restart. This is a property of drift, not a bug to fix.
@@ -465,16 +471,18 @@ lib/
     database.dart            # AppDatabase, schemaVersion, migrations, FK pragma
     database_provider.dart   # Database InheritedWidget; owns the AppDatabase instance
     errors.dart, group_usage.dart, logical_day.dart
+    stat_period.dart         # rolling windows, calendar weeks, percentChange; pure
+    stat_buckets.dart        # zero-fills sparse per-day/month/hour rows for charts; pure
     tables/                  # one file per table; enums live beside their table
     views/user_balances_view.dart
-    daos/                    # users_dao, items_dao, transactions_dao
+    daos/                    # users_dao, items_dao, transactions_dao, stats_dao (read-only SQL)
   theme/app_theme.dart       # memoized ColorScheme.fromSeed / ThemeData helpers
   utils/                     # banking (IBAN + EPC), random_emoji, time_of_day
   screens/
     settings_screen.dart     # admin settings; openSettings() is the PIN gate
     pending_top_ups_screen.dart  # admin checklist: confirm or void unchecked top-ups
     setup_wizard.dart        # first-run wizard
-    start_screen.dart, users_screen.dart, stats_screen.dart   # the three tabs
+    start_screen.dart, users_screen.dart, leaderboard_screen.dart, stats_screen.dart  # the four tabs
     management_stub_screen.dart
   widgets/
     palette_picker.dart      # curated color lists, inline picker + swatch grid dialog
@@ -483,6 +491,9 @@ lib/
     pin_dialog.dart          # keypad, and the enter/set dialogs around it
     settings_text_field.dart # commit-on-blur field bound to one setting
     settings_fields.dart     # the controls the settings screen and wizard share
+    stat_tile.dart, stats_card.dart, period_chips.dart, podium.dart
+    ranked_bar_list.dart     # hand-rolled ranking rows: avatar, name, bar, count
+    count_bar_chart.dart, trend_line_chart.dart  # the fl_chart wrappers
     empty_state.dart, epc_qr_code.dart
 build.yaml                   # drift codegen options (manager API off)
 ```
@@ -503,11 +514,25 @@ chosen in place.
 `groupId`, `sortOrder` and `archivedAt`), plus `transactions`. One view, `user_balances`:
 `SUM` per member with voided rows excluded, not a cache but an indexed query. Members
 with no live transactions have no row in it, so readers left-join and read a missing row
-as 0. Five indexes carry it, plus a partial one for pending top-ups; the composites the Stats page will want are deliberately
-not added, because an unused index is write cost on every ledger row.
+as 0. Five indexes carry it, plus a partial one for pending top-ups and two partial
+covering ones for statistics, `transactions_consumptions_by_day` and `_by_user`, which hold
+live consumptions only. No other composite is added: an unused index is write cost on
+every ledger row.
 
-Three DAOs cover the queries. `TransactionsDao` is the only writer of a ledger row, and
+Four DAOs cover the queries. `TransactionsDao` is the only writer of a ledger row, and
 its two single-day queries take a **required** `at` rather than defaulting to now.
+`StatsDao` is read-only and written as custom SQL: rankings aggregate in a CTE and join
+users or items to their five rows only, and the hour of night needs `strftime`.
+
+**Statistics.** Periods are rolling windows of logical days (30 / 365 / all); weeks are
+Mon–Sun and months are calendar months, both over logical dates. A count is always
+`SUM(quantity)`, voided rows never count, archived users and items do. Δ is a percentage,
+and "–" when the previous window is empty. The Start podium and the user page's stats are
+live `.watch()` streams. The Leaderboard and Stats tabs are not: the `IndexedStack` keeps
+them built, so live queries there would re-run on every tap at the fridge. `AppShell`
+passes them `active` instead, and they load `Future`s each time they come on screen or a
+filter changes. The podium only shows on a body at least 760 px tall; on a phone it would
+crush the recent-transactions card.
 
 Several DAO methods, `EpcQrCode`, `logicalDayFromKey` and a few ARB keys are written
 ahead of the UI that will consume them — deliberate scaffolding, not dead code.
@@ -515,7 +540,7 @@ ahead of the UI that will consume them — deliberate scaffolding, not dead code
 Still target design, not code: **the rest of the UI over this schema.** The Start page
 is a temporary demo of `UserAvatar` and `ColorPicker` over local `setState` — replace the
 body when the real Start page is built, but keep the settings `IconButton`, the only
-route into settings. Members and Stats are empty states, and the three management cards
+route into settings. Members is an empty state, and the three management cards
 lead to one stub screen. `test/emoji_picker_dialog_test.dart` is the one **widget** test:
 `EmojiPicker` measures itself off `constraints.maxWidth` and puts a `Flexible` in a
 `Column`, so a missing bound is a layout exception no unit test would catch.
