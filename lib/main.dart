@@ -131,7 +131,7 @@ class _AppShellState extends State<AppShell> {
           // The Users page is a tab rather than a route, so the Start page's
           // big button switches the index instead of pushing.
           StartScreen(onOpenUsers: () => setState(() => _index = 1)),
-          const UsersScreen(),
+          UsersScreen(active: _index == 1),
           // IndexedStack keeps these built while hidden, so each is told when
           // it is on screen and loads its figures only then.
           LeaderboardScreen(active: _index == 2),

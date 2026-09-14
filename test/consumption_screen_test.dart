@@ -14,6 +14,7 @@ void main() {
 
   late AppDatabase db;
   late UserRow jonas;
+  late UserRow fien;
 
   setUp(() async {
     db = AppDatabase(executor: NativeDatabase.memory());
@@ -24,6 +25,13 @@ void main() {
       seedColorArgb: 0xFF009688,
     );
     jonas = (await db.usersDao.readUser(id))!;
+    final fienId = await db.usersDao.createUser(
+      name: 'Fien',
+      groupId: seededGroup,
+      avatarEmoji: '🦉',
+      seedColorArgb: 0xFF3F51B5,
+    );
+    fien = (await db.usersDao.readUser(fienId))!;
   });
   tearDown(() => db.close());
 
@@ -41,9 +49,11 @@ void main() {
     db.transactions,
   )..where((t) => t.userId.equals(jonas.id))).get();
 
+  /// [users] opens the screen for several people at once instead of Jonas.
   Future<void> pump(
     WidgetTester tester, {
     Map<String, Object> preferences = const {},
+    List<UserRow>? users,
   }) async {
     await tester.pumpWidget(
       await settingsHarness(
@@ -59,7 +69,9 @@ void main() {
                 onPressed: () => Navigator.push<void>(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => ConsumptionScreen(user: jonas),
+                    builder: (_) => users == null
+                        ? ConsumptionScreen(user: jonas)
+                        : ConsumptionScreen.forUsers(users: users),
                   ),
                 ),
                 child: const Text('open'),
@@ -179,6 +191,72 @@ void main() {
     await tester.tap(find.text('Cola'));
     await tester.pumpAndSettle();
     expect(await db.usersDao.readBalance(jonas.id), -150);
+  });
+
+  testWidgetsWithDatabase(
+    'for several people a tap logs one each, and one Undo takes all back',
+    (tester) async {
+      await addItem(name: 'Beer', price: 200);
+      await pump(tester, users: [jonas, fien]);
+
+      expect(find.text('Add to 2 tabs'), findsOneWidget);
+      await tester.tap(find.text('Beer'));
+      await tester.pumpAndSettle();
+
+      expect(await db.usersDao.readBalance(jonas.id), -200);
+      expect(await db.usersDao.readBalance(fien.id), -200);
+      expect(find.text('Beer registered for 2 people'), findsOneWidget);
+
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+
+      expect(await db.usersDao.readBalance(jonas.id), 0);
+      expect(await db.usersDao.readBalance(fien.id), 0);
+    },
+  );
+
+  testWidgetsWithDatabase('for several people the whole order goes to each', (
+    tester,
+  ) async {
+    await addItem(name: 'Beer', price: 200);
+    await pump(tester, users: [jonas, fien]);
+
+    await tester.longPress(find.text('Beer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Beer'));
+    await tester.pumpAndSettle();
+
+    // The total covers everyone.
+    expect(find.text('2 items × 2 people · €8.00'), findsOneWidget);
+
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+
+    expect(await db.usersDao.readBalance(jonas.id), -400);
+    expect(await db.usersDao.readBalance(fien.id), -400);
+    expect(find.text('2 items each registered for 2 people'), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('several people are never warned about a balance', (
+    tester,
+  ) async {
+    await addItem(name: 'Beer');
+    await db.transactionsDao.logAdjustment(
+      userId: jonas.id,
+      amountMinorUnits: -1200,
+      note: 'Opening',
+    );
+    await pump(
+      tester,
+      users: [jonas, fien],
+      preferences: {
+        'lowBalanceWarningEnabled': true,
+        'lowBalanceThresholdMinorUnits': -1000,
+      },
+    );
+
+    expect(find.text('Careful'), findsNothing);
+    expect(find.byTooltip('User overview'), findsNothing);
   });
 
   testWidgetsWithDatabase('a category with nothing on offer is not drawn', (

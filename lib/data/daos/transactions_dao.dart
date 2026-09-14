@@ -96,24 +96,37 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
   Future<List<int>> logConsumptions({
     required int userId,
     required List<({ItemRow item, int quantity})> lines,
+  }) => logConsumptionsForUsers(userIds: [userId], lines: lines);
+
+  /// The same order for each of [userIds]: one person fetching a round.
+  ///
+  /// Every drinker gets their own rows, so nothing downstream knows it was a
+  /// round. One transaction and one clock read, for the same reasons as a
+  /// single person's order.
+  Future<List<int>> logConsumptionsForUsers({
+    required List<int> userIds,
+    required List<({ItemRow item, int quantity})> lines,
   }) {
+    assert(userIds.isNotEmpty, 'an order needs at least one user');
     assert(lines.isNotEmpty, 'an order needs at least one line');
     final stamp = _stamp();
 
     return transaction(() async {
       final ids = <int>[];
-      for (final line in lines) {
-        assert(line.quantity > 0, 'quantity must be positive');
-        ids.add(
-          await into(transactions).insert(
-            _consumption(
-              userId: userId,
-              item: line.item,
-              quantity: line.quantity,
-              stamp: stamp,
+      for (final userId in userIds) {
+        for (final line in lines) {
+          assert(line.quantity > 0, 'quantity must be positive');
+          ids.add(
+            await into(transactions).insert(
+              _consumption(
+                userId: userId,
+                item: line.item,
+                quantity: line.quantity,
+                stamp: stamp,
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
       return ids;
     });

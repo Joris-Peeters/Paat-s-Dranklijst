@@ -21,7 +21,11 @@ const _minTileWidth = 340.0;
 
 /// Everyone with a tab, grouped, and the way into recording a drink.
 class UsersScreen extends StatefulWidget {
-  const UsersScreen({super.key});
+  const UsersScreen({super.key, this.active = true});
+
+  /// Whether this tab is the one on screen. Leaving it ends a selection, so
+  /// the tab never waits with people still ticked.
+  final bool active;
 
   @override
   State<UsersScreen> createState() => _UsersScreenState();
@@ -45,6 +49,50 @@ class _UsersScreenState extends State<UsersScreen> {
 
   int? _selectedGroupId;
 
+  /// Picking several people to log the same drink for. Always starts off, and
+  /// ends after logging, on Cancel or Back, and when the tab is left.
+  bool _selecting = false;
+
+  /// Ids rather than rows, so a tick survives switching chips and searching.
+  final _picked = <int>{};
+
+  @override
+  void didUpdateWidget(UsersScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // No setState: a rebuild follows didUpdateWidget anyway. Going idle lands
+    // here too, since it selects the Start tab.
+    if (oldWidget.active && !widget.active) {
+      _selecting = false;
+      _picked.clear();
+    }
+  }
+
+  void _startSelecting(UserRow user) => setState(() {
+    _selecting = true;
+    _picked.add(user.id);
+  });
+
+  void _stopSelecting() => setState(() {
+    _selecting = false;
+    _picked.clear();
+  });
+
+  void _toggle(UserRow user) => setState(() {
+    if (!_picked.remove(user.id)) _picked.add(user.id);
+  });
+
+  /// Backing out keeps the ticks, so someone can be added or taken off; only
+  /// logging ends the selection.
+  Future<void> _next(List<UserRow> users) async {
+    final logged = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ConsumptionScreen.forUsers(users: users),
+      ),
+    );
+    if (logged == true && mounted) _stopSelecting();
+  }
+
   void _closeSearch() {
     _searchController.clear();
     setState(() => _search = null);
@@ -61,92 +109,131 @@ class _UsersScreenState extends State<UsersScreen> {
     final l10n = AppLocalizations.of(context);
     final search = _search;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: search == null
-            ? Text(l10n.navUsers)
-            : TextField(
-                controller: _searchController,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: l10n.search,
-                  border: InputBorder.none,
-                ),
-                onChanged: (value) => setState(() => _search = value),
-              ),
-        actions: [
-          IconButton(
-            icon: Icon(search == null ? Icons.search : Icons.close),
-            tooltip: search == null ? l10n.search : l10n.cancel,
-            onPressed: search == null
-                ? () => setState(() => _search = '')
-                : _closeSearch,
-          ),
-        ],
-      ),
-      body: StreamBuilder<List<UserGroupRow>>(
-        stream: _groups,
-        builder: (context, groupSnapshot) {
-          final groups = groupSnapshot.data;
-          // No spinner on the first frame: the query is local and a flash of
-          // one reads worse than nothing.
-          if (groups == null) return const SizedBox.shrink();
-          if (groups.isEmpty) {
-            return EmptyState(
-              icon: Icons.groups_rounded,
-              message: l10n.noGroupsYet,
-            );
-          }
-
-          // Resolved here rather than seeded in a callback, so the first frame
-          // after the groups arrive already has a valid chip and nothing calls
-          // setState during a build.
-          final selectedId = groups.any((g) => g.id == _selectedGroupId)
-              ? _selectedGroupId!
-              : groups.first.id;
-
-          return StreamBuilder<List<UserWithBalance>>(
-            stream: _users,
-            builder: (context, userSnapshot) {
-              final users = userSnapshot.data;
-              if (users == null) return const SizedBox.shrink();
-
-              return Column(
-                children: [
-                  if (search == null)
-                    _GroupChips(
-                      groups: groups,
-                      selectedId: selectedId,
-                      onSelected: (id) => setState(() => _selectedGroupId = id),
-                    ),
-                  Expanded(
-                    child: _UserGrid(
-                      users: _visibleUsers(users, search, selectedId),
-                      emptyMessage: search == null
-                          ? l10n.noUsersInGroup
-                          : l10n.noSearchResults,
-                    ),
+    return PopScope(
+      // Back ends a selection first rather than leaving with people ticked.
+      canPop: !_selecting,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _stopSelecting();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: search == null
+              ? Text(l10n.navUsers)
+              : TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: l10n.search,
+                    border: InputBorder.none,
                   ),
-                ],
-              );
-            },
-          );
-        },
-      ),
-      // Only when an admin has said anyone may add users; otherwise users are
-      // added from settings.
-      floatingActionButton: AppSettings.of(context).allowSelfRegistration
-          ? FloatingActionButton.extended(
-              onPressed: () => unawaited(
-                showUserEditDialog(
-                  context,
-                  canChangeGroup: AppSettings.of(context).allowGroupSwitching,
+                  onChanged: (value) => setState(() => _search = value),
                 ),
-              ),
-              icon: const Icon(Icons.person_add_alt_1),
-              label: Text(l10n.addUser),
-            )
-          : null,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.checklist_rounded),
+              tooltip: l10n.selectPeople,
+              isSelected: _selecting,
+              // Visible because long-press is not: nobody finds a gesture they
+              // were never told about.
+              onPressed: _selecting
+                  ? _stopSelecting
+                  : () => setState(() => _selecting = true),
+            ),
+            IconButton(
+              icon: Icon(search == null ? Icons.search : Icons.close),
+              tooltip: search == null ? l10n.search : l10n.cancel,
+              onPressed: search == null
+                  ? () => setState(() => _search = '')
+                  : _closeSearch,
+            ),
+          ],
+        ),
+        body: StreamBuilder<List<UserGroupRow>>(
+          stream: _groups,
+          builder: (context, groupSnapshot) {
+            final groups = groupSnapshot.data;
+            // No spinner on the first frame: the query is local and a flash of
+            // one reads worse than nothing.
+            if (groups == null) return const SizedBox.shrink();
+            if (groups.isEmpty) {
+              return EmptyState(
+                icon: Icons.groups_rounded,
+                message: l10n.noGroupsYet,
+              );
+            }
+
+            // Resolved here rather than seeded in a callback, so the first frame
+            // after the groups arrive already has a valid chip and nothing calls
+            // setState during a build.
+            final selectedId = groups.any((g) => g.id == _selectedGroupId)
+                ? _selectedGroupId!
+                : groups.first.id;
+
+            return StreamBuilder<List<UserWithBalance>>(
+              stream: _users,
+              builder: (context, userSnapshot) {
+                final users = userSnapshot.data;
+                if (users == null) return const SizedBox.shrink();
+
+                // In list order, and only people still listed: someone archived
+                // while ticked quietly drops out.
+                final picked = [
+                  for (final m in users)
+                    if (_picked.contains(m.user.id)) m.user,
+                ];
+
+                return Column(
+                  children: [
+                    if (search == null)
+                      _GroupChips(
+                        groups: groups,
+                        selectedId: selectedId,
+                        onSelected: (id) =>
+                            setState(() => _selectedGroupId = id),
+                      ),
+                    Expanded(
+                      child: _UserGrid(
+                        users: _visibleUsers(users, search, selectedId),
+                        emptyMessage: search == null
+                            ? l10n.noUsersInGroup
+                            : l10n.noSearchResults,
+                        picked: _selecting ? _picked : null,
+                        onToggle: _toggle,
+                        onLongPress: _selecting ? _toggle : _startSelecting,
+                      ),
+                    ),
+                    if (_selecting)
+                      _SelectionBar(
+                        count: picked.length,
+                        onCancel: _stopSelecting,
+                        // One person is the ordinary flow, which has its own
+                        // page with their colours and balance.
+                        onNext: picked.length < 2
+                            ? null
+                            : () => unawaited(_next(picked)),
+                      ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
+        // Only when an admin has said anyone may add users; otherwise users are
+        // added from settings.
+        floatingActionButton:
+            !_selecting && AppSettings.of(context).allowSelfRegistration
+            ? FloatingActionButton.extended(
+                onPressed: () => unawaited(
+                  showUserEditDialog(
+                    context,
+                    canChangeGroup: AppSettings.of(context).allowGroupSwitching,
+                  ),
+                ),
+                icon: const Icon(Icons.person_add_alt_1),
+                label: Text(l10n.addUser),
+              )
+            : null,
+      ),
     );
   }
 
@@ -206,10 +293,22 @@ class _GroupChips extends StatelessWidget {
 }
 
 class _UserGrid extends StatelessWidget {
-  const _UserGrid({required this.users, required this.emptyMessage});
+  const _UserGrid({
+    required this.users,
+    required this.emptyMessage,
+    required this.picked,
+    required this.onToggle,
+    required this.onLongPress,
+  });
 
   final List<UserWithBalance> users;
   final String emptyMessage;
+
+  /// Who is ticked while selecting; null when not selecting at all.
+  final Set<int>? picked;
+
+  final ValueChanged<UserRow> onToggle;
+  final ValueChanged<UserRow> onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -220,15 +319,34 @@ class _UserGrid extends StatelessWidget {
     return ResponsiveTileGrid(
       minTileWidth: _minTileWidth,
       tileHeight: _tileHeight,
-      children: [for (final entry in users) _UserTile(entry: entry)],
+      children: [
+        for (final entry in users)
+          _UserTile(
+            entry: entry,
+            picked: picked?.contains(entry.user.id),
+            onToggle: () => onToggle(entry.user),
+            onLongPress: () => onLongPress(entry.user),
+          ),
+      ],
     );
   }
 }
 
 class _UserTile extends StatelessWidget {
-  const _UserTile({required this.entry});
+  const _UserTile({
+    required this.entry,
+    required this.picked,
+    required this.onToggle,
+    required this.onLongPress,
+  });
 
   final UserWithBalance entry;
+
+  /// Null outside selection mode, where a tap opens the drink screen.
+  final bool? picked;
+
+  final VoidCallback onToggle;
+  final VoidCallback onLongPress;
 
   void _openDetail(BuildContext context) => unawaited(
     Navigator.push<void>(
@@ -239,16 +357,25 @@ class _UserTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final user = entry.user;
+    final picked = this.picked;
+    final selecting = picked != null;
 
-    return Card(
+    final card = Card(
+      color: picked == true ? theme.colorScheme.primaryContainer : null,
       child: InkWell(
-        onTap: () => unawaited(
-          Navigator.push<void>(
-            context,
-            MaterialPageRoute(builder: (_) => ConsumptionScreen(user: user)),
-          ),
-        ),
+        onTap: selecting
+            ? onToggle
+            : () => unawaited(
+                Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ConsumptionScreen(user: user),
+                  ),
+                ),
+              ),
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
@@ -260,7 +387,9 @@ class _UserTile extends StatelessWidget {
                 emoji: user.avatarEmoji,
                 seedColorArgb: user.seedColorArgb,
                 size: 48,
-                onTap: () => _openDetail(context),
+                // The avatar ticks too while selecting: a tap that opened
+                // someone's page instead would lose the whole selection.
+                onTap: selecting ? onToggle : () => _openDetail(context),
               ),
               Expanded(
                 child: Text(
@@ -274,6 +403,68 @@ class _UserTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+
+    // Always the same shape of tree, so ticking does not rebuild the card and
+    // cut its ink splash short.
+    return Stack(
+      children: [
+        Positioned.fill(child: card),
+        if (picked == true)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: CircleAvatar(
+              radius: 12,
+              backgroundColor: theme.colorScheme.primary,
+              child: Icon(
+                Icons.check_rounded,
+                size: 16,
+                color: theme.colorScheme.onPrimary,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SelectionBar extends StatelessWidget {
+  const _SelectionBar({
+    required this.count,
+    required this.onCancel,
+    required this.onNext,
+  });
+
+  final int count;
+  final VoidCallback onCancel;
+
+  /// Null until enough people are ticked.
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return BottomAppBar(
+      child: Row(
+        spacing: 12,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: l10n.cancel,
+            onPressed: onCancel,
+          ),
+          Expanded(
+            child: Text(
+              l10n.peopleSelected(count),
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          FilledButton(onPressed: onNext, child: Text(l10n.setupNext)),
+        ],
       ),
     );
   }

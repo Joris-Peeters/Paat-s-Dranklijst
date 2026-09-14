@@ -454,6 +454,28 @@ void main() {
       expect(await db.usersDao.readBalance(user), -650);
     });
 
+    test('a round writes the order once per person, on one stamp', () async {
+      final jonas = await addUser(name: 'Jonas');
+      final fien = await addUser(name: 'Fien');
+      final beer = await addItem(name: 'Beer', price: 200);
+      final chips = await addItem(name: 'Chips', price: 150);
+
+      final ids = await db.transactionsDao.logConsumptionsForUsers(
+        userIds: [jonas, fien],
+        lines: [(item: beer, quantity: 2), (item: chips, quantity: 1)],
+      );
+
+      expect(ids, hasLength(4));
+      expect(await db.usersDao.readBalance(jonas), -550);
+      expect(await db.usersDao.readBalance(fien), -550);
+      final rows = await db.select(db.transactions).get();
+      expect(rows.map((r) => r.createdAt).toSet(), hasLength(1));
+      expect(rows.map((r) => r.logicalDate).toSet(), hasLength(1));
+
+      await db.transactionsDao.undoConsumption(ids);
+      expect(await db.select(db.transactions).get(), isEmpty);
+    });
+
     test('every row of an order shares one logical day', () async {
       final user = await addUser();
       final cola = await addItem();

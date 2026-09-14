@@ -18,6 +18,12 @@
   "undo": "Ongedaan maken",
   "consumptionLogged": "{item} geregistreerd voor {name}",
   "consumptionLoggedMultiple": "{count, plural, =1{1 stuk} other{{count} stuks}} geregistreerd voor {name}",
+  "selectPeople": "Meerdere personen selecteren",
+  "peopleSelected": "{count, plural, =0{Niemand geselecteerd} =1{1 persoon geselecteerd} other{{count} personen geselecteerd}}",
+  "takeSomethingForPeople": "Op {count} lijsten zetten",
+  "consumptionLoggedForPeople": "{item} geregistreerd voor {count} personen",
+  "consumptionLoggedMultipleForPeople": "{items, plural, =1{1 stuk} other{{items} stuks}} per persoon geregistreerd voor {people} personen",
+  "basketSummaryForPeople": "{items, plural, =1{1 stuk} other{{items} stuks}} × {people} personen · {total}",
   "navStats": "Statistieken",
 
   "today": "Vandaag",

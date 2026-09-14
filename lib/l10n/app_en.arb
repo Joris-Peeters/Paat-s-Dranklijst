@@ -81,6 +81,49 @@
     }
   },
 
+  "selectPeople": "Select several people",
+  "@selectPeople": { "description": "Tooltip of the Users page action that starts picking several people to log the same drink for" },
+
+  "peopleSelected": "{count, plural, =0{Nobody selected} =1{1 person selected} other{{count} people selected}}",
+  "@peopleSelected": {
+    "description": "Bottom bar of the Users page while picking several people",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "takeSomethingForPeople": "Add to {count} tabs",
+  "@takeSomethingForPeople": {
+    "description": "App bar title of the drink screen when logging for several people at once",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "consumptionLoggedForPeople": "{item} registered for {count} people",
+  "@consumptionLoggedForPeople": {
+    "description": "Snackbar confirming one item was logged for each of several people",
+    "placeholders": {
+      "item": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+
+  "consumptionLoggedMultipleForPeople": "{items, plural, =1{1 item} other{{items} items}} each registered for {people} people",
+  "@consumptionLoggedMultipleForPeople": {
+    "description": "Snackbar confirming a multi-item order was logged for each of several people",
+    "placeholders": {
+      "items": { "type": "int" },
+      "people": { "type": "int" }
+    }
+  },
+
+  "basketSummaryForPeople": "{items, plural, =1{1 item} other{{items} items}} × {people} people · {total}",
+  "@basketSummaryForPeople": {
+    "description": "What is about to be charged on the confirm bar when logging for several people; the total covers everyone",
+    "placeholders": {
+      "items": { "type": "int" },
+      "people": { "type": "int" },
+      "total": { "type": "String" }
+    }
+  },
+
   "navStats": "Stats",
   "@navStats": { "description": "Navigation bar label for the statistics page" },
 

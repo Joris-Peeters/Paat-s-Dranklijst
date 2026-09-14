@@ -19,12 +19,23 @@ import 'user_detail_screen.dart';
 
 /// Recording a drink: the screen the whole app exists for.
 ///
-/// Everything below sits in the user's own theme, so the page they tap on is
-/// unmistakably theirs.
+/// For one user everything below sits in their own theme, so the page they tap
+/// on is unmistakably theirs. For several at once — one person fetching a round
+/// — it stays on the app's theme, since the page belongs to nobody in
+/// particular, and every drink is logged for each of them.
+///
+/// Pops with `true` once something was logged, so a caller can tell that apart
+/// from backing out.
 class ConsumptionScreen extends StatefulWidget {
-  const ConsumptionScreen({super.key, required this.user});
+  ConsumptionScreen({super.key, required UserRow user})
+    : users = [user],
+      _forGroup = false;
 
-  final UserRow user;
+  const ConsumptionScreen.forUsers({super.key, required this.users})
+    : _forGroup = true;
+
+  final List<UserRow> users;
+  final bool _forGroup;
 
   @override
   State<ConsumptionScreen> createState() => _ConsumptionScreenState();
@@ -40,9 +51,17 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
   final _basket = <int, int>{};
   bool _selecting = false;
 
+  /// The one user, outside a round.
+  UserRow get _user => widget.users.single;
+
+  List<int> get _userIds => [for (final user in widget.users) user.id];
+
   @override
   void initState() {
     super.initState();
+    // Never for a round: a warning per person would stand between them and
+    // every drink, and it is not their own tab being opened.
+    if (widget._forGroup) return;
     // After the first frame: a dialog cannot be raised during a build, and the
     // inherited lookups below want a mounted context.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -59,18 +78,18 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
     final settings = AppSettings.of(context);
     if (!settings.lowBalanceWarningEnabled) return;
 
-    final balance = await _db.usersDao.readBalance(widget.user.id);
+    final balance = await _db.usersDao.readBalance(_user.id);
     // Strict, so a threshold of zero warns on a debt and not on a settled tab.
     if (balance >= settings.lowBalanceThresholdMinorUnits) return;
     if (!mounted) return;
 
     final topUp = await showLowBalanceDialog(
       context,
-      user: widget.user,
+      user: _user,
       balanceMinorUnits: balance,
     );
     if (topUp && mounted) {
-      await showTopUpSheet(context, user: widget.user);
+      await showTopUpSheet(context, user: _user);
     }
   }
 
@@ -107,7 +126,7 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
     final dao = _db.transactionsDao;
 
     final ids = await write();
-    navigator.pop();
+    navigator.pop(true);
 
     // MaterialApp owns the only messenger in the tree, so this outlives the
     // route that raised it.
@@ -129,13 +148,13 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
   }
 
   Future<void> _tap(ItemRow item) => _commit(
-    () async => [
-      await _db.transactionsDao.logConsumption(
-        userId: widget.user.id,
-        item: item,
-      ),
-    ],
-    (l10n) => l10n.consumptionLogged(item.name, widget.user.name),
+    () => _db.transactionsDao.logConsumptionsForUsers(
+      userIds: _userIds,
+      lines: [(item: item, quantity: 1)],
+    ),
+    (l10n) => widget._forGroup
+        ? l10n.consumptionLoggedForPeople(item.name, widget.users.length)
+        : l10n.consumptionLogged(item.name, _user.name),
   );
 
   Future<void> _confirm(List<ItemRow> items) {
@@ -147,45 +166,58 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
     final count = _basketCount;
 
     return _commit(
-      () => _db.transactionsDao.logConsumptions(
-        userId: widget.user.id,
+      () => _db.transactionsDao.logConsumptionsForUsers(
+        userIds: _userIds,
         lines: lines,
       ),
-      (l10n) => l10n.consumptionLoggedMultiple(count, widget.user.name),
+      (l10n) => widget._forGroup
+          ? l10n.consumptionLoggedMultipleForPeople(count, widget.users.length)
+          : l10n.consumptionLoggedMultiple(count, _user.name),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final page = _buildPage(context);
+    return widget._forGroup
+        ? page
+        : UserThemeScope(seedColorArgb: _user.seedColorArgb, child: page);
+  }
+
+  Widget _buildPage(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final forGroup = widget._forGroup;
 
-    return UserThemeScope(
-      seedColorArgb: widget.user.seedColorArgb,
-      child: StreamBuilder<List<({ItemGroupRow group, List<ItemRow> items})>>(
-        stream: _sections,
-        builder: (context, snapshot) {
-          // Null only until the query resolves, which is a different thing from
-          // resolving to nothing on offer.
-          final loaded = snapshot.data;
-          final sections =
-              loaded ?? const <({ItemGroupRow group, List<ItemRow> items})>[];
-          // Flattened once, so the basket's total and its lines can be read
-          // without walking the sections again.
-          final items = <ItemRow>[
-            for (final section in sections) ...section.items,
-          ];
+    return StreamBuilder<List<({ItemGroupRow group, List<ItemRow> items})>>(
+      stream: _sections,
+      builder: (context, snapshot) {
+        // Null only until the query resolves, which is a different thing from
+        // resolving to nothing on offer.
+        final loaded = snapshot.data;
+        final sections =
+            loaded ?? const <({ItemGroupRow group, List<ItemRow> items})>[];
+        // Flattened once, so the basket's total and its lines can be read
+        // without walking the sections again.
+        final items = <ItemRow>[
+          for (final section in sections) ...section.items,
+        ];
 
-          return PopScope(
-            // Leaving with a basket open would discard it silently, so the
-            // first back press clears the selection instead.
-            canPop: !_selecting,
-            onPopInvokedWithResult: (didPop, _) {
-              if (!didPop) _cancelSelecting();
-            },
-            child: Scaffold(
-              appBar: AppBar(
-                title: Text(l10n.takeSomething),
-                actions: [
+        return PopScope(
+          // Leaving with a basket open would discard it silently, so the
+          // first back press clears the selection instead.
+          canPop: !_selecting,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) _cancelSelecting();
+          },
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text(
+                forGroup
+                    ? l10n.takeSomethingForPeople(widget.users.length)
+                    : l10n.takeSomething,
+              ),
+              actions: [
+                if (!forGroup)
                   IconButton(
                     icon: const Icon(Icons.account_circle_outlined),
                     tooltip: l10n.userOverview,
@@ -196,69 +228,104 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
                       Navigator.pushReplacement<void, void>(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => UserDetailScreen(user: widget.user),
+                          builder: (_) => UserDetailScreen(user: _user),
                         ),
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.playlist_add),
-                    tooltip: l10n.selectMultiple,
-                    isSelected: _selecting,
-                    // Visible because long-press is not: nobody finds a gesture
-                    // they were never told about.
-                    onPressed: _selecting
-                        ? _cancelSelecting
-                        : () => setState(() => _selecting = true),
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.playlist_add),
+                  tooltip: l10n.selectMultiple,
+                  isSelected: _selecting,
+                  // Visible because long-press is not: nobody finds a gesture
+                  // they were never told about.
+                  onPressed: _selecting
+                      ? _cancelSelecting
+                      : () => setState(() => _selecting = true),
+                ),
+              ],
+            ),
+            // One scroll view over the header and the catalogue together, so
+            // the avatar and balance scroll away rather than eating a third
+            // of a phone screen while someone browses.
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Deliberately outside the catalogue's loading gate below.
+                  // The header opens its own balance query when it mounts, so
+                  // withholding it until the items arrive runs the two round
+                  // trips one after the other and the balance lands visibly
+                  // late.
+                  if (forGroup)
+                    _PeopleHeader(users: widget.users)
+                  else
+                    UserHeader(user: _user),
+                  if (loaded == null)
+                    const SizedBox.shrink()
+                  else if (sections.isEmpty)
+                    EmptyState(icon: Icons.local_cafe, message: l10n.noItemsYet)
+                  else
+                    _Catalogue(
+                      sections: sections,
+                      basket: _basket,
+                      onTap: (item) =>
+                          _selecting ? _add(item) : unawaited(_tap(item)),
+                      onLongPress: (item) =>
+                          _selecting ? _add(item) : _startSelecting(item),
+                    ),
                 ],
               ),
-              // One scroll view over the header and the catalogue together, so
-              // the avatar and balance scroll away rather than eating a third
-              // of a phone screen while someone browses.
-              body: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Deliberately outside the catalogue's loading gate below.
-                    // The header opens its own balance query when it mounts, so
-                    // withholding it until the items arrive runs the two round
-                    // trips one after the other and the balance lands visibly
-                    // late.
-                    UserHeader(user: widget.user),
-                    if (loaded == null)
-                      const SizedBox.shrink()
-                    else if (sections.isEmpty)
-                      EmptyState(
-                        icon: Icons.local_cafe,
-                        message: l10n.noItemsYet,
-                      )
-                    else
-                      _Catalogue(
-                        sections: sections,
-                        basket: _basket,
-                        onTap: (item) =>
-                            _selecting ? _add(item) : unawaited(_tap(item)),
-                        onLongPress: (item) =>
-                            _selecting ? _add(item) : _startSelecting(item),
-                      ),
-                  ],
-                ),
-              ),
-              bottomNavigationBar: _selecting
-                  ? _ConfirmBar(
-                      count: _basketCount,
-                      totalMinorUnits: _basketTotal(items),
-                      onCancel: _cancelSelecting,
-                      onConfirm: _basket.isEmpty
-                          ? null
-                          : () => unawaited(_confirm(items)),
-                    )
-                  : null,
             ),
-          );
-        },
+            bottomNavigationBar: _selecting
+                ? _ConfirmBar(
+                    count: _basketCount,
+                    people: forGroup ? widget.users.length : null,
+                    totalMinorUnits: _basketTotal(items) * widget.users.length,
+                    onCancel: _cancelSelecting,
+                    onConfirm: _basket.isEmpty
+                        ? null
+                        : () => unawaited(_confirm(items)),
+                  )
+                : null,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Who a round is for: each person's avatar and name, in their own colour.
+class _PeopleHeader extends StatelessWidget {
+  const _PeopleHeader({required this.users});
+
+  final List<UserRow> users;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 8,
+        children: [
+          for (final user in users)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 8,
+              children: [
+                UserAvatar(
+                  emoji: user.avatarEmoji,
+                  seedColorArgb: user.seedColorArgb,
+                  size: 40,
+                ),
+                Text(user.name, style: theme.textTheme.titleMedium),
+              ],
+            ),
+        ],
       ),
     );
   }
@@ -401,12 +468,18 @@ class _ItemTile extends StatelessWidget {
 class _ConfirmBar extends StatelessWidget {
   const _ConfirmBar({
     required this.count,
+    required this.people,
     required this.totalMinorUnits,
     required this.onCancel,
     required this.onConfirm,
   });
 
   final int count;
+
+  /// How many people each item is for, or null outside a round.
+  final int? people;
+
+  /// Already multiplied out over everyone the order is for.
   final int totalMinorUnits;
   final VoidCallback onCancel;
 
@@ -429,10 +502,17 @@ class _ConfirmBar extends StatelessWidget {
             onPressed: onCancel,
           ),
           Expanded(
-            child: Text(
-              l10n.basketSummary(count, settings.formatMoney(totalMinorUnits)),
-              style: theme.textTheme.titleMedium,
-            ),
+            child: Text(switch (people) {
+              final people? => l10n.basketSummaryForPeople(
+                count,
+                people,
+                settings.formatMoney(totalMinorUnits),
+              ),
+              null => l10n.basketSummary(
+                count,
+                settings.formatMoney(totalMinorUnits),
+              ),
+            }, style: theme.textTheme.titleMedium),
           ),
           FilledButton(onPressed: onConfirm, child: Text(l10n.confirm)),
         ],

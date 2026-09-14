@@ -19,9 +19,9 @@ networked app. There is no server, no account system, no sync.
   second-hand iPads (Supervised + Autonomous Single App Mode), or Linux
   (Surface with linux-surface kernel, mini PC, old laptop).
 - Expected to run **untouched for years**. Auto-restart on crash/reboot.
-- Users are Chiro members — teenagers and leaders — tapping with cold, wet fingers on
-  a fridge door. Touch targets must be generous. UI must be obvious without
-  instruction.
+- Users are adults — leaders, ex-leaders and friends of the Chiro group — tapping
+  with cold, wet fingers on a fridge door. Touch targets must be generous. UI must
+  be obvious without instruction.
 - **Portrait-first**, and a **tablet** is the primary form factor — a phone is a
   secondary one that must still work, not a size the layout is designed around.
   Landscape is not a target: the tablet is bolted to a fridge door one way up.

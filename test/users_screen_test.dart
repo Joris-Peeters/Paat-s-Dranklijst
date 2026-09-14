@@ -28,17 +28,28 @@ void main() {
   Future<void> pump(
     WidgetTester tester, {
     Map<String, Object> preferences = const {},
+    bool active = true,
   }) async {
     await tester.pumpWidget(
       await settingsHarness(
         null,
         database: db,
-        screen: const UsersScreen(),
+        screen: UsersScreen(active: active),
         preferences: preferences,
       ),
     );
     await tester.pumpAndSettle();
   }
+
+  Future<void> addItem(String name) => db.itemsDao.createItem(
+    name: name,
+    groupId: seededGroup,
+    priceMinorUnits: 200,
+    emoji: '🍺',
+  );
+
+  FilledButton nextButton(WidgetTester tester) =>
+      tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Next'));
 
   testWidgetsWithDatabase('the first group is selected by default', (
     tester,
@@ -150,5 +161,151 @@ void main() {
     await pump(tester, preferences: {'allowSelfRegistration': true});
 
     expect(find.byType(FloatingActionButton), findsOneWidget);
+  });
+
+  group('selecting several people', () {
+    testWidgetsWithDatabase('is off until asked for: a tap opens the drink '
+        'screen', (tester) async {
+      await addUser(name: 'Bea');
+      await pump(tester);
+
+      expect(find.textContaining('selected'), findsNothing);
+      await tester.tap(find.text('Bea'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add to your tab'), findsOneWidget);
+    });
+
+    testWidgetsWithDatabase('the button starts it, and Next needs two people', (
+      tester,
+    ) async {
+      await addUser(name: 'Bea');
+      await addUser(name: 'Wout');
+      await pump(tester);
+
+      await tester.tap(find.byTooltip('Select several people'));
+      await tester.pumpAndSettle();
+      expect(find.text('Nobody selected'), findsOneWidget);
+      expect(find.byType(FloatingActionButton), findsNothing);
+
+      await tester.tap(find.text('Bea'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 person selected'), findsOneWidget);
+      expect(nextButton(tester).onPressed, isNull);
+
+      await tester.tap(find.text('Wout'));
+      await tester.pumpAndSettle();
+      expect(find.text('2 people selected'), findsOneWidget);
+      expect(nextButton(tester).onPressed, isNotNull);
+
+      await tester.tap(find.text('Wout'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 person selected'), findsOneWidget);
+    });
+
+    testWidgetsWithDatabase('a long press starts it with that person ticked', (
+      tester,
+    ) async {
+      await addUser(name: 'Bea');
+      await pump(tester);
+
+      await tester.longPress(find.text('Bea'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 person selected'), findsOneWidget);
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+    });
+
+    testWidgetsWithDatabase('ticks survive switching groups', (tester) async {
+      final leiding = await db.usersDao.createUserGroup(name: 'Leiding');
+      await addUser(name: 'Bea');
+      await addUser(name: 'Wout', groupId: leiding);
+      await pump(tester);
+
+      await tester.longPress(find.text('Bea'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Leiding'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Wout'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 people selected'), findsOneWidget);
+    });
+
+    testWidgetsWithDatabase('Cancel and Back both end it', (tester) async {
+      await addUser(name: 'Bea');
+      await pump(tester);
+
+      await tester.longPress(find.text('Bea'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('selected'), findsNothing);
+
+      await tester.longPress(find.text('Bea'));
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.textContaining('selected'), findsNothing);
+    });
+
+    testWidgetsWithDatabase('leaving the tab ends it', (tester) async {
+      await addUser(name: 'Bea');
+      await pump(tester);
+      await tester.longPress(find.text('Bea'));
+      await tester.pumpAndSettle();
+
+      // Pumping the same tree again keeps the State, as switching tabs does.
+      await pump(tester, active: false);
+      await pump(tester);
+
+      expect(find.textContaining('selected'), findsNothing);
+    });
+
+    testWidgetsWithDatabase(
+      'Next, then a drink, logs for everyone and ends selecting',
+      (tester) async {
+        await addItem('Beer');
+        final bea = await addUser(name: 'Bea');
+        final wout = await addUser(name: 'Wout');
+        await pump(tester);
+
+        await tester.longPress(find.text('Bea'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Wout'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Next'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Add to 2 tabs'), findsOneWidget);
+        await tester.tap(find.text('Beer'));
+        await tester.pumpAndSettle();
+
+        expect(await db.usersDao.readBalance(bea), -200);
+        expect(await db.usersDao.readBalance(wout), -200);
+        expect(find.textContaining('selected'), findsNothing);
+        expect(find.text('Beer registered for 2 people'), findsOneWidget);
+      },
+    );
+
+    testWidgetsWithDatabase('backing out of the drink screen keeps the ticks', (
+      tester,
+    ) async {
+      await addItem('Beer');
+      await addUser(name: 'Bea');
+      await addUser(name: 'Wout');
+      await pump(tester);
+
+      await tester.longPress(find.text('Bea'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Wout'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 people selected'), findsOneWidget);
+    });
   });
 }
