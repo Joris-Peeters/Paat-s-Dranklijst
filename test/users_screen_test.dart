@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/screens/users_screen.dart';
+import 'package:paats_dranklijst/widgets/user_avatar.dart';
 
 import 'support/harness.dart';
 
@@ -96,6 +97,52 @@ void main() {
     // Found even though its group is not the selected one.
     expect(find.text('Wout'), findsOneWidget);
     expect(find.text('Bea'), findsNothing);
+  });
+
+  testWidgetsWithDatabase('opening the drink screen closes the search', (
+    tester,
+  ) async {
+    await addUser(name: 'Bea');
+    await pump(tester);
+
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'be');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bea'));
+    // Mid-transition the list underneath is left alone, so it does not snap
+    // back to the chips just as the page slides over it.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(TextField), findsOneWidget);
+
+    await tester.pumpAndSettle();
+    expect(find.text('Add to your tab'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsNothing);
+    expect(find.byType(ChoiceChip), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('opening a user page closes the search', (
+    tester,
+  ) async {
+    await addUser(name: 'Bea');
+    await pump(tester);
+
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'be');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(UserAvatar));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsNothing);
+    expect(find.byType(ChoiceChip), findsOneWidget);
   });
 
   testWidgetsWithDatabase('a search matching nobody says so', (tester) async {

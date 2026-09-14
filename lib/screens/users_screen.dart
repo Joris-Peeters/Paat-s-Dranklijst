@@ -84,16 +84,49 @@ class _UsersScreenState extends State<UsersScreen> {
   /// Backing out keeps the ticks, so someone can be added or taken off; only
   /// logging ends the selection.
   Future<void> _next(List<UserRow> users) async {
-    final logged = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
+    final logged = await _push(
+      MaterialPageRoute<bool>(
         builder: (_) => ConsumptionScreen.forUsers(users: users),
       ),
     );
     if (logged == true && mounted) _stopSelecting();
   }
 
+  void _openConsumption(UserRow user) => unawaited(
+    _push(
+      MaterialPageRoute<void>(builder: (_) => ConsumptionScreen(user: user)),
+    ),
+  );
+
+  void _openDetail(UserRow user) => unawaited(
+    _push(
+      MaterialPageRoute<void>(builder: (_) => UserDetailScreen(user: user)),
+    ),
+  );
+
+  /// Pushes [route] and closes the search: a search is one lookup, and the
+  /// next person at the fridge should find the tab as it normally is.
+  ///
+  /// Closed only once the new page fully covers this one. Closing it before
+  /// the push visibly snaps the list back just as the page slides in.
+  Future<T?> _push<T>(TransitionRoute<T> route) {
+    final pushed = Navigator.push(context, route);
+    // The route is installed during push, so its animation exists by now.
+    final animation = route.animation;
+    if (_search != null && animation != null) {
+      void closeWhenCovered(AnimationStatus status) {
+        if (status != AnimationStatus.completed) return;
+        animation.removeStatusListener(closeWhenCovered);
+        if (mounted) _closeSearch();
+      }
+
+      animation.addStatusListener(closeWhenCovered);
+    }
+    return pushed;
+  }
+
   void _closeSearch() {
+    if (_search == null) return;
     _searchController.clear();
     setState(() => _search = null);
   }
@@ -198,6 +231,8 @@ class _UsersScreenState extends State<UsersScreen> {
                             ? l10n.noUsersInGroup
                             : l10n.noSearchResults,
                         picked: _selecting ? _picked : null,
+                        onOpen: _openConsumption,
+                        onOpenDetail: _openDetail,
                         onToggle: _toggle,
                         onLongPress: _selecting ? _toggle : _startSelecting,
                       ),
@@ -297,6 +332,8 @@ class _UserGrid extends StatelessWidget {
     required this.users,
     required this.emptyMessage,
     required this.picked,
+    required this.onOpen,
+    required this.onOpenDetail,
     required this.onToggle,
     required this.onLongPress,
   });
@@ -307,6 +344,8 @@ class _UserGrid extends StatelessWidget {
   /// Who is ticked while selecting; null when not selecting at all.
   final Set<int>? picked;
 
+  final ValueChanged<UserRow> onOpen;
+  final ValueChanged<UserRow> onOpenDetail;
   final ValueChanged<UserRow> onToggle;
   final ValueChanged<UserRow> onLongPress;
 
@@ -324,6 +363,8 @@ class _UserGrid extends StatelessWidget {
           _UserTile(
             entry: entry,
             picked: picked?.contains(entry.user.id),
+            onOpen: () => onOpen(entry.user),
+            onOpenDetail: () => onOpenDetail(entry.user),
             onToggle: () => onToggle(entry.user),
             onLongPress: () => onLongPress(entry.user),
           ),
@@ -336,6 +377,8 @@ class _UserTile extends StatelessWidget {
   const _UserTile({
     required this.entry,
     required this.picked,
+    required this.onOpen,
+    required this.onOpenDetail,
     required this.onToggle,
     required this.onLongPress,
   });
@@ -345,15 +388,10 @@ class _UserTile extends StatelessWidget {
   /// Null outside selection mode, where a tap opens the drink screen.
   final bool? picked;
 
+  final VoidCallback onOpen;
+  final VoidCallback onOpenDetail;
   final VoidCallback onToggle;
   final VoidCallback onLongPress;
-
-  void _openDetail(BuildContext context) => unawaited(
-    Navigator.push<void>(
-      context,
-      MaterialPageRoute(builder: (_) => UserDetailScreen(user: entry.user)),
-    ),
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -365,16 +403,7 @@ class _UserTile extends StatelessWidget {
     final card = Card(
       color: picked == true ? theme.colorScheme.primaryContainer : null,
       child: InkWell(
-        onTap: selecting
-            ? onToggle
-            : () => unawaited(
-                Navigator.push<void>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ConsumptionScreen(user: user),
-                  ),
-                ),
-              ),
+        onTap: selecting ? onToggle : onOpen,
         onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -389,7 +418,7 @@ class _UserTile extends StatelessWidget {
                 size: 48,
                 // The avatar ticks too while selecting: a tap that opened
                 // someone's page instead would lose the whole selection.
-                onTap: selecting ? onToggle : () => _openDetail(context),
+                onTap: selecting ? onToggle : onOpenDetail,
               ),
               Expanded(
                 child: Text(
