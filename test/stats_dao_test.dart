@@ -302,6 +302,35 @@ void main() {
     });
   });
 
+  group('group activity', () {
+    test('counts one group over the past year, live rows only', () async {
+      final cola = await addItem('Cola');
+      final leaders = await db.usersDao.createUserGroup(name: 'Leiding');
+      final ann = await addUser('Ann');
+      final bob = await addUser('Bob');
+      final idle = await addUser('Idle');
+      final other = await addUser('Other', groupId: leaders);
+
+      await consume(ann, cola, now, quantity: 3);
+      await consume(ann, cola, daysAgo(10));
+      await consume(bob, cola, now);
+      await db.transactionsDao.voidTransaction(
+        await consume(bob, cola, daysAgo(2), quantity: 4),
+      );
+      await consume(idle, cola, daysAgo(400));
+      await consume(other, cola, now);
+
+      final activity = await db.statsDao.readGroupActivity(
+        seededGroup,
+        at: now,
+      );
+      expect(activity, {
+        ann: (consumptions: 4, days: 2),
+        bob: (consumptions: 1, days: 1),
+      });
+    });
+  });
+
   test(
     'every stats query is an index-only scan of a consumption index',
     () async {
@@ -314,6 +343,7 @@ void main() {
       await stats.watchUserSpend(ann, at: now).first;
       await stats.watchUserTopItems(ann).first;
       await stats.watchUserWeekly(ann, at: now).first;
+      await stats.readGroupActivity(seededGroup, at: now);
       for (final period in StatPeriod.values) {
         await stats.readKpis(period, at: now);
         await stats.readVolume(period, at: now);

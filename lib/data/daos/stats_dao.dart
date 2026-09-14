@@ -51,6 +51,9 @@ typedef UserSpend = ({int month, int year, int allTime});
 /// first one — null if they never took anything.
 typedef UserWeekly = ({List<StatBucket> weeks, DateTime? firstDay});
 
+/// A user's consumptions and distinct logical days with one, over a window.
+typedef UserActivity = ({int consumptions, int days});
+
 typedef Volume = ({BucketSize size, List<StatBucket> buckets});
 
 /// Read-only statistics over live consumptions.
@@ -443,6 +446,39 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
           count: row.read<int>('n'),
         ),
     ];
+  }
+
+  // ---- Group management ----
+
+  /// Every user in a group who took something in the past year, with their
+  /// consumptions and active days. A user without a key scored zero on both.
+  Future<Map<int, UserActivity>> readGroupActivity(
+    int userGroupId, {
+    required DateTime at,
+  }) async {
+    final window = statWindow(StatPeriod.year, at: at);
+    final where = _where(
+      from: window.from,
+      to: window.to,
+      userGroupId: userGroupId,
+    );
+    final rows = await customSelect(
+      '''
+      SELECT user_id, SUM(quantity) AS consumptions,
+        COUNT(DISTINCT logical_date) AS days
+      FROM transactions ${where.sql}
+      GROUP BY user_id
+      ''',
+      variables: where.variables,
+      readsFrom: {transactions, users},
+    ).get();
+    return {
+      for (final row in rows)
+        row.read<int>('user_id'): (
+          consumptions: row.read<int>('consumptions'),
+          days: row.read<int>('days'),
+        ),
+    };
   }
 
   // ---- Shared ----

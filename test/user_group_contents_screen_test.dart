@@ -36,6 +36,39 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgetsWithDatabase('sorting by name reorders, and Undo puts it back', (
+    tester,
+  ) async {
+    await addUser(name: 'Cas');
+    await addUser(name: 'Ann');
+    await addUser(name: 'Bob');
+    await pump(tester);
+
+    // The three names from the top of the screen down.
+    List<String> onScreen() => ['Ann', 'Bob', 'Cas']
+      ..sort(
+        (a, b) => tester
+            .getCenter(find.text(a))
+            .dy
+            .compareTo(tester.getCenter(find.text(b)).dy),
+      );
+
+    expect(onScreen(), ['Cas', 'Ann', 'Bob']);
+
+    await tester.tap(find.byTooltip('Sort'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Name (A–Z)'));
+    await tester.pumpAndSettle();
+
+    expect(onScreen(), ['Ann', 'Bob', 'Cas']);
+    expect(find.text('Sorted by Name (A–Z)'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(SnackBarAction, 'Undo'));
+    await tester.pumpAndSettle();
+
+    expect(onScreen(), ['Cas', 'Ann', 'Bob']);
+  });
+
   testWidgetsWithDatabase(
     'an archived user is shown dimmed, last, and undraggable',
     (tester) async {

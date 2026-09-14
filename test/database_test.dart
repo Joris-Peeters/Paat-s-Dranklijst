@@ -140,6 +140,32 @@ void main() {
       expect(await db.usersDao.readBalance(user), -250);
     });
 
+    test('watchDebtors lists only live debt, most first', () async {
+      final dao = db.transactionsDao;
+      final small = await addUser(name: 'Small');
+      final big = await addUser(name: 'Big');
+      final credit = await addUser(name: 'Credit');
+      final voided = await addUser(name: 'Voided');
+      await addUser(name: 'Untouched');
+
+      await dao.logAdjustment(userId: small, amountMinorUnits: -200, note: 'x');
+      await dao.logAdjustment(userId: big, amountMinorUnits: -900, note: 'x');
+      await dao.logAdjustment(userId: credit, amountMinorUnits: 500, note: 'x');
+      await dao.voidTransaction(
+        await dao.logAdjustment(
+          userId: voided,
+          amountMinorUnits: -300,
+          note: 'x',
+        ),
+      );
+
+      final debtors = await db.usersDao.watchDebtors().first;
+      expect(debtors.map((d) => (d.user.name, d.balanceMinorUnits)), [
+        ('Big', -900),
+        ('Small', -200),
+      ]);
+    });
+
     test('watchUsersWithBalances reports zero for an untouched user', () async {
       await addUser(name: 'Silent');
       final users = await db.usersDao.watchUsersWithBalances().first;

@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/daos/stats_dao.dart';
 import '../data/daos/users_dao.dart';
 import '../data/database.dart';
 import '../data/database_provider.dart';
+import '../data/user_sort.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
@@ -49,6 +51,47 @@ class _UserGroupContentsScreenState extends State<UserGroupContentsScreen> {
     if (confirmed) await _dao.archiveUser(entry.user.id);
   }
 
+  /// Applies an automatic order once, as if it had been dragged into place, so
+  /// dragging afterwards carries on from there.
+  Future<void> _sort(UserSortOrder order) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final stats = Database.of(context).statsDao;
+    final groupId = widget.group.id;
+
+    final users = await _dao.readUsersInGroup(groupId);
+    final activity = order.needsActivity
+        ? await stats.readGroupActivity(groupId, at: DateTime.now())
+        : const <int, UserActivity>{};
+    final previous = [for (final user in users) user.id];
+
+    await _dao.reorderUsers(
+      groupId: groupId,
+      idsInOrder: sortedUserIds(users, order, activity: activity),
+    );
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l10n.usersSorted(_sortLabel(l10n, order))),
+        // A SnackBar with an action otherwise stays until it is tapped.
+        persist: false,
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: l10n.undo,
+          onPressed: () => unawaited(
+            _dao.reorderUsers(groupId: groupId, idsInOrder: previous),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _sortLabel(AppLocalizations l10n, UserSortOrder order) =>
+      switch (order) {
+        UserSortOrder.name => l10n.sortByName,
+        UserSortOrder.activeDays => l10n.sortByActiveDays,
+        UserSortOrder.consumptions => l10n.sortByConsumptions,
+      };
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -59,6 +102,21 @@ class _UserGroupContentsScreenState extends State<UserGroupContentsScreen> {
         title: Text(
           emoji == null ? widget.group.name : '$emoji  ${widget.group.name}',
         ),
+        actions: [
+          PopupMenuButton<UserSortOrder>(
+            icon: const Icon(Icons.sort_rounded),
+            tooltip: l10n.sortUsers,
+            onSelected: (order) => unawaited(_sort(order)),
+            itemBuilder: (context) => [
+              for (final order in UserSortOrder.values)
+                PopupMenuItem(
+                  value: order,
+                  child: Text(_sortLabel(l10n, order)),
+                ),
+            ],
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: StreamBuilder<List<UserWithBalance>>(
         stream: _users,

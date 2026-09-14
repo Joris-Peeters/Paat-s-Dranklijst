@@ -234,6 +234,73 @@
     }
   },
 
+  "confirmAllTopUps": "Confirm all",
+  "@confirmAllTopUps": { "description": "Tooltip, dialog title and confirm button for confirming every listed top-up at once" },
+
+  "confirmAllTopUpsMessage": "{count, plural, =1{Mark 1 top-up of {total} as received?} other{Mark {count} top-ups totalling {total} as received?}}",
+  "@confirmAllTopUpsMessage": {
+    "description": "Question in the dialog before confirming every listed top-up",
+    "placeholders": {
+      "count": { "type": "int" },
+      "total": { "type": "String" }
+    }
+  },
+
+  "topUpsConfirmed": "{count, plural, =1{1 top-up confirmed} other{{count} top-ups confirmed}}",
+  "@topUpsConfirmed": {
+    "description": "Snackbar after confirming every listed top-up, offering undo",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "debts": "Debts",
+  "@debts": { "description": "Title of the management card and screen listing everyone who owes money" },
+
+  "debtsSubtitle": "Who still has to pay",
+  "@debtsSubtitle": { "description": "Subtitle of the debts card before its count has loaded" },
+
+  "debtsSummary": "{count, plural, =0{Nobody owes anything} =1{1 person owes {total}} other{{count} people owe {total}}}",
+  "@debtsSummary": {
+    "description": "Live count under the debts management card",
+    "placeholders": {
+      "count": { "type": "int" },
+      "total": { "type": "String" }
+    }
+  },
+
+  "debtsHeader": "{date} · {count, plural, =1{1 person} other{{count} people}} · {total} total",
+  "@debtsHeader": {
+    "description": "Line under the title of the debt overview, meant to make a screenshot of it self-explanatory",
+    "placeholders": {
+      "date": { "type": "String" },
+      "count": { "type": "int" },
+      "total": { "type": "String" }
+    }
+  },
+
+  "noDebts": "Nobody owes anything",
+  "@noDebts": { "description": "Empty state of the debt overview" },
+
+  "filterAllGroups": "All groups",
+  "@filterAllGroups": { "description": "Chip showing every group at once" },
+
+  "sortUsers": "Sort",
+  "@sortUsers": { "description": "Tooltip of the menu that puts a group's users in an automatic order" },
+
+  "sortByName": "Name (A–Z)",
+  "@sortByName": { "description": "Sort option: alphabetical" },
+
+  "sortByActiveDays": "Active days (past year)",
+  "@sortByActiveDays": { "description": "Sort option: days with at least one consumption in the last 365 days, most first" },
+
+  "sortByConsumptions": "Consumptions (past year)",
+  "@sortByConsumptions": { "description": "Sort option: consumptions in the last 365 days, most first" },
+
+  "usersSorted": "Sorted by {order}",
+  "@usersSorted": {
+    "description": "Snackbar after sorting a group's users, offering undo",
+    "placeholders": { "order": { "type": "String" } }
+  },
+
   "groupUserCount": "{count, plural, =0{No users} =1{1 user} other{{count} users}}",
   "@groupUserCount": {
     "description": "How many users a group holds. Archived users are not counted here — see deleteBlockedInUse for why the delete action can still be refused",

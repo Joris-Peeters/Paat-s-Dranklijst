@@ -473,6 +473,7 @@ lib/
     errors.dart, group_usage.dart, logical_day.dart
     stat_period.dart         # rolling windows, calendar weeks, percentChange; pure
     stat_buckets.dart        # zero-fills sparse per-day/month/hour rows for charts; pure
+    user_sort.dart           # automatic orders for a group's users; pure
     tables/                  # one file per table; enums live beside their table
     views/user_balances_view.dart
     daos/                    # users_dao, items_dao, transactions_dao, stats_dao (read-only SQL)
@@ -481,6 +482,7 @@ lib/
   screens/
     settings_screen.dart     # admin settings; openSettings() is the PIN gate
     pending_top_ups_screen.dart  # admin checklist: confirm or void unchecked top-ups
+    debts_screen.dart        # compact list of who owes, per group, made for a screenshot
     setup_wizard.dart        # first-run wizard
     start_screen.dart, users_screen.dart, leaderboard_screen.dart, stats_screen.dart  # the four tabs
     management_stub_screen.dart

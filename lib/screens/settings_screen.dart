@@ -12,6 +12,7 @@ import '../widgets/palette_picker.dart';
 import '../widgets/pin_dialog.dart';
 import '../widgets/settings_fields.dart';
 import '../widgets/settings_text_field.dart';
+import 'debts_screen.dart';
 import 'item_categories_screen.dart';
 import 'pending_top_ups_screen.dart';
 import 'user_groups_screen.dart';
@@ -50,6 +51,7 @@ class SettingsScreen extends StatelessWidget {
             const _UserGroupsCard(),
             const _ItemCategoriesCard(),
             const _PendingTopUpsCard(),
+            const _DebtsCard(),
 
             const Divider(height: 24, indent: 16, endIndent: 16),
 
@@ -206,6 +208,42 @@ class _PendingTopUpsCardState extends State<_PendingTopUpsCard> {
       subtitle: l10n.pendingTopUpsSubtitle,
       counts: _count.map(l10n.pendingTopUpsSummary),
       open: PendingTopUpsScreen.new,
+    );
+  }
+}
+
+class _DebtsCard extends StatefulWidget {
+  const _DebtsCard();
+
+  @override
+  State<_DebtsCard> createState() => _DebtsCardState();
+}
+
+class _DebtsCardState extends State<_DebtsCard> {
+  late final Stream<({int count, int total})> _debts = Database.of(context)
+      .usersDao
+      .watchDebtors()
+      .map(
+        (rows) => (
+          count: rows.length,
+          total: rows.fold(0, (sum, row) => sum + row.balanceMinorUnits),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final settings = AppSettings.of(context);
+
+    return _ManagementCard(
+      icon: Icons.request_quote_rounded,
+      title: l10n.debts,
+      subtitle: l10n.debtsSubtitle,
+      counts: _debts.map(
+        (debts) =>
+            l10n.debtsSummary(debts.count, settings.formatMoney(debts.total)),
+      ),
+      open: DebtsScreen.new,
     );
   }
 }

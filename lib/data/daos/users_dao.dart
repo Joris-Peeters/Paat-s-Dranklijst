@@ -64,6 +64,15 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
   Stream<List<UserRow>> watchUsersInGroup(
     int groupId, {
     bool includeArchived = false,
+  }) => _usersInGroup(groupId, includeArchived: includeArchived).watch();
+
+  /// One group's active users in their current order, read once.
+  Future<List<UserRow>> readUsersInGroup(int groupId) =>
+      _usersInGroup(groupId, includeArchived: false).get();
+
+  SimpleSelectStatement<$UsersTable, UserRow> _usersInGroup(
+    int groupId, {
+    required bool includeArchived,
   }) {
     final query = select(users)
       ..where((u) => u.groupId.equals(groupId))
@@ -71,7 +80,7 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     if (!includeArchived) {
       query.where((u) => u.archivedAt.isNull());
     }
-    return query.watch();
+    return query;
   }
 
   /// Groups with their user counts, in one query rather than a count per row.
@@ -127,6 +136,35 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
       OrderingTerm(expression: userGroups.sortOrder),
       OrderingTerm(expression: users.sortOrder),
     ]);
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (row) => UserWithBalance(
+              user: row.readTable(users),
+              group: row.readTable(userGroups),
+              balanceMinorUnits: _balanceOf(row),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  /// Active users who owe money, most debt first.
+  ///
+  /// An inner join on the balance view is enough: a user without a view row has
+  /// a balance of zero, and so owes nothing.
+  Stream<List<UserWithBalance>> watchDebtors() {
+    final balance = userBalances.balanceMinorUnits;
+    final query =
+        select(users).join([
+            innerJoin(userGroups, userGroups.id.equalsExp(users.groupId)),
+            innerJoin(userBalances, userBalances.userId.equalsExp(users.id)),
+          ])
+          ..where(users.archivedAt.isNull() & balance.isSmallerThanValue(0))
+          ..orderBy([
+            OrderingTerm(expression: balance),
+            OrderingTerm(expression: users.name.collate(Collate.noCase)),
+          ]);
     return query.watch().map(
       (rows) => rows
           .map(

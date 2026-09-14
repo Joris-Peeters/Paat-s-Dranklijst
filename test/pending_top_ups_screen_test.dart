@@ -82,6 +82,47 @@ void main() {
     },
   );
 
+  testWidgetsWithDatabase(
+    'confirm all asks first, empties the list, and Undo restores it',
+    (tester) async {
+      await db.transactionsDao.logTopUp(
+        userId: await addUser('Wout'),
+        amountMinorUnits: 1000,
+      );
+      await db.transactionsDao.logTopUp(
+        userId: await addUser('Jonas'),
+        amountMinorUnits: 2500,
+      );
+      await pump(tester);
+
+      await tester.tap(find.byTooltip('Confirm all'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Mark 2 top-ups totalling €35.00 as received?'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Wout'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Confirm all'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirm all'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Every top-up has been confirmed'), findsOneWidget);
+      expect(find.text('2 top-ups confirmed'), findsOneWidget);
+      expect(find.byTooltip('Confirm all'), findsNothing);
+
+      await tester.tap(find.widgetWithText(SnackBarAction, 'Undo'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Wout'), findsOneWidget);
+      expect(find.text('Jonas'), findsOneWidget);
+    },
+  );
+
   testWidgetsWithDatabase('voiding asks why, then takes the credit back', (
     tester,
   ) async {

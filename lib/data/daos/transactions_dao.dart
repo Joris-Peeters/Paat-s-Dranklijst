@@ -194,16 +194,22 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
 
   /// Marks a top-up's money as received. Balances ignore this entirely; a
   /// pending top-up already counts. A no-op on anything not pending.
-  Future<void> confirmTopUp(int id) async {
+  Future<void> confirmTopUp(int id) => confirmTopUps([id]);
+
+  /// Takes the ids on screen rather than every pending row, so a top-up logged
+  /// at the fridge while the admin is looking is not confirmed unseen.
+  Future<void> confirmTopUps(List<int> ids) async {
     await (update(transactions)
-          ..where((_) => transactions.id.equals(id) & _isPendingTopUp))
+          ..where((_) => transactions.id.isIn(ids) & _isPendingTopUp))
         .write(TransactionsCompanion(confirmedAt: Value(DateTime.now())));
   }
 
   /// Clears a confirmation again. Only for the snackbar Undo right after
   /// [confirmTopUp]; otherwise a confirmation stays.
-  Future<void> undoTopUpConfirmation(int id) async {
-    await (update(transactions)..where((t) => t.id.equals(id))).write(
+  Future<void> undoTopUpConfirmation(int id) => undoTopUpConfirmations([id]);
+
+  Future<void> undoTopUpConfirmations(List<int> ids) async {
+    await (update(transactions)..where((t) => t.id.isIn(ids))).write(
       const TransactionsCompanion(confirmedAt: Value(null)),
     );
   }
