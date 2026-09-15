@@ -662,8 +662,14 @@
   "continueAnyway": "Continue",
   "@continueAnyway": { "description": "Dismisses the low balance warning and carries on. The fridge cannot take payment, so nothing is blocked" },
 
-  "nameTakenWarning": "Someone is already called this",
-  "@nameTakenWarning": { "description": "Warning under the name field when another active user has the same name. A warning, not an error: a duplicate is allowed" },
+  "nameTaken": "Someone is already called this",
+  "@nameTaken": { "description": "Error under the name field when another active user has the same name. Save stays disabled until the name is changed" },
+
+  "restoreBlockedNameTaken": "Someone else is already called {name}. Rename one of them first.",
+  "@restoreBlockedNameTaken": {
+    "description": "Snackbar when restoring an archived user whose name an active user has taken in the meantime",
+    "placeholders": { "name": { "type": "String" } }
+  },
 
   "cancel": "Cancel",
   "@cancel": { "description": "Dismisses a dialog without acting" },

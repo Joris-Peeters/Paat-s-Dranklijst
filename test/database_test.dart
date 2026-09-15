@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/database.dart';
@@ -282,6 +282,19 @@ void main() {
 
       await db.usersDao.restoreUser(user);
       expect(await db.usersDao.watchUsers().first, hasLength(1));
+    });
+
+    test('restoring is refused while an active user has the name', () async {
+      final old = await addUser(name: 'Wout');
+      await db.usersDao.archiveUser(old);
+      final current = await addUser(name: 'WOUT');
+
+      expect(await db.usersDao.restoreUser(old), isFalse);
+      expect((await db.usersDao.readUser(old))!.archivedAt, isNotNull);
+
+      await db.usersDao.archiveUser(current);
+      expect(await db.usersDao.restoreUser(old), isTrue);
+      expect((await db.usersDao.readUser(old))!.archivedAt, isNull);
     });
   });
 

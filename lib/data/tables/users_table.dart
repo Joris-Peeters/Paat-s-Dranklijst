@@ -4,8 +4,8 @@ import 'user_groups_table.dart';
 
 /// A user. Never hard-deleted once they have a ledger row.
 ///
-/// No unique constraint on [name]: two users really can both be called Jonas.
-/// The management screen warns on a duplicate; the schema does not forbid one.
+/// No unique constraint on [name]: the edit dialog and restore refuse a name
+/// another active user already has.
 @DataClassName('UserRow')
 @TableIndex(name: 'users_group_id', columns: {#groupId})
 class Users extends Table {

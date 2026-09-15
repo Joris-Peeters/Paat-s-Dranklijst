@@ -105,6 +105,28 @@ void main() {
     expect(find.byIcon(Icons.drag_handle), findsOneWidget);
   });
 
+  testWidgetsWithDatabase('restoring is refused while the name is taken', (
+    tester,
+  ) async {
+    await db.usersDao.archiveUser(await addUser(name: 'Jonas'));
+    await addUser(name: 'jonas');
+    await pump(tester);
+
+    await tester.tap(find.byIcon(Icons.unarchive_outlined));
+    // Pumped rather than settled: the SnackBar sits on a timer.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(
+      find.text(
+        'Someone else is already called Jonas. Rename one of them first.',
+      ),
+      findsOneWidget,
+    );
+    // Still archived: the restore button is still there.
+    expect(find.byIcon(Icons.unarchive_outlined), findsOneWidget);
+  });
+
   testWidgetsWithDatabase('a user who still holds money cannot be archived', (
     tester,
   ) async {

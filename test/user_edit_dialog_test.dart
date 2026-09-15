@@ -128,7 +128,7 @@ void main() {
     expect(find.text('Edit user'), findsOneWidget);
   });
 
-  testWidgetsWithDatabase('a name someone else already has is flagged', (
+  testWidgetsWithDatabase('a name someone else already has is refused', (
     tester,
   ) async {
     await addUser('Jonas');
@@ -138,18 +138,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Someone is already called this'), findsOneWidget);
-    // A warning, not a refusal: the schema allows two people to share a name.
-    expect(saveEnabled(tester), isTrue);
+    expect(saveEnabled(tester), isFalse);
   });
 
-  testWidgetsWithDatabase('the check ignores case', (tester) async {
+  testWidgetsWithDatabase('changing to a free name lifts the refusal', (
+    tester,
+  ) async {
     await addUser('Jonas');
     await pump(tester);
 
-    await tester.enterText(find.byType(TextField), 'jonas');
+    await tester.enterText(find.byType(TextField), 'Jonas');
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Jonas P');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Someone is already called this'), findsNothing);
+    expect(saveEnabled(tester), isTrue);
+  });
+
+  testWidgetsWithDatabase('the check ignores case and spacing', (tester) async {
+    await addUser('Jonas');
+    await pump(tester);
+
+    await tester.enterText(find.byType(TextField), ' jonas ');
     await tester.pumpAndSettle();
 
     expect(find.text('Someone is already called this'), findsOneWidget);
+    expect(saveEnabled(tester), isFalse);
   });
 
   testWidgetsWithDatabase('nobody is a duplicate of themselves', (
@@ -160,6 +175,7 @@ void main() {
 
     // Opening the editor and saving an untouched name must say nothing.
     expect(find.text('Someone is already called this'), findsNothing);
+    expect(saveEnabled(tester), isTrue);
   });
 
   testWidgetsWithDatabase('an archived user no longer holds their name', (
@@ -173,6 +189,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Someone is already called this'), findsNothing);
+    expect(saveEnabled(tester), isTrue);
   });
 
   testWidgetsWithDatabase('a locked group is shown but inert while editing', (

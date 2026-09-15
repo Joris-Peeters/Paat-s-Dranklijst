@@ -51,6 +51,15 @@ class _UserGroupContentsScreenState extends State<UserGroupContentsScreen> {
     if (confirmed) await _dao.archiveUser(entry.user.id);
   }
 
+  Future<void> _restore(UserRow user) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    if (await _dao.restoreUser(user.id)) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.restoreBlockedNameTaken(user.name))),
+    );
+  }
+
   /// Applies an automatic order once, as if it had been dragged into place, so
   /// dragging afterwards carries on from there.
   Future<void> _sort(UserSortOrder order) async {
@@ -170,8 +179,7 @@ class _UserGroupContentsScreenState extends State<UserGroupContentsScreen> {
                   itemCount: archived.length,
                   itemBuilder: (context, index) => _UserTile(
                     entry: archived[index],
-                    onRestore: () =>
-                        unawaited(_dao.restoreUser(archived[index].user.id)),
+                    onRestore: () => unawaited(_restore(archived[index].user)),
                   ),
                 ),
               ],

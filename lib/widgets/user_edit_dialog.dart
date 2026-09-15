@@ -95,11 +95,10 @@ class _UserEditDialogState extends State<UserEditDialog> {
   static Color _randomPaletteColor() =>
       seedColorPalette[Random().nextInt(seedColorPalette.length)];
 
-  bool get _canSave => _controller.text.trim().isNotEmpty && _groupId != null;
+  bool get _canSave =>
+      _controller.text.trim().isNotEmpty && _groupId != null && !_nameIsTaken;
 
-  /// A warning, never a refusal: two people really can share a name, and the
-  /// schema deliberately allows it. This only makes sure nobody does it by
-  /// accident. Dart's `toLowerCase` is full Unicode, so accented names fold too.
+  /// Two tiles with the same name leave nobody sure which one is theirs.
   bool get _nameIsTaken =>
       _takenNames.contains(_controller.text.trim().toLowerCase());
 
@@ -171,12 +170,8 @@ class _UserEditDialogState extends State<UserEditDialog> {
             textInputAction: TextInputAction.done,
             decoration: InputDecoration(
               labelText: l10n.nameLabel,
-              // helperText, not errorText: nothing is being refused and Save
-              // stays live. Only the colour says to look twice.
-              helperText: _nameIsTaken ? l10n.nameTakenWarning : null,
-              helperStyle: TextStyle(
-                color: Theme.of(context).colorScheme.error,
-              ),
+              // errorText also turns the border and label red.
+              errorText: _nameIsTaken ? l10n.nameTaken : null,
               border: const OutlineInputBorder(),
             ),
             // Save is enabled off the name, so every keystroke has to be seen.

@@ -185,7 +185,8 @@
   "lowBalanceTitle": "Opgelet",
   "lowBalanceBody": "{name} staat op {amount}. Reken binnenkort af.",
   "continueAnyway": "Verder",
-  "nameTakenWarning": "Er heet al iemand zo",
+  "nameTaken": "Er heet al iemand zo",
+  "restoreBlockedNameTaken": "Er heet al iemand anders {name}. Geef eerst een van beiden een andere naam.",
 
   "cancel": "Annuleren",
   "ok": "OK",

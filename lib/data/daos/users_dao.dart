@@ -295,17 +295,32 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
   /// Lands the user last in their group rather than back on their old
   /// number: a reorder while they were archived renumbered everyone else, so
   /// the position they left with is very likely taken.
-  Future<void> restoreUser(int id) => transaction(() async {
+  ///
+  /// Returns false, restoring nothing, while an active user has the same name.
+  Future<bool> restoreUser(int id) => transaction(() async {
     final user = await (select(
       users,
     )..where((u) => u.id.equals(id))).getSingleOrNull();
-    if (user == null) return;
+    if (user == null) return false;
+    final taken =
+        await (select(users)
+              ..where(
+                (u) =>
+                    u.archivedAt.isNull() &
+                    u.name.lower().equalsExp(
+                      Variable.withString(user.name).lower(),
+                    ),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    if (taken != null) return false;
     await (update(users)..where((u) => u.id.equals(id))).write(
       UsersCompanion(
         archivedAt: const Value(null),
         sortOrder: Value(await _nextSortOrder(user.groupId)),
       ),
     );
+    return true;
   });
 
   Future<int> createUserGroup({required String name, String? emoji}) =>
