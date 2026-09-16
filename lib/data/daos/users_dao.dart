@@ -41,6 +41,11 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     userGroups,
   )..orderBy([(g) => OrderingTerm(expression: g.sortOrder)])).watch();
 
+  /// The groups in their order, read once.
+  Future<List<UserGroupRow>> readUserGroups() => (select(
+    userGroups,
+  )..orderBy([(g) => OrderingTerm(expression: g.sortOrder)])).get();
+
   /// Every user, in group order then their place inside it. The join is what
   /// makes the order meaningful: `sortOrder` is only unique within a group, so
   /// several users legitimately share a 0.
@@ -121,6 +126,19 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
   Stream<List<UserWithBalance>> watchUsersWithBalances({
     int? groupId,
     bool includeArchived = false,
+  }) => _usersWithBalances(
+    groupId: groupId,
+    includeArchived: includeArchived,
+  ).watch().map(_toUsersWithBalances);
+
+  /// Active users in group order with their balances, read once. For the
+  /// balance export and import, which want a snapshot rather than a stream.
+  Future<List<UserWithBalance>> readUsersWithBalances() =>
+      _usersWithBalances().get().then(_toUsersWithBalances);
+
+  JoinedSelectStatement<HasResultSet, dynamic> _usersWithBalances({
+    int? groupId,
+    bool includeArchived = false,
   }) {
     final query = select(users).join([
       innerJoin(userGroups, userGroups.id.equalsExp(users.groupId)),
@@ -136,18 +154,18 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
       OrderingTerm(expression: userGroups.sortOrder),
       OrderingTerm(expression: users.sortOrder),
     ]);
-    return query.watch().map(
-      (rows) => rows
-          .map(
-            (row) => UserWithBalance(
-              user: row.readTable(users),
-              group: row.readTable(userGroups),
-              balanceMinorUnits: _balanceOf(row),
-            ),
-          )
-          .toList(),
-    );
+    return query;
   }
+
+  List<UserWithBalance> _toUsersWithBalances(List<TypedResult> rows) => rows
+      .map(
+        (row) => UserWithBalance(
+          user: row.readTable(users),
+          group: row.readTable(userGroups),
+          balanceMinorUnits: _balanceOf(row),
+        ),
+      )
+      .toList();
 
   /// Active users who owe money, most debt first.
   ///
@@ -399,6 +417,13 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
       await (update(userGroups)..where((g) => g.id.equals(idsInOrder[i])))
           .write(UserGroupsCompanion(sortOrder: Value(i)));
     }
+  });
+
+  /// Removes every user and user group. Only for a database reset, which has
+  /// already removed the transactions pointing at them.
+  Future<void> deleteAllUsersAndGroups() => transaction(() async {
+    await delete(users).go();
+    await delete(userGroups).go();
   });
 
   Future<int> _nextSortOrder(int groupId) async {

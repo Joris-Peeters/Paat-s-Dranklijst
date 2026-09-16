@@ -861,5 +861,370 @@
   },
 
   "setupFinish": "Finish",
-  "@setupFinish": { "description": "Saves the wizard's choices and opens the app" }
+  "@setupFinish": { "description": "Saves the wizard's choices and opens the app" },
+
+  "sectionBackup": "Backup & restore",
+  "@sectionBackup": { "description": "Settings section heading for backups and the balances CSV" },
+
+  "sectionReset": "Reset",
+  "@sectionReset": { "description": "Settings section heading for deleting parts of the database" },
+
+  "backups": "Backups",
+  "@backups": { "description": "Title of the PIN-free backup screen, and the Start page's tooltip opening it" },
+
+  "makeBackup": "Make backup",
+  "@makeBackup": { "description": "Action that saves a copy of the database" },
+
+  "makeBackupSubtitle": "Save a full copy of the database to the backup folder",
+  "@makeBackupSubtitle": { "description": "Line under the make backup action in settings" },
+
+  "backupSaved": "Backup saved as {fileName}",
+  "@backupSaved": {
+    "description": "Snackbar after a backup was written",
+    "placeholders": {
+      "fileName": { "type": "String" }
+    }
+  },
+
+  "backupFailed": "The backup could not be saved",
+  "@backupFailed": { "description": "Snackbar when writing a backup failed" },
+
+  "backupFolder": "Backup folder",
+  "@backupFolder": { "description": "Heading above where backups are stored and how to reach them" },
+
+  "backupFolderHintIos": "Connect the iPad to a computer and open it in Finder, or in the Apple Devices app on Windows. The files are under Files → Paat's Dranklijst. Copy a file there to restore or import it.",
+  "@backupFolderHintIos": { "description": "How to reach the backup folder over USB on an iPad" },
+
+  "backupFolderHintAndroid": "Connect the tablet to a computer over USB and choose file transfer. The files are in the folder below. Copy a file there to restore or import it.",
+  "@backupFolderHintAndroid": { "description": "How to reach the backup folder over USB on Android" },
+
+  "backupFolderHintDesktop": "The files are in the folder below. Copy a file there to restore or import it.",
+  "@backupFolderHintDesktop": { "description": "Where the backup folder is on a computer" },
+
+  "recentBackups": "Recent backups",
+  "@recentBackups": { "description": "Card heading listing the newest backup files" },
+
+  "noBackups": "No backups yet",
+  "@noBackups": { "description": "Shown where the recent backups would be listed" },
+
+  "fileDetails": "{date} · {size} KB",
+  "@fileDetails": {
+    "description": "Line under a backup or CSV file: when it was last changed and how big it is",
+    "placeholders": {
+      "date": { "type": "String" },
+      "size": { "type": "int" }
+    }
+  },
+
+  "refresh": "Refresh",
+  "@refresh": { "description": "Tooltip re-reading the files in the backup folder" },
+
+  "restoreBackup": "Restore backup",
+  "@restoreBackup": { "description": "Action and screen title for replacing the database with a backup" },
+
+  "restoreBackupSubtitle": "Replace the database with a backup from the backup folder",
+  "@restoreBackupSubtitle": { "description": "Line under the restore action in settings" },
+
+  "restoreNoBackups": "No backups found. Copy a backup file into the backup folder to restore it.",
+  "@restoreNoBackups": { "description": "Empty state of the restore screen" },
+
+  "restoreConfirmTitle": "Restore this backup?",
+  "@restoreConfirmTitle": { "description": "Title of the dialog warning before a restore" },
+
+  "restoreConfirmMessage": "The current database is replaced by {fileName}, last changed {date}. Everything recorded since then is lost.",
+  "@restoreConfirmMessage": {
+    "description": "Warning before a restore overwrites the database",
+    "placeholders": {
+      "fileName": { "type": "String" },
+      "date": { "type": "String" }
+    }
+  },
+
+  "backupTakenFirst": "A backup of the current state is saved first.",
+  "@backupTakenFirst": { "description": "Closing line of every warning before the database is overwritten or wiped" },
+
+  "restore": "Restore",
+  "@restore": { "description": "Confirms a restore" },
+
+  "restoreFailed": "The backup could not be restored",
+  "@restoreFailed": { "description": "Snackbar when restoring failed for a reason other than the file itself" },
+
+  "invalidBackupTitle": "This file cannot be restored",
+  "@invalidBackupTitle": { "description": "Title of the dialog explaining why a file was refused" },
+
+  "invalidBackupNotADatabase": "It is not a database file.",
+  "@invalidBackupNotADatabase": { "description": "Why a file was refused: not SQLite at all" },
+
+  "invalidBackupCorrupt": "The file is damaged.",
+  "@invalidBackupCorrupt": { "description": "Why a file was refused: fails the integrity check" },
+
+  "invalidBackupNewerVersion": "It was made by a newer version of the app. Update the app first.",
+  "@invalidBackupNewerVersion": { "description": "Why a file was refused: newer schema" },
+
+  "invalidBackupNotThisApp": "It is a database, but not one made by this app.",
+  "@invalidBackupNotThisApp": { "description": "Why a file was refused: some other database" },
+
+  "exportBalances": "Export balances",
+  "@exportBalances": { "description": "Action writing the balances CSV" },
+
+  "exportBalancesSubtitle": "Save every user's name, group and balance as a CSV file",
+  "@exportBalancesSubtitle": { "description": "Line under the export action in settings" },
+
+  "exportSaved": "Balances saved as {fileName}",
+  "@exportSaved": {
+    "description": "Snackbar after the CSV was written",
+    "placeholders": {
+      "fileName": { "type": "String" }
+    }
+  },
+
+  "exportFailed": "The balances could not be exported",
+  "@exportFailed": { "description": "Snackbar when writing the CSV failed" },
+
+  "importBalances": "Import balances",
+  "@importBalances": { "description": "Action and screen title for importing the balances CSV" },
+
+  "importBalancesSubtitle": "Add users and correct balances from a CSV file",
+  "@importBalancesSubtitle": { "description": "Line under the import action in settings" },
+
+  "importNoFiles": "No CSV files found. Copy a file with the columns name, group and balance into the backup folder.",
+  "@importNoFiles": { "description": "Empty state of the import screen. The column names are literal and stay in English" },
+
+  "importReadFailed": "The file could not be read",
+  "@importReadFailed": { "description": "Snackbar when a CSV file could not be opened" },
+
+  "importPreviewTitle": "Import {fileName}?",
+  "@importPreviewTitle": {
+    "description": "Title of the import preview",
+    "placeholders": {
+      "fileName": { "type": "String" }
+    }
+  },
+
+  "importNewUsersCount": "{count, plural, =1{1 new user} other{{count} new users}}",
+  "@importNewUsersCount": {
+    "description": "Part of the import summary",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "importCorrectionsCount": "{count, plural, =1{1 balance corrected} other{{count} balances corrected}}",
+  "@importCorrectionsCount": {
+    "description": "Part of the import summary",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "importUnchangedCount": "{count} unchanged",
+  "@importUnchangedCount": {
+    "description": "Part of the import summary: users whose balance already matches",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "importNewGroupsCount": "{count, plural, =1{1 new group} other{{count} new groups}}",
+  "@importNewGroupsCount": {
+    "description": "Part of the import summary",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "importNothingToChange": "Every balance already matches. There is nothing to import.",
+  "@importNothingToChange": { "description": "Import preview when the file changes nothing" },
+
+  "importHasErrors": "Fix these problems in the file and try again:",
+  "@importHasErrors": { "description": "Heading above the errors that block an import" },
+
+  "importNewGroups": "New groups",
+  "@importNewGroups": { "description": "Import preview section heading" },
+
+  "importNewUsers": "New users",
+  "@importNewUsers": { "description": "Import preview section heading" },
+
+  "importCorrections": "Corrected balances",
+  "@importCorrections": { "description": "Import preview section heading" },
+
+  "importBalanceChange": "{from} → {to}",
+  "@importBalanceChange": {
+    "description": "A corrected balance in the import preview: the current balance and the file's",
+    "placeholders": {
+      "from": { "type": "String" },
+      "to": { "type": "String" }
+    }
+  },
+
+  "import": "Import",
+  "@import": { "description": "Confirms an import" },
+
+  "importDone": "Imported: {summary}",
+  "@importDone": {
+    "description": "Snackbar after an import, followed by its counts",
+    "placeholders": {
+      "summary": { "type": "String" }
+    }
+  },
+
+  "importAdjustmentNote": "Imported from {fileName}",
+  "@importAdjustmentNote": {
+    "description": "Note on each balance adjustment an import writes. Stored in the ledger in the language active at the time",
+    "placeholders": {
+      "fileName": { "type": "String" }
+    }
+  },
+
+  "importErrorLine": "Line {line}: {problem}",
+  "@importErrorLine": {
+    "description": "One problem in a CSV file, with its line number",
+    "placeholders": {
+      "line": { "type": "int" },
+      "problem": { "type": "String" }
+    }
+  },
+
+  "csvErrorEmpty": "The file is empty.",
+  "@csvErrorEmpty": { "description": "CSV problem" },
+
+  "csvErrorMissingColumn": "The column \"{column}\" is missing.",
+  "@csvErrorMissingColumn": {
+    "description": "CSV problem: a required header is absent. The column name is literal",
+    "placeholders": {
+      "column": { "type": "String" }
+    }
+  },
+
+  "csvErrorUnterminatedQuote": "A quote is opened but never closed.",
+  "@csvErrorUnterminatedQuote": { "description": "CSV problem" },
+
+  "csvErrorMissingField": "Not enough columns.",
+  "@csvErrorMissingField": { "description": "CSV problem: a row is shorter than the header" },
+
+  "csvErrorEmptyName": "The name is empty.",
+  "@csvErrorEmptyName": { "description": "CSV problem" },
+
+  "csvErrorEmptyGroup": "The group is empty.",
+  "@csvErrorEmptyGroup": { "description": "CSV problem" },
+
+  "csvErrorInvalidBalance": "\"{value}\" is not an amount.",
+  "@csvErrorInvalidBalance": {
+    "description": "CSV problem: the balance could not be read",
+    "placeholders": {
+      "value": { "type": "String" }
+    }
+  },
+
+  "importErrorDuplicateName": "\"{name}\" appears more than once, on lines {lines}.",
+  "@importErrorDuplicateName": {
+    "description": "Import problem: a name on several rows of the file",
+    "placeholders": {
+      "name": { "type": "String" },
+      "lines": { "type": "String" }
+    }
+  },
+
+  "importErrorAmbiguousName": "Line {line}: several users are called \"{name}\" (in {groups}). Rename one first.",
+  "@importErrorAmbiguousName": {
+    "description": "Import problem: the name matches more than one active user",
+    "placeholders": {
+      "line": { "type": "int" },
+      "name": { "type": "String" },
+      "groups": { "type": "String" }
+    }
+  },
+
+  "resetTransactions": "Delete all transactions",
+  "@resetTransactions": { "description": "Reset action" },
+
+  "resetTransactionsSubtitle": "Users and items stay; every balance goes back to zero",
+  "@resetTransactionsSubtitle": { "description": "Line under the reset action" },
+
+  "resetUsers": "Delete users and transactions",
+  "@resetUsers": { "description": "Reset action" },
+
+  "resetUsersSubtitle": "Removes every user, user group and transaction; items stay",
+  "@resetUsersSubtitle": { "description": "Line under the reset action" },
+
+  "resetItems": "Delete items and transactions",
+  "@resetItems": { "description": "Reset action" },
+
+  "resetItemsSubtitle": "Removes every item, category and transaction; users stay, at zero",
+  "@resetItemsSubtitle": { "description": "Line under the reset action" },
+
+  "resetEverything": "Delete everything",
+  "@resetEverything": { "description": "Reset action" },
+
+  "resetEverythingSubtitle": "Removes all users, items, groups and transactions; settings stay",
+  "@resetEverythingSubtitle": { "description": "Line under the reset action" },
+
+  "resetWillDelete": "This permanently deletes:",
+  "@resetWillDelete": { "description": "Opening line of the reset warning, followed by what goes" },
+
+  "resetCountTransactions": "{count, plural, =1{1 transaction} other{{count} transactions}}",
+  "@resetCountTransactions": {
+    "description": "One line of the reset warning",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "resetCountUsers": "{count, plural, =1{1 user} other{{count} users}}",
+  "@resetCountUsers": {
+    "description": "One line of the reset warning, archived users included",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "resetCountUserGroups": "{count, plural, =1{1 user group} other{{count} user groups}}",
+  "@resetCountUserGroups": {
+    "description": "One line of the reset warning",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "resetCountItems": "{count, plural, =1{1 item} other{{count} items}}",
+  "@resetCountItems": {
+    "description": "One line of the reset warning",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "resetCountItemCategories": "{count, plural, =1{1 category} other{{count} categories}}",
+  "@resetCountItemCategories": {
+    "description": "One line of the reset warning",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "resetOpenDebts": "{count, plural, =1{1 user still owes {total}.} other{{count} users still owe {total} in total.}}",
+  "@resetOpenDebts": {
+    "description": "Reset warning: debts that will be wiped with the transactions",
+    "placeholders": {
+      "count": { "type": "int" },
+      "total": { "type": "String" }
+    }
+  },
+
+  "resetOpenCredit": "{count, plural, =1{1 user still has {total} credit.} other{{count} users still have {total} credit in total.}}",
+  "@resetOpenCredit": {
+    "description": "Reset warning: credit that will be wiped with the transactions",
+    "placeholders": {
+      "count": { "type": "int" },
+      "total": { "type": "String" }
+    }
+  },
+
+  "resetDone": "Deleted. The previous state was backed up as {fileName}",
+  "@resetDone": {
+    "description": "Snackbar after a reset",
+    "placeholders": {
+      "fileName": { "type": "String" }
+    }
+  }
 }

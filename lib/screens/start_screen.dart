@@ -12,6 +12,7 @@ import '../widgets/money_text.dart';
 import '../widgets/podium.dart';
 import '../widgets/stat_tile.dart';
 import '../widgets/transaction_history.dart';
+import 'backup_screen.dart';
 import 'settings_screen.dart';
 
 /// The screen the fridge sits on all day: how today is going, and one large
@@ -90,6 +91,15 @@ class _StartScreenState extends State<StartScreen> with WidgetsBindingObserver {
       appBar: AppBar(
         title: Text(l10n.navStart),
         actions: [
+          // No PIN: taking a copy harms nothing.
+          IconButton(
+            icon: const Icon(Icons.backup_rounded),
+            tooltip: l10n.backups,
+            onPressed: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute(builder: (_) => const BackupScreen()),
+            ),
+          ),
           // Settings hang off the Start page only.
           IconButton(
             icon: const Icon(Icons.settings_rounded),

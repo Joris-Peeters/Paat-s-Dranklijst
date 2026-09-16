@@ -230,8 +230,11 @@ extension AppSettingsFormatting on AppSettingsData {
   /// For turning a preset written as "10" into an amount. Most currencies use
   /// 100, but JPY uses 1 and some Gulf-state dinars 1000, so the divisor is
   /// asked for rather than assumed here as everywhere else.
-  int get minorUnitsPerMajor =>
-      pow(10, _currencyFormat.decimalDigits ?? 2).toInt();
+  int get minorUnitsPerMajor => pow(10, currencyDecimalDigits).toInt();
+
+  /// How many digits the currency writes after the decimal mark: 2 for EUR,
+  /// 0 for JPY.
+  int get currencyDecimalDigits => _currencyFormat.decimalDigits ?? 2;
 
   /// Minor units from typed text, or null when it is not an amount.
   ///

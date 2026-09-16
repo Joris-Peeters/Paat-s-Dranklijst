@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/backups.dart';
+import '../data/balance_import.dart';
 import '../data/database_provider.dart';
+import '../data/database_reset.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
+import '../widgets/backup_actions.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/inactivity_guard.dart';
 import '../widgets/palette_picker.dart';
@@ -13,8 +17,10 @@ import '../widgets/pin_dialog.dart';
 import '../widgets/settings_fields.dart';
 import '../widgets/settings_text_field.dart';
 import 'debts_screen.dart';
+import 'import_balances_screen.dart';
 import 'item_categories_screen.dart';
 import 'pending_top_ups_screen.dart';
+import 'restore_backup_screen.dart';
 import 'user_groups_screen.dart';
 
 /// Opens the settings screen, asking for the admin PIN first when one is set.
@@ -66,6 +72,12 @@ class SettingsScreen extends StatelessWidget {
 
             _SectionHeader(title: l10n.sectionSettlingUp),
             _PayeeCard(settings: settings, write: write),
+
+            _SectionHeader(title: l10n.sectionBackup),
+            const _BackupCard(),
+
+            _SectionHeader(title: l10n.sectionReset),
+            const _ResetCard(),
 
             _SectionHeader(title: l10n.sectionAbout),
             const _AboutCard(),
@@ -780,6 +792,222 @@ class _PayeeCard extends StatelessWidget {
         PayeeNameField(settings: settings, write: write),
         PayeeIbanField(settings: settings, write: write),
       ],
+    );
+  }
+}
+
+/// One tappable row in the backup and reset cards.
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final error = Theme.of(context).colorScheme.error;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Icon(icon, size: 32, color: destructive ? error : null),
+      title: Text(title, style: destructive ? TextStyle(color: error) : null),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
+    );
+  }
+}
+
+class _BackupCard extends StatelessWidget {
+  const _BackupCard();
+
+  Future<void> _export(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final settings = AppSettings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final db = Database.of(context);
+
+    try {
+      final csv = await exportBalancesCsv(
+        db,
+        decimalDigits: settings.currencyDecimalDigits,
+      );
+      final file = await writeCsvExport(await backupDirectory(), csv);
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.exportSaved(fileName(file)))),
+      );
+    } on Object {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.exportFailed)));
+    }
+  }
+
+  void _open(BuildContext context, Widget screen) => unawaited(
+    Navigator.push<void>(context, MaterialPageRoute(builder: (_) => screen)),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return Card(
+      margin: _cardMargin,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: BackupFolderNote(),
+          ),
+          _ActionTile(
+            icon: Icons.save_rounded,
+            title: l10n.makeBackup,
+            subtitle: l10n.makeBackupSubtitle,
+            onTap: () => unawaited(saveBackup(context)),
+          ),
+          _ActionTile(
+            icon: Icons.settings_backup_restore_rounded,
+            title: l10n.restoreBackup,
+            subtitle: l10n.restoreBackupSubtitle,
+            onTap: () => _open(context, const RestoreBackupScreen()),
+          ),
+          _ActionTile(
+            icon: Icons.file_upload_outlined,
+            title: l10n.exportBalances,
+            subtitle: l10n.exportBalancesSubtitle,
+            onTap: () => unawaited(_export(context)),
+          ),
+          _ActionTile(
+            icon: Icons.file_download_outlined,
+            title: l10n.importBalances,
+            subtitle: l10n.importBalancesSubtitle,
+            onTap: () => _open(context, const ImportBalancesScreen()),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Wiping parts of the database. Every option saves a backup first, so a
+/// mistaken tap is one restore away.
+class _ResetCard extends StatelessWidget {
+  const _ResetCard();
+
+  Future<void> _reset(
+    BuildContext context,
+    ResetScope scope,
+    String title,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final settings = AppSettings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final db = Database.of(context);
+
+    final counts = await readResetCounts(db, scope);
+    if (!context.mounted) return;
+
+    final deleted = [
+      l10n.resetWillDelete,
+      for (final (count, label) in [
+        (counts.transactions, l10n.resetCountTransactions),
+        (counts.users, l10n.resetCountUsers),
+        (counts.userGroups, l10n.resetCountUserGroups),
+        (counts.items, l10n.resetCountItems),
+        (counts.itemGroups, l10n.resetCountItemCategories),
+      ])
+        if (count > 0) '• ${label(count)}',
+    ].join('\n');
+    final balances = [
+      if (counts.debtorCount > 0)
+        l10n.resetOpenDebts(
+          counts.debtorCount,
+          settings.formatMoney(-counts.owedMinorUnits),
+        ),
+      if (counts.creditorCount > 0)
+        l10n.resetOpenCredit(
+          counts.creditorCount,
+          settings.formatMoney(counts.heldMinorUnits),
+        ),
+    ].join('\n');
+
+    final confirmed = await confirmDestructive(
+      context,
+      title: title,
+      message: [
+        deleted,
+        if (balances.isNotEmpty) balances,
+        l10n.backupTakenFirst,
+      ].join('\n\n'),
+      confirmLabel: l10n.delete,
+    );
+    if (!confirmed || !context.mounted) return;
+
+    final backup = await saveBackup(context, suffix: 'before-reset');
+    if (backup == null) return;
+
+    await resetDatabase(db, scope);
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.resetDone(fileName(backup)))),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    _ActionTile tile(
+      ResetScope scope,
+      IconData icon,
+      String title,
+      String subtitle,
+    ) => _ActionTile(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      destructive: true,
+      onTap: () => unawaited(_reset(context, scope, title)),
+    );
+
+    return Card(
+      margin: _cardMargin,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          tile(
+            ResetScope.transactions,
+            Icons.receipt_long_rounded,
+            l10n.resetTransactions,
+            l10n.resetTransactionsSubtitle,
+          ),
+          tile(
+            ResetScope.users,
+            Icons.group_remove_rounded,
+            l10n.resetUsers,
+            l10n.resetUsersSubtitle,
+          ),
+          tile(
+            ResetScope.items,
+            Icons.remove_shopping_cart_rounded,
+            l10n.resetItems,
+            l10n.resetItemsSubtitle,
+          ),
+          tile(
+            ResetScope.everything,
+            Icons.delete_forever_rounded,
+            l10n.resetEverything,
+            l10n.resetEverythingSubtitle,
+          ),
+        ],
+      ),
     );
   }
 }

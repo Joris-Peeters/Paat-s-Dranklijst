@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
@@ -15,6 +17,16 @@ import 'views/user_balances_view.dart';
 
 part 'database.g.dart';
 
+/// The live database file, in application support rather than the documents
+/// directory drift_flutter defaults to. Restoring a backup replaces this file,
+/// so both read the path from here.
+Future<File> appDatabaseFile() async {
+  final directory = await getApplicationSupportDirectory();
+  return File('${directory.path}/paats_dranklijst.sqlite');
+}
+
+Future<String> _appDatabasePath() async => (await appDatabaseFile()).path;
+
 /// The app database. Adding a table later means a file in `tables/`, a DAO in
 /// `daos/`, and an entry in the lists below. Indexes are not listed: the
 /// `@TableIndex` annotations put them in the schema on their own.
@@ -29,9 +41,7 @@ class AppDatabase extends _$AppDatabase {
         executor ??
             driftDatabase(
               name: 'paats_dranklijst',
-              native: const DriftNativeOptions(
-                databaseDirectory: getApplicationSupportDirectory,
-              ),
+              native: const DriftNativeOptions(databasePath: _appDatabasePath),
             ),
       );
 

@@ -34,7 +34,8 @@ class TransactionEntry {
 ///
 /// This is the only place in the app that writes a transaction row, so the sign
 /// convention and the item snapshot freeze are decided in exactly one file. The
-/// only DELETE is [undoConsumption], which the five-second snackbar owns.
+/// only DELETEs are [undoConsumption], which the five-second snackbar owns, and
+/// [deleteAllTransactions] for a database reset.
 @DriftAccessor(tables: [Transactions, Items, Users])
 class TransactionsDao extends DatabaseAccessor<AppDatabase>
     with _$TransactionsDaoMixin {
@@ -134,14 +135,21 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
 
   /// Removes rows the five-second snackbar undo is still offering to take back.
   ///
-  /// The only DELETE anywhere in the app, and the only reversal that does not
-  /// take the admin PIN. It is safe precisely because it is unreachable by
+  /// The only DELETE of chosen rows, and the only reversal that does not take
+  /// the admin PIN. It is safe precisely because it is unreachable by
   /// anyone but the person still standing at the fridge, and a row that existed
   /// for five seconds has told nobody anything. Every later correction voids
   /// instead, which leaves the row in the record.
   Future<void> undoConsumption(List<int> transactionIds) async {
     if (transactionIds.isEmpty) return;
     await (delete(transactions)..where((t) => t.id.isIn(transactionIds))).go();
+  }
+
+  /// Empties the ledger. Only for a database reset, which the admin reaches
+  /// behind the PIN and which saves a backup first; nothing else may delete a
+  /// transaction but [undoConsumption].
+  Future<void> deleteAllTransactions() async {
+    await delete(transactions).go();
   }
 
   /// Positive: the user handed over money.

@@ -298,4 +298,11 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     final row = await (selectOnly(itemGroups)..addColumns([max])).getSingle();
     return (row.read(max) ?? -1) + 1;
   }
+
+  /// Removes every item and category. Only for a database reset, which has
+  /// already removed the transactions pointing at them.
+  Future<void> deleteAllItemsAndGroups() => transaction(() async {
+    await delete(items).go();
+    await delete(itemGroups).go();
+  });
 }

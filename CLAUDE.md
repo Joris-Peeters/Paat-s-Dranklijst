@@ -118,10 +118,11 @@ There is no login and anyone can tap anything, so which mechanism applies is dec
 
 **Within 5 seconds: the snackbar Undo hard-DELETEs the row.** Logging a consumption
 raises a snackbar with an **Undo** action, and taking it removes the row outright — no
-PIN, no trace, no strikethrough in history. This is the single deliberate exception to
+PIN, no trace, no strikethrough in history. This is one of two deliberate exceptions to
 append-only. It is safe precisely because it is unreachable by anyone but the person
 still standing at the fridge, and a row that existed for five seconds has told nobody
-anything. Nothing else in the app may DELETE a transaction.
+anything. The other is a **database reset** from admin settings, which saves a backup
+first. Nothing else in the app may DELETE a transaction.
 
 **After that: voiding, and it always takes the admin PIN.** There is no grace period —
 once the snackbar is gone, correcting a row is an admin action every time. `voidedAt`
@@ -324,6 +325,10 @@ crash whenever an archived member's history is rendered. Because archiving and d
 a group would then have identical preconditions, a soft delete on groups could never be
 meaningfully set — hence no column.
 
+A **database reset** is the one exception to all of this. Behind the PIN, it
+hard-deletes every transaction, and optionally every user or item with its groups. It
+reseeds nothing and always saves a `_before-reset` backup first (`data/database_reset.dart`).
+
 Being empty is the *only* precondition. The last group of a kind may be deleted, the
 seeded one included — the management screen has a `+` button. A default group of each
 kind is seeded in `onCreate` so a fresh install can add a member without visiting the
@@ -443,10 +448,10 @@ both to be genuinely per-group is wanted, not yet done.
   (`~/.local/share/xyz.jpsystems.paats_dranklijst/` on Linux):
   `paats_dranklijst.sqlite` and `shared_preferences.json`. Deleting the database alone
   no longer replays the first-run wizard — `setupCompletedAt` is a preference, so the
-  JSON file has to go too. The database path is set explicitly via
-  `DriftNativeOptions.databaseDirectory`, because drift_flutter's own default is the
-  *documents* directory, which on Linux is the user's real `~/Documents`.
-  `path_provider` is a direct dependency only because that override needs it.
+  JSON file has to go too. The database path is set explicitly through
+  `appDatabaseFile()`, because drift_flutter's own default is the *documents*
+  directory, which on Linux is the user's real `~/Documents`. Restore reads the same
+  function, so the two cannot disagree about which file is live.
 - **SQLite does not count a partial index's own WHERE columns as covered.** An index
   `ON t (a, b) WHERE type = 'x' AND voided_at IS NULL` still reads every matching row
   back from the table to re-check `type` and `voided_at`. Both
@@ -456,6 +461,18 @@ both to be genuinely per-group is wanted, not yet done.
 - **Drift's `.watch()` streams only see writes made through the same `AppDatabase`
   instance.** Editing the file with the `sqlite3` CLI while the app runs changes nothing
   on screen until a restart. This is a property of drift, not a bug to fix.
+- **Restoring a backup swaps the `AppDatabase` instance.** `Database` closes it, renames
+  the backup over the file, opens a new one and bumps a key on its child. Everything
+  below it is rebuilt, and the app lands on Start. Never hold an `AppDatabase` anywhere
+  but the tree: a copy kept elsewhere is a closed connection after a restore.
+- **`VACUUM INTO` and `ATTACH` refuse to run inside a transaction.** Backups use the
+  first and validating a backup uses the second, both through the live connection. That
+  is also why checking a file needs no `sqlite3` dependency.
+- **Backups are only reachable over USB because of platform config.** iOS needs
+  `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace` in Info.plist. Without
+  them the Documents folder never appears in Finder. Android uses the app-specific
+  external directory, which MTP shows without a permission. A freshly written file may
+  not appear there until the media scanner catches up.
 
 ## Layout
 
@@ -469,7 +486,11 @@ lib/
     app_settings.dart        # ambient InheritedWidget; sits above MaterialApp
   data/
     database.dart            # AppDatabase, schemaVersion, migrations, FK pragma
-    database_provider.dart   # Database InheritedWidget; owns the AppDatabase instance
+    database_provider.dart   # Database InheritedWidget; owns the AppDatabase, swaps it on restore
+    backups.dart             # backup folder, VACUUM INTO, validate, install a file
+    balance_csv.dart         # name,group,balance CSV read and write; pure
+    balance_import.dart      # export, and the import plan and merge
+    database_reset.dart      # the four reset scopes and what they would delete
     errors.dart, group_usage.dart, logical_day.dart
     stat_period.dart         # rolling windows, calendar weeks, percentChange; pure
     stat_buckets.dart        # zero-fills sparse per-day/month/hour rows for charts; pure
@@ -483,6 +504,8 @@ lib/
     settings_screen.dart     # admin settings; openSettings() is the PIN gate
     pending_top_ups_screen.dart  # admin checklist: confirm or void unchecked top-ups
     debts_screen.dart        # compact list of who owes, per group, made for a screenshot
+    backup_screen.dart       # PIN-free backup from the Start page
+    restore_backup_screen.dart, import_balances_screen.dart  # pick a file from the backup folder
     setup_wizard.dart        # first-run wizard
     start_screen.dart, users_screen.dart, leaderboard_screen.dart, stats_screen.dart  # the four tabs
     management_stub_screen.dart
@@ -497,6 +520,7 @@ lib/
     ranked_bar_list.dart     # hand-rolled ranking rows: avatar, name, bar, count
     count_bar_chart.dart, trend_line_chart.dart  # the fl_chart wrappers
     empty_state.dart, epc_qr_code.dart
+    backup_actions.dart      # saveBackup, the folder note, the shared file list
 build.yaml                   # drift codegen options (manager API off)
 ```
 
@@ -535,6 +559,20 @@ them built, so live queries there would re-run on every tap at the fridge. `AppS
 passes them `active` instead, and they load `Future`s each time they come on screen or a
 filter changes. The podium only shows on a body at least 760 px tall; on a phone it would
 crush the recent-transactions card.
+
+**Backups.** A backup is a `VACUUM INTO` copy of the database, written to a folder
+reachable over USB. It is made from a PIN-free screen off the Start page, or from
+settings. Restore, balance import and every reset save a backup of the current state
+first, suffixed `_before-restore`, `_before-import` or `_before-reset`. Files are picked
+from a list of that folder, not with a file picker.
+
+The balances CSV is `name,group,balance`. It is written with commas and a point decimal;
+semicolon files with a comma decimal are read too. **Import merges.** A user matches on
+name alone, trimmed and case-insensitive, and the group column never moves anyone. A
+known user's balance is corrected with one adjustment. A new name becomes a user with a
+random emoji and colour, and their group is created if needed. A duplicate name, in the
+file or among the active users it names, blocks the import. **Archived users take no
+part in import or export.**
 
 Several DAO methods, `EpcQrCode`, `logicalDayFromKey` and a few ARB keys are written
 ahead of the UI that will consume them — deliberate scaffolding, not dead code.

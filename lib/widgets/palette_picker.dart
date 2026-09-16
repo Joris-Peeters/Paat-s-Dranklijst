@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -27,6 +28,10 @@ const seedColorPalette = <Color>[
   Colors.deepPurple,
   Colors.purple,
 ];
+
+/// A colour for a new user, who is handed one rather than starting blank.
+Color randomPaletteColor([Random? random]) =>
+    seedColorPalette[(random ?? Random()).nextInt(seedColorPalette.length)];
 
 /// The small palette inline, plus an icon button opening [ColorPickerDialog].
 ///

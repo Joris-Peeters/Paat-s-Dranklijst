@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -62,7 +61,7 @@ class _UserEditDialogState extends State<UserEditDialog> {
   // before they can save. Both are visible in the preview and freely changed.
   late String _emoji = widget.user?.avatarEmoji ?? randomAvatarEmoji();
   late int _seedColorArgb =
-      widget.user?.seedColorArgb ?? _randomPaletteColor().toARGB32();
+      widget.user?.seedColorArgb ?? randomPaletteColor().toARGB32();
   late int? _groupId = widget.user?.groupId ?? widget.presetGroupId;
 
   /// Every other active user's name, lowercased.
@@ -91,9 +90,6 @@ class _UserEditDialogState extends State<UserEditDialog> {
       }),
     );
   }
-
-  static Color _randomPaletteColor() =>
-      seedColorPalette[Random().nextInt(seedColorPalette.length)];
 
   bool get _canSave =>
       _controller.text.trim().isNotEmpty && _groupId != null && !_nameIsTaken;

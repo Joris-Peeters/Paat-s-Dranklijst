@@ -41,3 +41,28 @@ class UserHasBalanceException implements Exception {
       'UserHasBalanceException: user $userId still has a balance of '
       '$balanceMinorUnits';
 }
+
+/// Why a file cannot be restored as the database.
+enum InvalidBackupReason {
+  /// Not an SQLite file at all.
+  notADatabase,
+
+  /// An SQLite file that fails its integrity check.
+  corrupt,
+
+  /// Written by a newer version of the app, whose schema this one cannot read.
+  newerVersion,
+
+  /// A healthy SQLite file, but not one this app wrote.
+  notThisApp,
+}
+
+/// A file offered for restore was refused before anything was overwritten.
+class InvalidBackupException implements Exception {
+  const InvalidBackupException(this.reason);
+
+  final InvalidBackupReason reason;
+
+  @override
+  String toString() => 'InvalidBackupException: ${reason.name}';
+}
