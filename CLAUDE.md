@@ -38,6 +38,7 @@ networked app. There is no server, no account system, no sync.
 | Database | `drift` + `drift_flutter` |
 | Settings | `shared_preferences` |
 | QR codes | `qr_flutter` |
+| Compression | `archive` — bzip2 for the balances QR code |
 | Emoji picker | `emoji_picker_flutter` |
 | i18n | `flutter_localizations` + `intl` + ARB / `gen-l10n` |
 | Charts | `fl_chart` — vertical bars and lines; ranked lists are plain widgets |
@@ -488,7 +489,7 @@ lib/
     database.dart            # AppDatabase, schemaVersion, migrations, FK pragma
     database_provider.dart   # Database InheritedWidget; owns the AppDatabase, swaps it on restore
     backups.dart             # backup folder, VACUUM INTO, validate, install a file
-    balance_csv.dart         # name,group,balance CSV read and write; pure
+    balance_csv.dart         # name,group,balance CSV read, write and bzip2; pure
     balance_import.dart      # export, and the import plan and merge
     database_reset.dart      # the four reset scopes and what they would delete
     errors.dart, group_usage.dart, logical_day.dart
@@ -521,6 +522,7 @@ lib/
     count_bar_chart.dart, trend_line_chart.dart  # the fl_chart wrappers
     empty_state.dart, epc_qr_code.dart
     backup_actions.dart      # saveBackup, the folder note, the shared file list
+    balances_qr_card.dart    # the balances CSV as a binary QR code, backup screen only
 build.yaml                   # drift codegen options (manager API off)
 ```
 
@@ -565,6 +567,13 @@ reachable over USB. It is made from a PIN-free screen off the Start page, or fro
 settings. Restore, balance import and every reset save a backup of the current state
 first, suffixed `_before-restore`, `_before-import` or `_before-reset`. Files are picked
 from a list of that folder, not with a file picker.
+
+The backup screen also shows the balances CSV as a **bzip2-compressed binary QR code**
+(error correction L), for a phone to scan. It is rebuilt each time the screen opens and
+never written to disk. When the compressed data is past QR capacity, a placeholder says
+so. `QrCode.fromUint8List` only finds out it is too long when the modules are laid out,
+so the card builds a `QrImage` itself to catch `InputTooLongException` before
+`QrImageView` would throw while painting.
 
 The balances CSV is `name,group,balance`. It is written with commas and a point decimal;
 semicolon files with a comma decimal are read too. **Import merges.** A user matches on

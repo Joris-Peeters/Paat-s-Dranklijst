@@ -1226,5 +1226,23 @@
     "placeholders": {
       "fileName": { "type": "String" }
     }
-  }
+  },
+
+  "balancesQr": "Balances QR code",
+  "@balancesQr": { "description": "Heading of the card on the backup screen showing the balances as a QR code" },
+
+  "balancesQrHelp": "Scan with a phone to keep a copy of every balance. The code holds the balances CSV (columns name, group and balance) as binary data, compressed with bzip2. Decompress it with bunzip2 to get the CSV back.",
+  "@balancesQrHelp": { "description": "Explanation under the balances QR code. The column names and bzip2/bunzip2 are literal" },
+
+  "balancesQrCaption": "{count, plural, =1{1 user} other{{count} users}} · {date}",
+  "@balancesQrCaption": {
+    "description": "Line under the balances QR code: how many users it holds and when it was made",
+    "placeholders": {
+      "count": { "type": "int" },
+      "date": { "type": "String" }
+    }
+  },
+
+  "balancesQrTooLarge": "There are too many users to fit in one QR code. Export the balances from settings instead.",
+  "@balancesQrTooLarge": { "description": "Shown in place of the balances QR code when the data does not fit" }
 }

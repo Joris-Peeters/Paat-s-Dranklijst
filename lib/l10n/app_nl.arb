@@ -324,5 +324,10 @@
   "resetCountItemCategories": "{count, plural, =1{1 categorie} other{{count} categorieën}}",
   "resetOpenDebts": "{count, plural, =1{1 gebruiker staat nog {total} in het rood.} other{{count} gebruikers staan samen nog {total} in het rood.}}",
   "resetOpenCredit": "{count, plural, =1{1 gebruiker heeft nog {total} tegoed.} other{{count} gebruikers hebben samen nog {total} tegoed.}}",
-  "resetDone": "Gewist. De vorige toestand werd bewaard als {fileName}"
+  "resetDone": "Gewist. De vorige toestand werd bewaard als {fileName}",
+
+  "balancesQr": "QR-code met saldo's",
+  "balancesQrHelp": "Scan met een gsm om een kopie van alle saldo's te bewaren. De code bevat de saldo-CSV (kolommen name, group en balance) als binaire gegevens, gecomprimeerd met bzip2. Pak ze uit met bunzip2 om de CSV terug te krijgen.",
+  "balancesQrCaption": "{count, plural, =1{1 gebruiker} other{{count} gebruikers}} · {date}",
+  "balancesQrTooLarge": "Er zijn te veel gebruikers voor één QR-code. Exporteer de saldo's via de instellingen."
 }

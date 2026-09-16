@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import '../data/backups.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/backup_actions.dart';
+import '../widgets/balances_qr_card.dart';
 import '../widgets/card_heading.dart';
 
 /// Making a backup from the Start page, with no PIN: a copy harms nothing, and
 /// whoever is at the fridge before the tablet goes home should be able to take
-/// one.
+/// one. The balances QR code lives only here.
 class BackupScreen extends StatefulWidget {
   const BackupScreen({super.key});
 
@@ -39,14 +40,13 @@ class _BackupScreenState extends State<BackupScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.backups)),
-      // A list of cards, so the balances QR code can join as another one.
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
+          const BalancesQrCard(),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Padding(
@@ -57,16 +57,8 @@ class _BackupScreenState extends State<BackupScreen> {
                 children: [
                   FilledButton.icon(
                     onPressed: _saving ? null : () => unawaited(_save()),
-                    icon: const Icon(Icons.save_rounded, size: 32),
-                    label: Text(
-                      l10n.makeBackup,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: _saving ? null : theme.colorScheme.onPrimary,
-                      ),
-                    ),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(96),
-                    ),
+                    icon: const Icon(Icons.save_rounded),
+                    label: Text(l10n.makeBackup),
                   ),
                   const BackupFolderNote(),
                 ],

@@ -2,7 +2,11 @@
 /// from. Pure: no files, no database.
 library;
 
+import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:archive/archive.dart';
 
 /// One user's line, as written.
 typedef BalanceCsvEntry = ({String name, String group, int balanceMinorUnits});
@@ -72,6 +76,11 @@ String encodeBalancesCsv(
   }
   return buffer.toString();
 }
+
+/// The CSV as UTF-8, bzip2-compressed, for the QR code's byte mode. No
+/// byte-order mark: the QR carries data, not a file for Excel.
+Uint8List compressBalancesCsv(String csv) =>
+    BZip2Encoder().encodeBytes(utf8.encode(csv));
 
 String _quote(String value) {
   final needsQuotes =

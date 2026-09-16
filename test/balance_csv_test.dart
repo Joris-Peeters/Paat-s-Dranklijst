@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/balance_csv.dart';
 
@@ -133,6 +136,24 @@ void main() {
         errorsOf('name,group,balance\n"Jonas,A,1\n'),
         contains(BalanceCsvErrorKind.unterminatedQuote),
       );
+    });
+  });
+
+  group('compress', () {
+    final csv = encodeBalancesCsv([
+      for (var i = 0; i < 60; i++)
+        (name: 'Ëlise $i', group: 'Leiding', balanceMinorUnits: -125 * i),
+    ], decimalDigits: 2);
+
+    test('decompresses back to the exact CSV', () {
+      final compressed = compressBalancesCsv(csv);
+      expect(utf8.decode(BZip2Decoder().decodeBytes(compressed)), csv);
+    });
+
+    test('is a bzip2 stream, smaller than the CSV', () {
+      final compressed = compressBalancesCsv(csv);
+      expect(ascii.decode(compressed.take(3).toList()), 'BZh');
+      expect(compressed.length, lessThan(utf8.encode(csv).length));
     });
   });
 }
