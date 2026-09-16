@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/widgets/balances_qr_card.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:paats_dranklijst/widgets/qr_matrix.dart';
 
 import 'support/harness.dart';
 
@@ -54,7 +54,7 @@ void main() {
     await pump(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.byType(QrImageView), findsOneWidget);
+    expect(find.byType(QrMatrix), findsOneWidget);
     expect(find.textContaining('3 users · '), findsOneWidget);
     expect(find.textContaining('bzip2'), findsOneWidget);
   });
@@ -73,7 +73,7 @@ void main() {
     await pump(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.byType(QrImageView), findsNothing);
+    expect(find.byType(QrMatrix), findsNothing);
     expect(find.textContaining('too many users'), findsOneWidget);
     expect(find.textContaining('600 users · '), findsOneWidget);
   });

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:qr/qr.dart';
 
 import '../utils/banking.dart';
+import 'qr_matrix.dart';
 
 /// A SEPA Credit Transfer QR code, ready for a banking app to scan.
 ///
@@ -28,23 +29,25 @@ class EpcQrCode extends StatelessWidget {
   final double size;
 
   /// Null when the details cannot make a payload the standard accepts.
-  QrCode? _buildQrCode() {
+  QrImage? _buildQrImage() {
     final name = beneficiaryName;
     final account = iban;
     if (name == null || account == null) return null;
 
     try {
-      return QrCode.fromUint8List(
-        data: buildEpcPayload(
-          beneficiaryName: name,
-          iban: account,
-          amountMinorUnits: amountMinorUnits,
-          unstructuredMessage: message,
+      return QrImage(
+        QrCode.fromUint8List(
+          data: buildEpcPayload(
+            beneficiaryName: name,
+            iban: account,
+            amountMinorUnits: amountMinorUnits,
+            unstructuredMessage: message,
+          ),
+          // EPC069-12 requires level M. Encoding the bytes rather than a string
+          // keeps the payload in one byte-mode segment, which is what a bank's
+          // scanner expects; a string would be split into mixed modes.
+          errorCorrectLevel: QrErrorCorrectLevel.M,
         ),
-        // EPC069-12 requires level M. Encoding the bytes rather than a string
-        // keeps the payload in one byte-mode segment, which is what a bank's
-        // scanner expects; a string would be split into mixed modes.
-        errorCorrectLevel: QrErrorCorrectLevel.M,
       );
     } on ArgumentError {
       // buildEpcPayload validates rather than truncates, and a kiosk must never
@@ -56,9 +59,9 @@ class EpcQrCode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final qr = _buildQrCode();
+    final image = _buildQrImage();
 
-    if (qr == null) {
+    if (image == null) {
       return SizedBox.square(
         dimension: size,
         child: Icon(
@@ -69,20 +72,6 @@ class EpcQrCode extends StatelessWidget {
       );
     }
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        // Deliberately not the colour scheme, unlike everything else:
-        // scanners expect dark modules on light, and dark mode would invert it.
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: QrImageView.withQr(
-        qr: qr,
-        size: size,
-        backgroundColor: Colors.white,
-        // The quiet zone the QR standard requires; not decorative.
-        padding: const EdgeInsets.all(16),
-      ),
-    );
+    return QrMatrix(image: image, size: size);
   }
 }

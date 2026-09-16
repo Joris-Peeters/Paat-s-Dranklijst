@@ -37,7 +37,7 @@ networked app. There is no server, no account system, no sync.
 | Navigation | `Navigator.push` / `Navigator.pop`. **No `go_router`** — a kiosk has no URLs and no deep links to route. |
 | Database | `drift` + `drift_flutter` |
 | Settings | `shared_preferences` |
-| QR codes | `qr_flutter` |
+| QR codes | `qr` for the matrix, drawn by `widgets/qr_matrix.dart` |
 | Compression | `archive` — bzip2 for the balances QR code |
 | Emoji picker | `emoji_picker_flutter` |
 | i18n | `flutter_localizations` + `intl` + ARB / `gen-l10n` |
@@ -521,6 +521,7 @@ lib/
     ranked_bar_list.dart     # hand-rolled ranking rows: avatar, name, bar, count
     count_bar_chart.dart, trend_line_chart.dart  # the fl_chart wrappers
     empty_state.dart, epc_qr_code.dart
+    qr_matrix.dart           # a QR code drawn as one un-anti-aliased path, no seams
     backup_actions.dart      # saveBackup, the folder note, the shared file list
     balances_qr_card.dart    # the balances CSV as a binary QR code, backup screen only
 build.yaml                   # drift codegen options (manager API off)
@@ -571,9 +572,8 @@ from a list of that folder, not with a file picker.
 The backup screen also shows the balances CSV as a **bzip2-compressed binary QR code**
 (error correction L), for a phone to scan. It is rebuilt each time the screen opens and
 never written to disk. When the compressed data is past QR capacity, a placeholder says
-so. `QrCode.fromUint8List` only finds out it is too long when the modules are laid out,
-so the card builds a `QrImage` itself to catch `InputTooLongException` before
-`QrImageView` would throw while painting.
+so. Past version 40, `QrCode.fromUint8List` only finds out the data is too long when
+the modules are laid out, so the card builds the `QrImage` itself inside the `try`.
 
 The balances CSV is `name,group,balance`. It is written with commas and a point decimal;
 semicolon files with a comma decimal are read too. **Import merges.** A user matches on

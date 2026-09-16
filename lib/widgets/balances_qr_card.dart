@@ -2,7 +2,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:qr/qr.dart';
 
 import '../data/balance_csv.dart';
 import '../data/balance_import.dart';
@@ -11,6 +11,7 @@ import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
 import 'card_heading.dart';
+import 'qr_matrix.dart';
 
 /// The balances CSV as a bzip2-compressed binary QR code, for a phone to keep.
 ///
@@ -23,8 +24,8 @@ class BalancesQrCard extends StatefulWidget {
   State<BalancesQrCard> createState() => _BalancesQrCardState();
 }
 
-/// [qr] is null when the compressed CSV is past what one QR code holds.
-typedef _BalancesQr = ({QrCode? qr, int userCount, DateTime at});
+/// [image] is null when the compressed CSV is past what one QR code holds.
+typedef _BalancesQr = ({QrImage? image, int userCount, DateTime at});
 
 class _BalancesQrCardState extends State<BalancesQrCard> {
   static const _maxSize = 480.0;
@@ -43,20 +44,24 @@ class _BalancesQrCardState extends State<BalancesQrCard> {
       db,
       decimalDigits: settings.currencyDecimalDigits,
     );
-    return (qr: _qrFor(compressBalancesCsv(csv)), userCount: userCount, at: at);
+    return (
+      image: _imageFor(compressBalancesCsv(csv)),
+      userCount: userCount,
+      at: at,
+    );
   }
 
   /// Level L leaves the most room, and a screen does not get scratched the way
-  /// print does. The size check only happens when the modules are laid out, so
-  /// that is done here rather than letting `QrImageView` fail while painting.
-  static QrCode? _qrFor(Uint8List bytes) {
+  /// print does. Past version 40 the overflow only shows once the modules are
+  /// laid out, which is why the image is built here and not just the code.
+  static QrImage? _imageFor(Uint8List bytes) {
     try {
-      final qr = QrCode.fromUint8List(
-        data: bytes,
-        errorCorrectLevel: QrErrorCorrectLevel.L,
+      return QrImage(
+        QrCode.fromUint8List(
+          data: bytes,
+          errorCorrectLevel: QrErrorCorrectLevel.L,
+        ),
       );
-      QrImage(qr);
-      return qr;
     } on InputTooLongException {
       return null;
     }
@@ -87,7 +92,7 @@ class _BalancesQrCardState extends State<BalancesQrCard> {
                   future: _data,
                   builder: (context, snapshot) {
                     final data = snapshot.data;
-                    final qr = data?.qr;
+                    final image = data?.image;
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -98,27 +103,13 @@ class _BalancesQrCardState extends State<BalancesQrCard> {
                             _Placeholder(size: size, message: l10n.exportFailed)
                           else if (data == null)
                             SizedBox.square(dimension: size)
-                          else if (qr == null)
+                          else if (image == null)
                             _Placeholder(
                               size: size,
                               message: l10n.balancesQrTooLarge,
                             )
                           else
-                            DecoratedBox(
-                              decoration: BoxDecoration(
-                                // Scanners expect dark modules on light, so
-                                // not the colour scheme.
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: QrImageView.withQr(
-                                qr: qr,
-                                size: size,
-                                backgroundColor: Colors.white,
-                                // The quiet zone the QR standard requires.
-                                padding: const EdgeInsets.all(16),
-                              ),
-                            ),
+                            QrMatrix(image: image, size: size),
                           if (data != null)
                             Text(
                               l10n.balancesQrCaption(
