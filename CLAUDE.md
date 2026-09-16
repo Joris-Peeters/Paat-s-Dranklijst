@@ -63,6 +63,23 @@ flutter build linux --release
 flutter build apk --release --split-per-abi
 ```
 
+## Releases
+
+`.github/workflows/release.yml` builds everything on a pushed `vX.Y.Z` tag and attaches
+it to a **draft** GitHub release, published by hand after checking: split APKs per ABI, a
+Linux `tar.gz` for x64, and an **unsigned** iOS `.ipa`. "Run workflow" on the
+Actions tab builds the same files as run artifacts, without a release.
+
+- The tag must equal pubspec's version name (`v0.2.0` ↔ `0.2.0`), or the run fails.
+  The build number is the workflow run number, not pubspec's `+N`. It only goes up, which
+  Android needs: it refuses to install a lower `versionCode` over a higher one.
+- Android release builds are signed from `android/key.properties`, which CI writes from
+  the `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
+  `ANDROID_KEY_PASSWORD` secrets. Locally, without that file, Gradle falls back to the
+  debug key.
+- **The keystore must be backed up offline.** An APK signed with a different key cannot
+  update the installed app, and uninstalling first wipes the database.
+
 ## Architectural rules
 
 These are deliberate and load-bearing. Do not work around them without asking.
@@ -525,6 +542,7 @@ lib/
     backup_actions.dart      # saveBackup, the folder note, the shared file list
     balances_qr_card.dart    # the balances CSV as a binary QR code, backup screen only
 build.yaml                   # drift codegen options (manager API off)
+.github/workflows/release.yml  # tag-triggered release builds for Android, Linux, iOS
 ```
 
 ## Current state
