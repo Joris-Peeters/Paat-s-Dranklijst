@@ -7,7 +7,7 @@ import 'qr_matrix.dart';
 /// A SEPA Credit Transfer QR code, ready for a banking app to scan.
 ///
 /// Renders a greyed-out placeholder of the same size whenever the details do
-/// not make a valid payload — most often because no IBAN has been set yet.
+/// not make a valid payload, such as an invalid IBAN.
 class EpcQrCode extends StatelessWidget {
   const EpcQrCode({
     super.key,
@@ -15,31 +15,26 @@ class EpcQrCode extends StatelessWidget {
     required this.iban,
     this.amountMinorUnits = 0,
     this.message,
-    this.size = 240,
   });
 
-  /// Both are nullable so the settings fields can be passed straight through.
-  final String? beneficiaryName;
-  final String? iban;
+  static const double _size = 240;
+
+  final String beneficiaryName;
+  final String iban;
 
   /// In cents. 0 leaves the amount for the payer to fill in.
   final int amountMinorUnits;
 
   final String? message;
-  final double size;
 
   /// Null when the details cannot make a payload the standard accepts.
   QrImage? _buildQrImage() {
-    final name = beneficiaryName;
-    final account = iban;
-    if (name == null || account == null) return null;
-
     try {
       return QrImage(
         QrCode.fromUint8List(
           data: buildEpcPayload(
-            beneficiaryName: name,
-            iban: account,
+            beneficiaryName: beneficiaryName,
+            iban: iban,
             amountMinorUnits: amountMinorUnits,
             unstructuredMessage: message,
           ),
@@ -63,15 +58,15 @@ class EpcQrCode extends StatelessWidget {
 
     if (image == null) {
       return SizedBox.square(
-        dimension: size,
+        dimension: _size,
         child: Icon(
           Icons.qr_code_2_rounded,
-          size: size / 2,
+          size: _size / 2,
           color: Theme.of(context).colorScheme.outline,
         ),
       );
     }
 
-    return QrMatrix(image: image, size: size);
+    return QrMatrix(image: image, size: _size);
   }
 }

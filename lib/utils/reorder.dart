@@ -1,4 +1,4 @@
-/// Applies one `ReorderableListView` drag to a list.
+/// Applies one reorderable-list drag to a list.
 ///
 /// Takes the indices from `onReorderItem`, which reports [newIndex] already
 /// adjusted for the item being lifted out — the older `onReorder` callback did

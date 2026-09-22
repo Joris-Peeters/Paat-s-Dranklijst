@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/data/database_reset.dart';
 
+import 'support/ledger.dart';
+
 void main() {
   late AppDatabase db;
 
@@ -42,11 +44,7 @@ void main() {
       db.items,
     )..where((i) => i.id.equals(itemId))).getSingle();
 
-    await db.transactionsDao.logConsumption(
-      userId: owing,
-      item: item,
-      quantity: 2,
-    );
+    await db.logConsumption(userId: owing, item: item, quantity: 2);
     final topUp = await db.transactionsDao.logTopUp(
       userId: owing,
       amountMinorUnits: 500,

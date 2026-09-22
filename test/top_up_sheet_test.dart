@@ -7,6 +7,7 @@ import 'package:paats_dranklijst/widgets/epc_qr_code.dart';
 import 'package:paats_dranklijst/widgets/top_up_sheet.dart';
 
 import 'support/harness.dart';
+import 'support/ledger.dart';
 
 const int seededGroup = 1;
 
@@ -27,7 +28,7 @@ void main() {
       avatarEmoji: '🦊',
       seedColorArgb: 0xFF009688,
     );
-    jonas = (await db.usersDao.readUser(id))!;
+    jonas = (await db.readUser(id))!;
   });
   tearDown(() => db.close());
 
@@ -44,14 +45,22 @@ void main() {
   );
 
   /// Opens the sheet the way a screen does, with or without bank details set.
-  Future<void> pump(WidgetTester tester, {bool withBankDetails = true}) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    bool withBankDetails = true,
+    String currencyCode = 'EUR',
+  }) async {
     await tester.pumpWidget(
       await settingsHarness(
         null,
         database: db,
-        preferences: withBankDetails
-            ? {'payeeName': "Paat's Dranklijst", 'payeeIban': _iban}
-            : const {},
+        preferences: {
+          'currencyCode': currencyCode,
+          if (withBankDetails) ...{
+            'payeeName': "Paat's Dranklijst",
+            'payeeIban': _iban,
+          },
+        },
         screen: Builder(
           builder: (context) => Scaffold(
             body: Center(
@@ -133,6 +142,23 @@ void main() {
     final written = await rows();
     expect(written.single.type, TransactionType.topUp);
     expect(written.single.amountMinorUnits, 1000);
+  });
+
+  testWidgetsWithDatabase('outside the euro there is no QR page', (
+    tester,
+  ) async {
+    // The EPC code can only carry euros, so bank details alone are not enough.
+    await pump(tester, currencyCode: 'USD');
+
+    expect(find.text('Continue'), findsNothing);
+    await tester.enterText(find.byType(TextField), '10');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Paid'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EpcQrCode), findsNothing);
+    expect((await rows()).single.amountMinorUnits, 1000);
   });
 
   testWidgetsWithDatabase('with bank details the QR page comes first', (

@@ -6,6 +6,8 @@ import 'package:paats_dranklijst/data/errors.dart';
 import 'package:paats_dranklijst/data/logical_day.dart';
 import 'package:paats_dranklijst/data/tables/transactions_table.dart';
 
+import 'support/ledger.dart';
+
 /// The seeded group every fixture hangs off. `onCreate` inserts exactly one of
 /// each kind, so this is always id 1.
 const int seededGroup = 1;
@@ -106,8 +108,8 @@ void main() {
       final cola = await addItem(price: 150);
 
       await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
-      await db.transactionsDao.logConsumption(userId: user, item: cola);
-      await db.transactionsDao.logConsumption(userId: user, item: cola);
+      await db.logConsumption(userId: user, item: cola);
+      await db.logConsumption(userId: user, item: cola);
 
       // 1000 - 150 - 150
       expect(await db.usersDao.readBalance(user), 700);
@@ -117,13 +119,9 @@ void main() {
       final user = await addUser();
       final cola = await addItem(price: 150);
 
-      final id = await db.transactionsDao.logConsumption(
-        userId: user,
-        item: cola,
-        quantity: 2,
-      );
+      final id = await db.logConsumption(userId: user, item: cola, quantity: 2);
 
-      final row = await db.transactionsDao.readTransaction(id);
+      final row = await db.readTransaction(id);
       expect(row!.amountMinorUnits, -300);
       expect(row.quantity, 2);
       expect(row.itemUnitPriceSnapshot, 150);
@@ -179,16 +177,13 @@ void main() {
     test('a voided row leaves the balance but stays in the history', () async {
       final user = await addUser();
       final cola = await addItem(price: 150);
-      final id = await db.transactionsDao.logConsumption(
-        userId: user,
-        item: cola,
-      );
+      final id = await db.logConsumption(userId: user, item: cola);
 
       expect(await db.usersDao.readBalance(user), -150);
       await db.transactionsDao.voidTransaction(id, note: 'mis-tap');
       expect(await db.usersDao.readBalance(user), 0);
 
-      final history = await db.transactionsDao.watchUserHistory(user).first;
+      final history = await db.userHistory(user);
       expect(history, hasLength(1));
       expect(history.single.voidedNote, 'mis-tap');
     });
@@ -196,16 +191,13 @@ void main() {
     test('voiding is one-way: a second call changes nothing', () async {
       final user = await addUser();
       final cola = await addItem();
-      final id = await db.transactionsDao.logConsumption(
-        userId: user,
-        item: cola,
-      );
+      final id = await db.logConsumption(userId: user, item: cola);
 
       await db.transactionsDao.voidTransaction(id, note: 'first');
-      final first = await db.transactionsDao.readTransaction(id);
+      final first = await db.readTransaction(id);
 
       await db.transactionsDao.voidTransaction(id, note: 'second');
-      final second = await db.transactionsDao.readTransaction(id);
+      final second = await db.readTransaction(id);
 
       expect(second!.voidedAt, first!.voidedAt);
       expect(second.voidedNote, 'first');
@@ -214,14 +206,11 @@ void main() {
     test('the ledger row itself is never rewritten', () async {
       final user = await addUser();
       final cola = await addItem(name: 'Cola', price: 150);
-      final id = await db.transactionsDao.logConsumption(
-        userId: user,
-        item: cola,
-      );
-      final before = await db.transactionsDao.readTransaction(id);
+      final id = await db.logConsumption(userId: user, item: cola);
+      final before = await db.readTransaction(id);
 
       await db.transactionsDao.voidTransaction(id);
-      final after = await db.transactionsDao.readTransaction(id);
+      final after = await db.readTransaction(id);
 
       expect(after!.amountMinorUnits, before!.amountMinorUnits);
       expect(after.itemNameSnapshot, before.itemNameSnapshot);
@@ -234,20 +223,17 @@ void main() {
     test('renaming and repricing an item does not rewrite history', () async {
       final user = await addUser();
       final cola = await addItem(name: 'Cola', price: 150);
-      final id = await db.transactionsDao.logConsumption(
-        userId: user,
-        item: cola,
+      final id = await db.logConsumption(userId: user, item: cola);
+
+      await db.itemsDao.updateItemDetails(
+        id: cola.id,
+        name: 'Coca-Cola',
+        emoji: cola.emoji,
+        priceMinorUnits: 200,
+        groupId: cola.groupId,
       );
 
-      await db.itemsDao.updateItem(
-        cola.id,
-        const ItemsCompanion(
-          name: Value('Coca-Cola'),
-          priceMinorUnits: Value(200),
-        ),
-      );
-
-      final row = await db.transactionsDao.readTransaction(id);
+      final row = await db.readTransaction(id);
       expect(row!.itemNameSnapshot, 'Cola');
       expect(row.itemUnitPriceSnapshot, 150);
       expect(row.amountMinorUnits, -150);
@@ -259,7 +245,7 @@ void main() {
     test('a user with a balance cannot be archived', () async {
       final user = await addUser();
       final cola = await addItem();
-      await db.transactionsDao.logConsumption(userId: user, item: cola);
+      await db.logConsumption(userId: user, item: cola);
 
       await expectLater(
         db.usersDao.archiveUser(user),
@@ -270,15 +256,12 @@ void main() {
     test('a settled user can be archived and restored', () async {
       final user = await addUser();
       final cola = await addItem(price: 150);
-      await db.transactionsDao.logConsumption(userId: user, item: cola);
+      await db.logConsumption(userId: user, item: cola);
       await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 150);
 
       await db.usersDao.archiveUser(user);
       expect(await db.usersDao.watchUsers().first, isEmpty);
-      expect(
-        await db.usersDao.watchUsers(includeArchived: true).first,
-        hasLength(1),
-      );
+      expect((await db.readUser(user))!.archivedAt, isNotNull);
 
       await db.usersDao.restoreUser(user);
       expect(await db.usersDao.watchUsers().first, hasLength(1));
@@ -290,11 +273,11 @@ void main() {
       final current = await addUser(name: 'WOUT');
 
       expect(await db.usersDao.restoreUser(old), isFalse);
-      expect((await db.usersDao.readUser(old))!.archivedAt, isNotNull);
+      expect((await db.readUser(old))!.archivedAt, isNotNull);
 
       await db.usersDao.archiveUser(current);
       expect(await db.usersDao.restoreUser(old), isTrue);
-      expect((await db.usersDao.readUser(old))!.archivedAt, isNull);
+      expect((await db.readUser(old))!.archivedAt, isNull);
     });
   });
 
@@ -374,7 +357,7 @@ void main() {
       final other = await db.usersDao.createUserGroup(name: 'Leiding');
       await addUser(name: 'X', groupId: other);
 
-      final inOther = await db.usersDao.watchUsersInGroup(other).first;
+      final inOther = await db.usersDao.readUsersInGroup(other);
       expect(inOther.single.sortOrder, 0);
     });
 
@@ -387,14 +370,12 @@ void main() {
 
       await db.usersDao.reorderUsers(groupId: other, idsInOrder: [y, x]);
 
+      expect((await db.usersDao.readUsersInGroup(other)).map((u) => u.name), [
+        'Y',
+        'X',
+      ]);
       expect(
-        (await db.usersDao.watchUsersInGroup(other).first).map((u) => u.name),
-        ['Y', 'X'],
-      );
-      expect(
-        (await db.usersDao.watchUsersInGroup(seededGroup).first).map(
-          (u) => u.name,
-        ),
+        (await db.usersDao.readUsersInGroup(seededGroup)).map((u) => u.name),
         ['A', 'B'],
       );
     });
@@ -412,12 +393,9 @@ void main() {
         idsInOrder: [x, b, a],
       );
 
-      final seeded = await db.usersDao.watchUsersInGroup(seededGroup).first;
+      final seeded = await db.usersDao.readUsersInGroup(seededGroup);
       expect(seeded.map((u) => u.name), ['B', 'A']);
-      expect(
-        (await db.usersDao.watchUsersInGroup(other).first).single.sortOrder,
-        0,
-      );
+      expect((await db.usersDao.readUsersInGroup(other)).single.sortOrder, 0);
     });
 
     test('a restored user lands last in their group', () async {
@@ -430,7 +408,7 @@ void main() {
       await db.usersDao.reorderUsers(groupId: seededGroup, idsInOrder: [c, b]);
       await db.usersDao.restoreUser(a);
 
-      final users = await db.usersDao.watchUsersInGroup(seededGroup).first;
+      final users = await db.usersDao.readUsersInGroup(seededGroup);
       expect(users.map((u) => u.name), ['C', 'B', 'A']);
     });
 
@@ -452,13 +430,13 @@ void main() {
       final cola = await addItem(name: 'Cola', price: 150);
       final chips = await addItem(name: 'Chips', price: 200);
 
-      final ids = await db.transactionsDao.logConsumptions(
+      final ids = await db.logConsumptions(
         userId: user,
         lines: [(item: cola, quantity: 3), (item: chips, quantity: 1)],
       );
 
       expect(ids, hasLength(2));
-      final rows = await db.transactionsDao.watchUserHistory(user).first;
+      final rows = await db.userHistory(user);
       // Sets, not lists: the rows share one timestamp, so history's
       // createdAt ordering has nothing to break the tie with.
       expect(rows.map((r) => r.itemNameSnapshot).toSet(), {'Cola', 'Chips'});
@@ -494,12 +472,12 @@ void main() {
       final cola = await addItem();
       final chips = await addItem(name: 'Chips');
 
-      await db.transactionsDao.logConsumptions(
+      await db.logConsumptions(
         userId: user,
         lines: [(item: cola, quantity: 1), (item: chips, quantity: 1)],
       );
 
-      final rows = await db.transactionsDao.watchUserHistory(user).first;
+      final rows = await db.userHistory(user);
       expect(rows.map((r) => r.logicalDate).toSet(), hasLength(1));
     });
 
@@ -508,7 +486,7 @@ void main() {
       final cola = await addItem();
       await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
 
-      final ids = await db.transactionsDao.logConsumptions(
+      final ids = await db.logConsumptions(
         userId: user,
         lines: [(item: cola, quantity: 2)],
       );
@@ -518,27 +496,18 @@ void main() {
 
       expect(await db.usersDao.readBalance(user), 1000);
       // Gone outright, not voided: the row leaves no trace.
-      expect(
-        await db.transactionsDao.watchUserHistory(user).first,
-        hasLength(1),
-      );
+      expect(await db.userHistory(user), hasLength(1));
     });
 
     test('undo leaves other rows alone', () async {
       final user = await addUser();
       final cola = await addItem();
-      final keep = await db.transactionsDao.logConsumption(
-        userId: user,
-        item: cola,
-      );
-      final drop = await db.transactionsDao.logConsumption(
-        userId: user,
-        item: cola,
-      );
+      final keep = await db.logConsumption(userId: user, item: cola);
+      final drop = await db.logConsumption(userId: user, item: cola);
 
       await db.transactionsDao.undoConsumption([drop]);
 
-      final rows = await db.transactionsDao.watchUserHistory(user).first;
+      final rows = await db.userHistory(user);
       expect(rows.single.id, keep);
     });
   });
@@ -591,12 +560,12 @@ void main() {
           groupId: other,
         );
 
-        final moved = await db.usersDao.watchUsersInGroup(other).first;
+        final moved = await db.usersDao.readUsersInGroup(other);
         expect(moved.map((u) => u.name), ['X', 'A']);
         expect(moved.map((u) => u.sortOrder), [0, 1]);
 
         // B and C were 1 and 2; the gap A left is closed.
-        final source = await db.usersDao.watchUsersInGroup(seededGroup).first;
+        final source = await db.usersDao.readUsersInGroup(seededGroup);
         expect(source.map((u) => u.name), ['B', 'C']);
         expect(source.map((u) => u.sortOrder), [0, 1]);
         expect([b, c], isNotEmpty);
@@ -615,7 +584,7 @@ void main() {
         groupId: seededGroup,
       );
 
-      final users = await db.usersDao.watchUsersInGroup(seededGroup).first;
+      final users = await db.usersDao.readUsersInGroup(seededGroup);
       expect(users.map((u) => u.name), ['A', 'Bea']);
       expect(users.last.sortOrder, 1);
       expect(users.last.avatarEmoji, '🐸');
@@ -744,12 +713,9 @@ void main() {
       () async {
         final user = await addUser();
         final cola = await addItem();
-        final id = await db.transactionsDao.logConsumption(
-          userId: user,
-          item: cola,
-        );
+        final id = await db.logConsumption(userId: user, item: cola);
 
-        final row = await db.transactionsDao.readTransaction(id);
+        final row = await db.readTransaction(id);
         expect(row!.logicalDate, logicalDayKey(row.createdAt));
       },
     );
@@ -810,11 +776,7 @@ void main() {
       final user = await addUser();
       final cola = await addItem(price: 150);
 
-      await db.transactionsDao.logConsumption(
-        userId: user,
-        item: cola,
-        quantity: 3,
-      );
+      await db.logConsumption(userId: user, item: cola, quantity: 3);
 
       // One row, three drinks out of the fridge. countAll() would say 1.
       final totals = await db.transactionsDao
@@ -854,7 +816,7 @@ void main() {
       expect(totals.turnoverMinorUnits, 0);
     });
 
-    test('watchTransactionsForDay returns the night, newest first', () async {
+    test('a day of history holds the night, newest first', () async {
       final user = await addUser();
       final cola = await addItem();
       final evening = DateTime(2026, 9, 7, 23);
@@ -869,9 +831,12 @@ void main() {
       );
 
       final rows = await db.transactionsDao
-          .watchTransactionsForDay(at: evening)
+          .watchHistory(from: evening, to: evening)
           .first;
-      expect(rows.map((t) => t.createdAt), [afterMidnight, evening]);
+      expect(rows.map((e) => e.transaction.createdAt), [
+        afterMidnight,
+        evening,
+      ]);
     });
   });
 
@@ -902,7 +867,7 @@ void main() {
     test('each row arrives with its user and its item joined on', () async {
       final user = await addUser();
       final cola = await addItem();
-      await db.transactionsDao.logConsumption(userId: user, item: cola);
+      await db.logConsumption(userId: user, item: cola);
 
       final entry = (await db.transactionsDao.watchHistory().first).single;
       expect(entry.user.name, 'Jonas');
@@ -921,8 +886,8 @@ void main() {
       final jonas = await addUser();
       final other = await addUser(name: 'Wout');
       final cola = await addItem();
-      await db.transactionsDao.logConsumption(userId: jonas, item: cola);
-      await db.transactionsDao.logConsumption(userId: other, item: cola);
+      await db.logConsumption(userId: jonas, item: cola);
+      await db.logConsumption(userId: other, item: cola);
 
       final entries = await db.transactionsDao
           .watchHistory(userId: jonas)
@@ -937,8 +902,8 @@ void main() {
         final snacks = await db.itemsDao.createItemGroup(name: 'Snacks');
         final cola = await addItem();
         final chips = await addItem(name: 'Chips', groupId: snacks);
-        await db.transactionsDao.logConsumption(userId: user, item: cola);
-        await db.transactionsDao.logConsumption(userId: user, item: chips);
+        await db.logConsumption(userId: user, item: cola);
+        await db.logConsumption(userId: user, item: chips);
         await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
 
         final entries = await db.transactionsDao
@@ -952,7 +917,7 @@ void main() {
     test('the type filter keeps only that type', () async {
       final user = await addUser();
       final cola = await addItem();
-      await db.transactionsDao.logConsumption(userId: user, item: cola);
+      await db.logConsumption(userId: user, item: cola);
       await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
 
       final entries = await db.transactionsDao
@@ -1040,10 +1005,7 @@ void main() {
     test('voided rows stay in the history', () async {
       final user = await addUser();
       final cola = await addItem();
-      final id = await db.transactionsDao.logConsumption(
-        userId: user,
-        item: cola,
-      );
+      final id = await db.logConsumption(userId: user, item: cola);
 
       await db.transactionsDao.voidTransaction(id, note: 'Wrong person');
 
@@ -1058,23 +1020,16 @@ void main() {
       final user = await addUser();
       final cola = await addItem();
       await db.transactionsDao.logTopUp(userId: user, amountMinorUnits: 1000);
-      final id = await db.transactionsDao.logConsumption(
-        userId: user,
-        item: cola,
-      );
+      final id = await db.logConsumption(userId: user, item: cola);
 
       await db.transactionsDao.voidTransaction(id, note: 'First');
-      final firstNote = (await db.transactionsDao.readTransaction(id))!
-          .voidedNote;
+      final firstNote = (await db.readTransaction(id))!.voidedNote;
       await db.transactionsDao.voidTransaction(id, note: 'Second');
 
       expect(await db.usersDao.readBalance(user), 1000);
       // One-way: the second call is guarded off and rewrites nothing.
       expect(firstNote, 'First');
-      expect(
-        (await db.transactionsDao.readTransaction(id))!.voidedNote,
-        'First',
-      );
+      expect((await db.readTransaction(id))!.voidedNote, 'First');
     });
   });
 
@@ -1098,7 +1053,7 @@ void main() {
           userId: wout,
           amountMinorUnits: 1000,
         );
-        await db.transactionsDao.logConsumption(userId: jonas, item: cola);
+        await db.logConsumption(userId: jonas, item: cola);
         await db.transactionsDao.logAdjustment(
           userId: jonas,
           amountMinorUnits: 500,
@@ -1135,10 +1090,7 @@ void main() {
       expect(await pendingIds(), isEmpty);
       expect(await pendingCount(), 0);
       expect(await db.usersDao.readBalance(user), 1000);
-      expect(
-        (await db.transactionsDao.readTransaction(id))!.confirmedAt,
-        isA<DateTime>(),
-      );
+      expect((await db.readTransaction(id))!.confirmedAt, isA<DateTime>());
     });
 
     test('confirming twice keeps the first stamp', () async {
@@ -1149,27 +1101,21 @@ void main() {
       );
 
       await db.transactionsDao.confirmTopUp(id);
-      final first = (await db.transactionsDao.readTransaction(id))!.confirmedAt;
+      final first = (await db.readTransaction(id))!.confirmedAt;
       await Future<void>.delayed(const Duration(milliseconds: 1100));
       await db.transactionsDao.confirmTopUp(id);
 
-      expect(
-        (await db.transactionsDao.readTransaction(id))!.confirmedAt,
-        first,
-      );
+      expect((await db.readTransaction(id))!.confirmedAt, first);
     });
 
     test('only a top-up can be confirmed', () async {
       final user = await addUser();
       final cola = await addItem();
-      final id = await db.transactionsDao.logConsumption(
-        userId: user,
-        item: cola,
-      );
+      final id = await db.logConsumption(userId: user, item: cola);
 
       await db.transactionsDao.confirmTopUp(id);
 
-      expect((await db.transactionsDao.readTransaction(id))!.confirmedAt, null);
+      expect((await db.readTransaction(id))!.confirmedAt, null);
     });
 
     test('undoing a confirmation makes it pending again', () async {

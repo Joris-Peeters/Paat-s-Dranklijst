@@ -94,7 +94,7 @@ class TransactionDetailDialog extends StatelessWidget {
             // The frozen name and price, not the item's current ones: what was
             // paid is the record, and renaming a drink must not rewrite it.
             if (transaction.itemNameSnapshot case final name?)
-              _Field(label: l10n.manageItems, child: Text(name)),
+              _Field(label: l10n.itemLabel, child: Text(name)),
             if (transaction.itemUnitPriceSnapshot case final price?)
               _Field(
                 label: l10n.unitPriceLabel,

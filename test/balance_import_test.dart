@@ -5,6 +5,8 @@ import 'package:paats_dranklijst/data/balance_import.dart';
 import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/data/tables/transactions_table.dart';
 
+import 'support/ledger.dart';
+
 /// The group `onCreate` seeds, named 'General'.
 const int seededGroup = 1;
 
@@ -89,7 +91,7 @@ void main() {
       await apply(result);
 
       expect(await db.usersDao.readBalance(id), 250);
-      final user = await db.usersDao.readUser(id);
+      final user = await db.readUser(id);
       expect(
         user!.groupId,
         seededGroup,
@@ -131,7 +133,7 @@ void main() {
       expect(result.newUsers.single.name, 'Jonas');
       await apply(result);
 
-      final archivedRow = await db.usersDao.readUser(archived);
+      final archivedRow = await db.readUser(archived);
       expect(archivedRow!.archivedAt, isNotNull);
       final active = await db.usersDao.readUsersWithBalances();
       expect(active.single.user.id, isNot(archived));

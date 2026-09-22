@@ -6,6 +6,7 @@ import 'package:paats_dranklijst/data/tables/transactions_table.dart';
 import 'package:paats_dranklijst/screens/consumption_screen.dart';
 
 import 'support/harness.dart';
+import 'support/ledger.dart';
 
 const int seededGroup = 1;
 
@@ -24,14 +25,14 @@ void main() {
       avatarEmoji: '🦊',
       seedColorArgb: 0xFF009688,
     );
-    jonas = (await db.usersDao.readUser(id))!;
+    jonas = (await db.readUser(id))!;
     final fienId = await db.usersDao.createUser(
       name: 'Fien',
       groupId: seededGroup,
       avatarEmoji: '🦉',
       seedColorArgb: 0xFF3F51B5,
     );
-    fien = (await db.usersDao.readUser(fienId))!;
+    fien = (await db.readUser(fienId))!;
   });
   tearDown(() => db.close());
 
@@ -43,7 +44,7 @@ void main() {
         emoji: '🥤',
       );
 
-  // A plain Future, not `watchUserHistory(...).first`: awaiting a stream inside
+  // A plain Future, not `watchHistory(...).first`: awaiting a stream inside
   // a testWidgets body deadlocks under fake async.
   Future<List<TransactionRow>> history() => (db.select(
     db.transactions,
@@ -112,7 +113,7 @@ void main() {
 
     expect(await db.usersDao.readBalance(jonas.id), 0);
     // Deleted, not voided: nothing is left in the record.
-    expect(await db.transactionsDao.readTransaction(1), isNull);
+    expect(await db.readTransaction(1), isNull);
   });
 
   testWidgetsWithDatabase('a long press starts an order instead of logging', (

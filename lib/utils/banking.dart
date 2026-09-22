@@ -44,6 +44,9 @@ String formatIban(String input) {
 /// and inventing one would date badly.
 bool isValidCurrencyCode(String input) => RegExp(r'^[A-Z]{3}$').hasMatch(input);
 
+/// The only currency an EPC QR code can carry.
+const epcCurrency = 'EUR';
+
 /// Longest name the EPC standard allows for the beneficiary.
 const epcMaxNameLength = 70;
 
@@ -119,7 +122,7 @@ Uint8List buildEpcPayload({
     // Integer arithmetic, never a double: the scheme is EUR-only and EUR has
     // exactly two decimals, so the divisor is fixed here (unlike formatMoney).
     if (amountMinorUnits > 0)
-      'EUR${amountMinorUnits ~/ 100}.'
+      '$epcCurrency${amountMinorUnits ~/ 100}.'
           '${(amountMinorUnits % 100).toString().padLeft(2, '0')}'
     else
       '',

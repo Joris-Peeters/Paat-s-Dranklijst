@@ -49,12 +49,10 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
   /// Every user, in group order then their place inside it. The join is what
   /// makes the order meaningful: `sortOrder` is only unique within a group, so
   /// several users legitimately share a 0.
-  Stream<List<UserRow>> watchUsers({bool includeArchived = false}) {
-    final query = select(users)
-        .join([innerJoin(userGroups, userGroups.id.equalsExp(users.groupId))]);
-    if (!includeArchived) {
-      query.where(users.archivedAt.isNull());
-    }
+  Stream<List<UserRow>> watchUsers() {
+    final query = select(users).join([
+      innerJoin(userGroups, userGroups.id.equalsExp(users.groupId)),
+    ])..where(users.archivedAt.isNull());
     query.orderBy([
       OrderingTerm(expression: userGroups.sortOrder),
       OrderingTerm(expression: users.sortOrder),
@@ -64,29 +62,14 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     );
   }
 
-  /// One group's users. Needs no join: inside a single group the user's own
-  /// [Users.sortOrder] is the whole order.
-  Stream<List<UserRow>> watchUsersInGroup(
-    int groupId, {
-    bool includeArchived = false,
-  }) => _usersInGroup(groupId, includeArchived: includeArchived).watch();
-
-  /// One group's active users in their current order, read once.
+  /// One group's active users in their current order, read once. Needs no
+  /// join: inside a single group the user's own [Users.sortOrder] is the whole
+  /// order.
   Future<List<UserRow>> readUsersInGroup(int groupId) =>
-      _usersInGroup(groupId, includeArchived: false).get();
-
-  SimpleSelectStatement<$UsersTable, UserRow> _usersInGroup(
-    int groupId, {
-    required bool includeArchived,
-  }) {
-    final query = select(users)
-      ..where((u) => u.groupId.equals(groupId))
-      ..orderBy([(u) => OrderingTerm(expression: u.sortOrder)]);
-    if (!includeArchived) {
-      query.where((u) => u.archivedAt.isNull());
-    }
-    return query;
-  }
+      (select(users)
+            ..where((u) => u.groupId.equals(groupId) & u.archivedAt.isNull())
+            ..orderBy([(u) => OrderingTerm(expression: u.sortOrder)]))
+          .get();
 
   /// Groups with their user counts, in one query rather than a count per row.
   ///
@@ -234,13 +217,6 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
       ),
     );
   });
-
-  Future<void> updateUser(int id, UsersCompanion changes) async {
-    await (update(users)..where((u) => u.id.equals(id))).write(changes);
-  }
-
-  Future<UserRow?> readUser(int id) =>
-      (select(users)..where((u) => u.id.equals(id))).getSingleOrNull();
 
   /// One user, for a page that outlives an edit to them.
   ///

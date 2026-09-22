@@ -6,6 +6,7 @@ import 'package:paats_dranklijst/widgets/user_avatar.dart';
 import 'package:paats_dranklijst/widgets/user_edit_dialog.dart';
 
 import 'support/harness.dart';
+import 'support/ledger.dart';
 
 const int seededGroup = 1;
 
@@ -43,7 +44,7 @@ void main() {
       avatarEmoji: '🦊',
       seedColorArgb: 0xFFE91E63,
     );
-    return (await db.usersDao.readUser(id))!;
+    return (await db.readUser(id))!;
   }
 
   bool saveEnabled(WidgetTester tester) =>
@@ -119,7 +120,7 @@ void main() {
       avatarEmoji: '🦊',
       seedColorArgb: 0xFFE91E63,
     );
-    final user = await db.usersDao.readUser(id);
+    final user = await db.readUser(id);
     await pump(tester, user: user);
 
     expect(find.text('Jonas'), findsOneWidget);

@@ -34,7 +34,7 @@ class TransactionEntry {
 ///
 /// This is the only place in the app that writes a transaction row, so the sign
 /// convention and the item snapshot freeze are decided in exactly one file. The
-/// only DELETEs are [undoConsumption], which the five-second snackbar owns, and
+/// only DELETEs are [undoConsumption], which the undo snackbar owns, and
 /// [deleteAllTransactions] for a database reset.
 @DriftAccessor(tables: [Transactions, Items, Users])
 class TransactionsDao extends DatabaseAccessor<AppDatabase>
@@ -50,8 +50,9 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     return (createdAt: Value(now), logicalDate: logicalDayKey(now));
   }
 
-  /// One consumption line. Shared by the single tap and the multi-item order so
-  /// the sign convention and the snapshot freeze are written once.
+  /// One consumption line: the sign convention and the snapshot freeze. Takes
+  /// the whole [item] so the price that gets frozen is the one that was
+  /// tapped, not one re-read afterwards.
   TransactionsCompanion _consumption({
     required int userId,
     required ItemRow item,
@@ -71,39 +72,13 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     logicalDate: stamp.logicalDate,
   );
 
-  /// Takes the whole [item] rather than an id so the price that gets frozen is
-  /// the one the user actually tapped, not one re-read afterwards.
-  Future<int> logConsumption({
-    required int userId,
-    required ItemRow item,
-    int quantity = 1,
-  }) {
-    assert(quantity > 0, 'quantity must be positive');
-    return into(transactions).insert(
-      _consumption(
-        userId: userId,
-        item: item,
-        quantity: quantity,
-        stamp: _stamp(),
-      ),
-    );
-  }
-
-  /// One order of several different items, as a row each.
+  /// One order, as a row per item, for each of [userIds] — one user, or one
+  /// person fetching a round. Every drinker gets their own rows, so nothing
+  /// downstream knows it was a round.
   ///
   /// All in one transaction and all sharing a single clock read: the rows are
   /// one trip to the fridge, so they must not straddle the 07:00 boundary,
   /// appear in the balance one at a time, or half-survive a failure.
-  Future<List<int>> logConsumptions({
-    required int userId,
-    required List<({ItemRow item, int quantity})> lines,
-  }) => logConsumptionsForUsers(userIds: [userId], lines: lines);
-
-  /// The same order for each of [userIds]: one person fetching a round.
-  ///
-  /// Every drinker gets their own rows, so nothing downstream knows it was a
-  /// round. One transaction and one clock read, for the same reasons as a
-  /// single person's order.
   Future<List<int>> logConsumptionsForUsers({
     required List<int> userIds,
     required List<({ItemRow item, int quantity})> lines,
@@ -133,13 +108,12 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  /// Removes rows the five-second snackbar undo is still offering to take back.
+  /// Removes rows the undo snackbar is still offering to take back.
   ///
-  /// The only DELETE of chosen rows, and the only reversal that does not take
-  /// the admin PIN. It is safe precisely because it is unreachable by
-  /// anyone but the person still standing at the fridge, and a row that existed
-  /// for five seconds has told nobody anything. Every later correction voids
-  /// instead, which leaves the row in the record.
+  /// The only DELETE of chosen rows. It is safe precisely because it is
+  /// unreachable by anyone but the person still standing at the fridge, and a
+  /// row that existed for a few seconds has told nobody anything. Every later
+  /// correction voids instead, which leaves the row in the record.
   Future<void> undoConsumption(List<int> transactionIds) async {
     if (transactionIds.isEmpty) return;
     await (delete(transactions)..where((t) => t.id.isIn(transactionIds))).go();
@@ -268,19 +242,6 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     return query.watchSingle().map((row) => row.read(count) ?? 0);
   }
 
-  /// Newest first. Voided rows are included — they stay in the record, struck
-  /// through; they are only hidden from balances.
-  Stream<List<TransactionRow>> watchRecentTransactions({int limit = 50}) =>
-      (select(transactions)
-            ..orderBy([
-              (t) => OrderingTerm(
-                expression: t.createdAt,
-                mode: OrderingMode.desc,
-              ),
-            ])
-            ..limit(limit))
-          .watch();
-
   /// Newest first, with every filter the history screen offers.
   ///
   /// Voided rows are always included — they stay in the record, struck through,
@@ -349,17 +310,6 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  Stream<List<TransactionRow>> watchUserHistory(int userId) =>
-      (select(transactions)
-            ..where((t) => t.userId.equals(userId))
-            ..orderBy([
-              (t) => OrderingTerm(
-                expression: t.createdAt,
-                mode: OrderingMode.desc,
-              ),
-            ]))
-          .watch();
-
   /// What left the fridge on the logical day containing [at]: how many items,
   /// and what they came to. Optionally for one user.
   ///
@@ -402,22 +352,4 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
       ),
     );
   }
-
-  /// Everything on that logical day, newest first. Voided rows are included —
-  /// they stay in the record, struck through.
-  Stream<List<TransactionRow>> watchTransactionsForDay({
-    required DateTime at,
-  }) =>
-      (select(transactions)
-            ..where((t) => t.logicalDate.equals(logicalDayKey(at)))
-            ..orderBy([
-              (t) => OrderingTerm(
-                expression: t.createdAt,
-                mode: OrderingMode.desc,
-              ),
-            ]))
-          .watch();
-
-  Future<TransactionRow?> readTransaction(int id) =>
-      (select(transactions)..where((t) => t.id.equals(id))).getSingleOrNull();
 }

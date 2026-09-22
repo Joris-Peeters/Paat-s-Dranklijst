@@ -5,6 +5,7 @@ import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/screens/history_screen.dart';
 
 import 'support/harness.dart';
+import 'support/ledger.dart';
 
 const int seededGroup = 1;
 
@@ -23,7 +24,7 @@ void main() {
       avatarEmoji: '🦊',
       seedColorArgb: 0xFF009688,
     );
-    jonas = (await db.usersDao.readUser(userId))!;
+    jonas = (await db.readUser(userId))!;
     final itemId = await db.itemsDao.createItem(
       name: 'Cola',
       groupId: seededGroup,
@@ -50,7 +51,7 @@ void main() {
   testWidgetsWithDatabase('the screen opens and lists the ledger', (
     tester,
   ) async {
-    await db.transactionsDao.logConsumption(userId: jonas.id, item: cola);
+    await db.logConsumption(userId: jonas.id, item: cola);
     await pump(tester);
 
     // Regression: the subscription used to open in initState, where
@@ -69,7 +70,7 @@ void main() {
   testWidgetsWithDatabase('initialUser pre-applies the user filter', (
     tester,
   ) async {
-    await db.transactionsDao.logConsumption(userId: jonas.id, item: cola);
+    await db.logConsumption(userId: jonas.id, item: cola);
     await pump(tester, initialUser: jonas);
 
     // Filtered to one user, so rows drop the name and lead with the item.

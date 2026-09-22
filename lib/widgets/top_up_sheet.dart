@@ -60,9 +60,11 @@ class _TopUpSheetState extends State<TopUpSheet> {
   }
 
   /// Both are needed to build a payment code, and neither has a sensible
-  /// default. Without them this is the cash case: no QR page at all, rather
-  /// than a page whose only content is a grey placeholder.
+  /// default. Without them, or in any currency but the euro the code carries,
+  /// this is the cash case: no QR page at all, rather than a page whose only
+  /// content is a grey placeholder.
   ({String name, String iban})? _payee(AppSettingsData settings) {
+    if (settings.currencyCode != epcCurrency) return null;
     final name = settings.payeeName?.trim();
     final iban = settings.payeeIban?.trim();
     if (name == null || name.isEmpty || iban == null || iban.isEmpty) {

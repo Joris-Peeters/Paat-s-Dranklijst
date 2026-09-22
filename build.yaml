@@ -1,5 +1,5 @@
 # Drift's manager API is generated for every table by default and we never use
-# it — Drift's `.watch()` streams plus the DAOs are the query surface (rule 3).
+# it — Drift's `.watch()` streams plus the DAOs are the query surface.
 # Leaving it on roughly triples the committed database.g.dart.
 targets:
   $default:

@@ -5,6 +5,7 @@ import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/screens/start_screen.dart';
 
 import 'support/harness.dart';
+import 'support/ledger.dart';
 
 const int seededGroup = 1;
 
@@ -62,11 +63,7 @@ void main() {
   testWidgetsWithDatabase('an order counts its items and their total', (
     tester,
   ) async {
-    await db.transactionsDao.logConsumption(
-      userId: jonas,
-      item: cola,
-      quantity: 3,
-    );
+    await db.logConsumption(userId: jonas, item: cola, quantity: 3);
     await pump(tester);
 
     // One row, three drinks: the figure is SUM(quantity), not a row count.
@@ -78,11 +75,7 @@ void main() {
   testWidgetsWithDatabase('a voided row counts towards neither figure', (
     tester,
   ) async {
-    final id = await db.transactionsDao.logConsumption(
-      userId: jonas,
-      item: cola,
-      quantity: 2,
-    );
+    final id = await db.logConsumption(userId: jonas, item: cola, quantity: 2);
     await db.transactionsDao.voidTransaction(id, note: 'Wrong person');
     await pump(tester);
 

@@ -2,6 +2,7 @@
   "@@locale": "en",
 
   "languageName": "English",
+  "@languageName": { "description": "This language's own name for itself, shown in the language picker" },
 
   "appTitle": "Paat's Dranklijst",
   "@appTitle": {
@@ -10,7 +11,7 @@
 
   "chooseYourName": "Choose your name",
   "@chooseYourName": {
-    "description": "Prompt on the home screen where a user taps their own name"
+    "description": "Button on the Start page that opens the user list"
   },
 
   "balance": "Balance",
@@ -184,9 +185,6 @@
   "filterItem": "Item",
   "@filterItem": { "description": "Label of the leaderboard dropdown that counts one item only" },
 
-  "noUsersYet": "No users yet",
-  "@noUsersYet": { "description": "Empty state on the user list" },
-
   "addUser": "Add user",
   "@addUser": { "description": "Tooltip on the button that adds a new user" },
 
@@ -197,7 +195,7 @@
   "@sectionAppearance": { "description": "Settings section heading for the theme colour and light/dark options" },
 
   "sectionAdmin": "Admin",
-  "@sectionAdmin": { "description": "Settings section heading for the PIN, language, currency and self-registration options" },
+  "@sectionAdmin": { "description": "Settings section heading for the PIN, language, currency and idle-return options" },
 
   "sectionSettlingUp": "Payment details",
   "@sectionSettlingUp": { "description": "Settings section heading for the bank details behind the payment QR code" },
@@ -211,11 +209,8 @@
   "aboutLicensesHelp": "The licenses of the software and fonts this app is built on.",
   "@aboutLicensesHelp": { "description": "Note above the open source licenses button" },
 
-  "manageUsers": "Users",
-  "@manageUsers": { "description": "Title of the screen listing one group's users" },
-
-  "manageItems": "Items",
-  "@manageItems": { "description": "Title of the screen listing one category's items" },
+  "itemLabel": "Item",
+  "@itemLabel": { "description": "Field label for the item's name in the transaction detail dialog" },
 
   "userGroups": "User groups",
   "@userGroups": { "description": "Management card and screen title for the user groups" },
@@ -587,7 +582,7 @@
   "payeeIban": "IBAN",
   "@payeeIban": { "description": "Setting for the bank account number money is transferred to" },
 
-  "payeeHelp": "These details are used for the settle-up QR code.",
+  "payeeHelp": "These details are used for the settle-up QR code, which is only offered when the currency is EUR.",
   "@payeeHelp": { "description": "Note above the payee fields, explaining what both of them are for" },
 
   "ibanInvalid": "That IBAN is not valid",
@@ -706,9 +701,6 @@
 
   "setupPayeeBody": "Bank details for the payment QR code. Without them, no QR code is shown.",
   "@setupPayeeBody": { "description": "Explanation on the wizard's payment details step" },
-
-  "setupSkip": "Skip",
-  "@setupSkip": { "description": "Leaves the wizard, keeping the defaults" },
 
   "setupBack": "Back",
   "@setupBack": { "description": "Returns to the previous wizard step" },

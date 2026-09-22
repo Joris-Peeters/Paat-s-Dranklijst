@@ -113,8 +113,8 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
 
   int get _basketCount => _basket.values.fold(0, (sum, n) => sum + n);
 
-  /// Both flows end the same way: write, leave, and offer the row back for five
-  /// seconds. The messenger and navigator are taken *before* the await — after
+  /// Both flows end the same way: write, leave, and offer the rows back while
+  /// the snackbar is up. The messenger and navigator are taken *before* the await — after
   /// it this context is on its way out and neither lookup is safe.
   Future<void> _commit(
     Future<List<int>> Function() write,

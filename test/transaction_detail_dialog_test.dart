@@ -6,6 +6,7 @@ import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/widgets/transaction_detail_dialog.dart';
 
 import 'support/harness.dart';
+import 'support/ledger.dart';
 
 const int seededGroup = 1;
 
@@ -24,7 +25,7 @@ void main() {
       avatarEmoji: '🦊',
       seedColorArgb: 0xFF009688,
     );
-    jonas = (await db.usersDao.readUser(userId))!;
+    jonas = (await db.readUser(userId))!;
     final itemId = await db.itemsDao.createItem(
       name: 'Cola',
       groupId: seededGroup,
@@ -38,12 +39,12 @@ void main() {
   tearDown(() => db.close());
 
   Future<TransactionRow> logDrink() async {
-    final id = await db.transactionsDao.logConsumption(
+    final id = await db.logConsumption(
       userId: jonas.id,
       item: cola,
       quantity: 2,
     );
-    return (await db.transactionsDao.readTransaction(id))!;
+    return (await db.readTransaction(id))!;
   }
 
   /// Opened over a real Scaffold, the way a history row opens it: the undo
@@ -133,10 +134,7 @@ void main() {
     // Dismissing the gate leaves the row entirely alone.
     await tester.tapAt(const Offset(10, 10));
     await tester.pumpAndSettle();
-    expect(
-      (await db.transactionsDao.readTransaction(transaction.id))!.voidedAt,
-      null,
-    );
+    expect((await db.readTransaction(transaction.id))!.voidedAt, null);
 
     await tester.tap(find.text('Undo'));
     await tester.pumpAndSettle();
@@ -157,7 +155,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Undo'));
     await tester.pumpAndSettle();
 
-    final voided = (await db.transactionsDao.readTransaction(transaction.id))!;
+    final voided = (await db.readTransaction(transaction.id))!;
     expect(voided.voidedAt, isA<DateTime>());
     expect(voided.voidedNote, null);
     // Out of the balance, still in the record.
@@ -175,7 +173,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      (await db.transactionsDao.readTransaction(transaction.id))!.voidedNote,
+      (await db.readTransaction(transaction.id))!.voidedNote,
       'Wrong person',
     );
   });
@@ -186,10 +184,7 @@ void main() {
     final transaction = await logDrink();
     await db.transactionsDao.voidTransaction(transaction.id, note: 'Mistake');
 
-    await pump(
-      tester,
-      (await db.transactionsDao.readTransaction(transaction.id))!,
-    );
+    await pump(tester, (await db.readTransaction(transaction.id))!);
 
     // One-way: the details replace the action rather than sitting beside it.
     expect(find.text('Undo'), findsNothing);

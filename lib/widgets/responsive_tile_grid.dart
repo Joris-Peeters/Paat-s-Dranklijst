@@ -13,7 +13,6 @@ class ResponsiveTileGrid extends StatelessWidget {
     required this.children,
     this.spacing = 12,
     this.padding = const EdgeInsets.all(16),
-    this.tileAspectRatio = 1,
     this.tileHeight,
     this.shrinkWrap = false,
   });
@@ -25,12 +24,9 @@ class ResponsiveTileGrid extends StatelessWidget {
   final double spacing;
   final EdgeInsets padding;
 
-  /// Width over height of one tile. Ignored when [tileHeight] is given.
-  final double tileAspectRatio;
-
-  /// A fixed height, for a tile whose content does not grow with its width —
-  /// a row of avatar, name and amount stays the same height however wide the
-  /// window gets, which a ratio cannot express.
+  /// A fixed height instead of square tiles, for a tile whose content does not
+  /// grow with its width — a row of avatar, name and amount stays the same
+  /// height however wide the window gets.
   final double? tileHeight;
 
   /// Sizes to its content and stops scrolling, for a grid that is one section
@@ -64,9 +60,7 @@ class ResponsiveTileGrid extends StatelessWidget {
           crossAxisCount: columns,
           crossAxisSpacing: spacing,
           mainAxisSpacing: spacing,
-          childAspectRatio: tileAspectRatio,
-          // Takes precedence over the ratio when set, which is why the two are
-          // documented as exclusive rather than combined.
+          // Null leaves the tiles square.
           mainAxisExtent: tileHeight,
         ),
         itemCount: children.length,

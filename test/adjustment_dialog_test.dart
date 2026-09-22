@@ -6,6 +6,7 @@ import 'package:paats_dranklijst/data/tables/transactions_table.dart';
 import 'package:paats_dranklijst/widgets/adjustment_dialog.dart';
 
 import 'support/harness.dart';
+import 'support/ledger.dart';
 
 const int seededGroup = 1;
 
@@ -23,7 +24,7 @@ void main() {
       avatarEmoji: '🦊',
       seedColorArgb: 0xFF009688,
     );
-    jonas = (await db.usersDao.readUser(id))!;
+    jonas = (await db.readUser(id))!;
   });
   tearDown(() => db.close());
 

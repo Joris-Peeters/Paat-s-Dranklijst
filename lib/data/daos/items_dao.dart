@@ -139,10 +139,6 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     );
   });
 
-  Future<void> updateItem(int id, ItemsCompanion changes) async {
-    await (update(items)..where((i) => i.id.equals(id))).write(changes);
-  }
-
   /// Everything the edit dialog can change, in one transaction. Mirrors
   /// [UsersDao.updateUserDetails], minus the balance guard.
   Future<void> updateItemDetails({

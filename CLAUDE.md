@@ -18,7 +18,9 @@ networked app. There is no server, no account system, no sync.
 - Runs on cheap second-hand Android tablets in kiosk mode (Android lock task mode),
   second-hand iPads (Supervised + Autonomous Single App Mode), or Linux
   (Surface with linux-surface kernel, mini PC, old laptop).
-- Expected to run **untouched for years**. Auto-restart on crash/reboot.
+- Expected to run **untouched for years**. Auto-restart on crash/reboot, keeping the
+  screen awake and locking the orientation all come from device or OS configuration:
+  the app has no boot receiver, no wakelock and no orientation lock.
 - Users are adults — leaders, ex-leaders and friends of the Chiro group — tapping
   with cold, wet fingers on a fridge door. Touch targets must be generous. UI must
   be obvious without instruction.
@@ -37,6 +39,7 @@ networked app. There is no server, no account system, no sync.
 | Navigation | `Navigator.push` / `Navigator.pop`. **No `go_router`** — a kiosk has no URLs and no deep links to route. |
 | Database | `drift` + `drift_flutter` |
 | Settings | `shared_preferences` |
+| Files | `path_provider` — the database and backup folders |
 | QR codes | `qr` for the matrix, drawn by `widgets/qr_matrix.dart` |
 | Compression | `archive` — bzip2 for the balances QR code |
 | Emoji picker | `emoji_picker_flutter` |
@@ -66,9 +69,11 @@ flutter build apk --release --split-per-abi
 ## Releases
 
 `.github/workflows/release.yml` builds everything on a pushed `vX.Y.Z` tag and attaches
-it to a **draft** GitHub release, published by hand after checking: split APKs per ABI, a
-Linux `tar.gz` for x64, and an **unsigned** iOS `.ipa`. "Run workflow" on the
-Actions tab builds the same files as run artifacts, without a release.
+it to a **draft** GitHub release, published by hand after checking: split APKs per ABI
+(`arm64-v8a`, `armeabi-v7a`, `x86_64`), a Linux `tar.gz` for x64, and an **unsigned** iOS
+`.ipa`, installed with TrollStore. "Run workflow" on the Actions tab builds the same files
+as run artifacts, without a release. A `check` job runs `gen-l10n`, `analyze` and `test`
+first, on the Flutter version pinned in the workflow (3.47.1).
 
 - The tag must equal pubspec's version name (`v0.2.0` ↔ `0.2.0`), or the run fails.
   The build number is the workflow run number, not pubspec's `+N`. It only goes up, which
@@ -87,8 +92,8 @@ These are deliberate and load-bearing. Do not work around them without asking.
 ### 1. The transaction log is an append-only ledger
 
 Every consumption, top-up and adjustment is a permanent row. **Never rewrite a
-transaction**, and never DELETE one except through the five-second snackbar undo
-described below. The only permitted updates are the one-way void and confirming a
+transaction**, and never DELETE one except through the snackbar undo described
+below. The only permitted updates are the one-way void and confirming a
 top-up, both also below.
 
 #### Money and direction
@@ -103,7 +108,8 @@ transaction type would need no change to any balance logic.
 
 Two €1.50 colas is one row: `quantity = 2`, `itemUnitPriceSnapshot = 150`,
 `amountMinorUnits = -300`. `quantity` is display only — the multiplication is already
-done, in `TransactionsDao.logConsumption`, the only code that computes it.
+done, in `TransactionsDao._consumption`, the only code that computes it. Every
+consumption goes through `logConsumptionsForUsers`, for one user or a round.
 
 #### Snapshots: items yes, users no
 
@@ -134,16 +140,20 @@ expression can never be indexed — see the gotcha below.
 There is no login and anyone can tap anything, so which mechanism applies is decided by
 *when*, not by who asks.
 
-**Within 5 seconds: the snackbar Undo hard-DELETEs the row.** Logging a consumption
+**While the snackbar is up: its Undo hard-DELETEs the row.** Logging a consumption
 raises a snackbar with an **Undo** action, and taking it removes the row outright — no
-PIN, no trace, no strikethrough in history. This is one of two deliberate exceptions to
-append-only. It is safe precisely because it is unreachable by anyone but the person
-still standing at the fridge, and a row that existed for five seconds has told nobody
+PIN, no trace, no strikethrough in history. The snackbar sets no `duration`, so it
+lasts Flutter's default 4 seconds; `persist: false` is load-bearing, because a snackbar
+with an action otherwise stays until tapped. This is one of two deliberate exceptions
+to append-only. It is safe precisely because it is unreachable by anyone but the person
+still standing at the fridge, and a row that existed for a few seconds has told nobody
 anything. The other is a **database reset** from admin settings, which saves a backup
 first. Nothing else in the app may DELETE a transaction.
 
-**After that: voiding, and it always takes the admin PIN.** There is no grace period —
-once the snackbar is gone, correcting a row is an admin action every time. `voidedAt`
+**After that: voiding, behind the admin PIN.** There is no grace period — once the
+snackbar is gone, correcting a row is an admin action, unless the `allowAnyoneToUndo`
+setting is on (or no PIN is set at all). The UI calls voiding "undo" too, from the
+transaction detail dialog, and "Not paid" on the pending top-ups list. `voidedAt`
 goes from null to a timestamp and `voidedNote` records why. The transition is
 **one-way** — never cleared, never DELETEd, and the DAO guards on `voidedAt IS NULL` so
 a second call is a no-op. The row itself is never rewritten, and voided rows still
@@ -188,6 +198,10 @@ callers pass neither by hand. Two things inside it are load-bearing: `name:` is 
 explicit, or the currency comes from the locale and ignores the setting; and it must be
 `simpleCurrency`, not `currency`, which renders `EUR 12,50` rather than `€ 12,50` unless
 given an explicit `symbol:`.
+
+The EPC payment QR can only carry euros, and `buildEpcPayload` hard-codes `EUR` and two
+decimals. The top-up sheet therefore offers the QR page only when the currency is
+`epcCurrency`; any other currency gets the plain cash flow.
 
 ### 3. Settings live in SharedPreferences, not the database
 
@@ -356,9 +370,9 @@ effectively permanent; the deletion that actually happens is "I typed the name w
 seconds ago", and that group genuinely is empty.
 
 The count and the delete run in **one transaction** so the check cannot go stale, and it
-throws `GroupInUseException` rather than letting a constraint blow up. In the UI, disable
-the delete action with an explanation ("3 members, including 1 archived") rather than
-letting it fail after the tap.
+throws `GroupInUseException` rather than letting a constraint blow up. In the UI the
+delete button of a group in use is greyed out but still tappable, and explains itself in
+a tooltip and a snackbar (`deleteBlockedInUse`) rather than failing after the tap.
 
 ### 8. Sort order is scoped to the group
 
@@ -373,14 +387,9 @@ query.orderBy([
 ```
 
 Reordering renumbers the affected rows `0..n-1` in one transaction — under a hundred
-rows makes gap-based or fractional ordering pointless complexity.
-
-Two places in the DAOs still work table-wide rather than per group. `_nextSortOrder`
-takes `MAX(sort_order)` over the whole table, which is *correct but loose*: a global max
-is by definition larger than anything in the target group, so a new row still lands last.
-`ItemsDao.watchItems` orders on the item's own `sortOrder` alone without joining
-`item_groups` — `UsersDao.watchMembersWithBalances` is the pattern to copy. Tightening
-both to be genuinely per-group is wanted, not yet done.
+rows makes gap-based or fractional ordering pointless complexity. `_nextSortOrder`
+takes the `MAX` within the target group, and a move to another group renumbers the
+group left behind.
 
 ## Known gotchas
 
@@ -402,8 +411,9 @@ both to be genuinely per-group is wanted, not yet done.
 - **`emoji_picker_flutter`'s widgets ignore the ambient `Theme`** — every colour is an
   explicit argument defaulting to blue and grey, so `EmojiPickerDialog` threads the whole
   `ColorScheme` in by hand and a new config knob needs the same or it renders blue. Two
-  of its defaults are overridden: `columns` is 10 (too small for wet fingers) and
-  `initCategory` is `Category.RECENT`, the tab `RecentTabBehavior.NONE` removes.
+  of its defaults are overridden: `columns` is 7, for bigger cells under wet fingers, and
+  `initCategory` is `Category.SMILEYS`, because the default `RECENT` is the tab
+  `RecentTabBehavior.NONE` removes.
 - **Do not import `package:flutter_gen/gen_l10n/app_localizations.dart`.** The
   synthetic package is removed from modern Flutter. Import generated localizations by
   their real path (`package:paats_dranklijst/l10n/app_localizations.dart`).
@@ -488,15 +498,20 @@ both to be genuinely per-group is wanted, not yet done.
   is also why checking a file needs no `sqlite3` dependency.
 - **Backups are only reachable over USB because of platform config.** iOS needs
   `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace` in Info.plist. Without
-  them the Documents folder never appears in Finder. Android uses the app-specific
-  external directory, which MTP shows without a permission. A freshly written file may
-  not appear there until the media scanner catches up.
+  them the Documents folder never appears in Finder. Even with them, on the group's
+  TrollStore-installed iPad the folder does **not** show up over USB — it is reachable
+  only on the device itself, cause unconfirmed. Android uses the app-specific external
+  directory, which MTP shows without a permission. A freshly written file may not
+  appear there until the media scanner catches up. On Linux the folder is
+  `~/Documents/Paats Dranklijst`, since the documents directory is the user's own.
+- **The iOS bundle id is `xyz.jpsystems.paatsDranklijst`** (camelCase, as Xcode
+  requires), while Android and Linux use `xyz.jpsystems.paats_dranklijst`.
 
 ## Layout
 
 ```txt
 lib/
-  main.dart                  # runApp, MaterialApp wiring, AppShell
+  main.dart                  # runApp, MaterialApp wiring, AppShell, return-to-Start on idle
   l10n/                      # ARB files (committed) + generated localizations (gitignored)
   settings/
     settings_data.dart       # AppSettingsData, AppThemeMode, formatMoney; pure
@@ -517,59 +532,96 @@ lib/
     views/user_balances_view.dart
     daos/                    # users_dao, items_dao, transactions_dao, stats_dao (read-only SQL)
   theme/app_theme.dart       # memoized ColorScheme.fromSeed / ThemeData helpers
-  utils/                     # banking (IBAN + EPC), random_emoji, time_of_day
+  utils/                     # banking (IBAN + EPC), random_emoji, reorder, time_of_day
   screens/
+    start_screen.dart, users_screen.dart, leaderboard_screen.dart, stats_screen.dart  # the four tabs
+    consumption_screen.dart  # log items for one user, or the same order for a round
+    user_detail_screen.dart  # one user's header, recent rows and live stats
+    history_screen.dart      # the whole ledger, filtered and paged, voided rows included
     settings_screen.dart     # admin settings; openSettings() is the PIN gate
+    user_groups_screen.dart, item_categories_screen.dart  # group management lists
+    user_group_contents_screen.dart      # a group's users: reorder, sort, adjust, archive
+    item_category_contents_screen.dart   # a category's items: reorder, archive
     pending_top_ups_screen.dart  # admin checklist: confirm or void unchecked top-ups
     debts_screen.dart        # compact list of who owes, per group, made for a screenshot
     backup_screen.dart       # PIN-free backup from the Start page
     restore_backup_screen.dart, import_balances_screen.dart  # pick a file from the backup folder
     setup_wizard.dart        # first-run wizard
-    start_screen.dart, users_screen.dart, leaderboard_screen.dart, stats_screen.dart  # the four tabs
-    management_stub_screen.dart
   widgets/
     palette_picker.dart      # curated color lists, inline picker + swatch grid dialog
     emoji_picker_dialog.dart # emoji_picker_flutter's grid in a dialog, themed by hand
     user_avatar.dart         # a member's emoji in a circle from their own seed color
+    user_theme_scope.dart    # puts a user's appTheme on a subtree
+    user_header.dart         # avatar, name, live balance and the top-up button
     pin_dialog.dart          # keypad, and the enter/set dialogs around it
+    inactivity_guard.dart    # InactivityGuard (60 s idle) and InactivityPause
+    top_up_sheet.dart        # amount presets, then the EPC payment QR when possible
+    low_balance_dialog.dart  # warns, never blocks, a user under the threshold
+    adjustment_dialog.dart   # posts a balance adjustment with a required note
+    transaction_history.dart # TransactionListTile and RecentTransactionsCard
+    transaction_detail_dialog.dart  # one ledger row in full, and voiding it
+    user_edit_dialog.dart, item_edit_dialog.dart, full_screen_editor.dart
+    group_management_view.dart   # shared list for user groups and item categories
+    reorderable_sliver_section.dart  # holds a dropped order until the write lands
+    responsive_tile_grid.dart    # column count measured from a minimum tile width
     settings_text_field.dart # commit-on-blur field bound to one setting
     settings_fields.dart     # the controls the settings screen and wizard share
     stat_tile.dart, stats_card.dart, period_chips.dart, podium.dart
     ranked_bar_list.dart     # hand-rolled ranking rows: avatar, name, bar, count
     count_bar_chart.dart, trend_line_chart.dart  # the fl_chart wrappers
-    empty_state.dart, epc_qr_code.dart
+    card_heading.dart, confirm_dialog.dart, empty_state.dart, money_text.dart
+    epc_qr_code.dart
     qr_matrix.dart           # a QR code drawn as one un-anti-aliased path, no seams
     backup_actions.dart      # saveBackup, the folder note, the shared file list
     balances_qr_card.dart    # the balances CSV as a binary QR code, backup screen only
+test/support/                # harness.dart (widget harness), ledger.dart (test shorthands)
 build.yaml                   # drift codegen options (manager API off)
 .github/workflows/release.yml  # tag-triggered release builds for Android, Linux, iOS
 ```
 
 ## Current state
 
-Settings and theming are complete: every setting has a control that writes immediately,
-and the app re-themes and re-localizes as choices are made. The tree is
-`Database` -> `AppSettings` -> `MaterialApp`. `MainApp.home` is the wizard while
-`setupCompletedAt` is null and `AppShell` afterwards, so finishing the wizard swaps
+**v1.0.0 is the first release**, made right before the first real deployment. The
+group runs it on an iPad; Linux is the development platform and Android is the least
+tested.
+
+The tree is `Database` -> `AppSettings` -> `MaterialApp`. `MainApp.home` is the wizard
+while `setupCompletedAt` is null and `AppShell` afterwards, so finishing the wizard swaps
 `home` over with no navigation. The wizard holds **no pending state**: every step writes
 straight through and reuses the settings screen's own fields from
 `widgets/settings_fields.dart`, so an interrupted wizard reappears with what was already
 chosen in place.
 
-**The schema is complete; almost none of it has UI yet.** Five tables — `user_groups`/
-`users` and `item_groups`/`items` (each a group table and a leaf table with a non-null
-`groupId`, `sortOrder` and `archivedAt`), plus `transactions`. One view, `user_balances`:
-`SUM` per member with voided rows excluded, not a cache but an indexed query. Members
-with no live transactions have no row in it, so readers left-join and read a missing row
-as 0. Five indexes carry it, plus a partial one for pending top-ups and two partial
-covering ones for statistics, `transactions_consumptions_by_day` and `_by_user`, which hold
-live consumptions only. No other composite is added: an unused index is write cost on
-every ledger row.
+**The UI.** `AppShell` is four tabs in an `IndexedStack`: Start, Users, Leaderboard,
+Stats. Start shows today's totals, a button to the Users tab, the podium and recent
+transactions, and its app bar holds the Backup button and the settings `IconButton` —
+the only route into settings. Users filters by group and searches; a tile opens the
+consumption screen, the avatar opens the user page. A long press on an item builds a
+basket; a long press on a user starts a round for several people. `InactivityGuard`
+wraps the navigator and, after 60 s without a touch, pops every route and selects Start;
+a focused text field or an `InactivityPause` (the top-up sheet, settings) holds it off.
 
-Four DAOs cover the queries. `TransactionsDao` is the only writer of a ledger row, and
-its two single-day queries take a **required** `at` rather than defaulting to now.
-`StatsDao` is read-only and written as custom SQL: rankings aggregate in a CTE and join
-users or items to their five rows only, and the hour of night needs `strftime`.
+**Settings.** Beyond appearance, language and currency: the admin PIN (4 digits, asked
+every time settings open), `returnToStartWhenIdle`, the low-balance warning and its
+threshold, the payee name and IBAN, and four permissions — `allowSelfRegistration`,
+`allowUserEditing`, `allowGroupSwitching` and `allowAnyoneToUndo`. Management covers
+user groups, item categories, pending top-ups and debts.
+
+**The schema.** Five tables — `user_groups`/`users` and `item_groups`/`items` (each a
+group table and a leaf table with a non-null `groupId`, `sortOrder` and `archivedAt`),
+plus `transactions`. One view, `user_balances`: `SUM` per member with voided rows
+excluded, not a cache but an indexed query. Members with no live transactions have no
+row in it, so readers left-join and read a missing row as 0. Five indexes carry it, plus
+a partial one for pending top-ups and two partial covering ones for statistics,
+`transactions_consumptions_by_day` and `_by_user`, which hold live consumptions only. No
+other composite is added: an unused index is write cost on every ledger row.
+
+Four DAOs cover the queries, and every public DAO method has a caller in `lib/`. Tests
+seed and read through `test/support/ledger.dart`. `TransactionsDao` is the only writer
+of a ledger row, and its single-day query takes a **required** `at` rather than
+defaulting to now. `StatsDao` is read-only and written as custom SQL: rankings aggregate
+in a CTE and join users or items to their five rows only, and the hour of night needs
+`strftime`.
 
 **Statistics.** Periods are rolling windows of logical days (30 / 365 / all); weeks are
 Mon–Sun and months are calendar months, both over logical dates. A count is always
@@ -601,16 +653,21 @@ random emoji and colour, and their group is created if needed. A duplicate name,
 file or among the active users it names, blocks the import. **Archived users take no
 part in import or export.**
 
-Several DAO methods, `EpcQrCode`, `logicalDayFromKey` and a few ARB keys are written
-ahead of the UI that will consume them — deliberate scaffolding, not dead code.
+**Tests.** Most screens and dialogs have widget tests over an in-memory database, through
+`settingsHarness` and `testWidgetsWithDatabase` in `test/support/harness.dart`. Await a
+plain `Future` inside `testWidgets`, never a stream's `.first` — it deadlocks under fake
+async.
 
-Still target design, not code: **the rest of the UI over this schema.** The Start page
-is a temporary demo of `UserAvatar` and `ColorPicker` over local `setState` — replace the
-body when the real Start page is built, but keep the settings `IconButton`, the only
-route into settings. Members is an empty state, and the three management cards
-lead to one stub screen. `test/emoji_picker_dialog_test.dart` is the one **widget** test:
-`EmojiPicker` measures itself off `constraints.maxWidth` and puts a `Flexible` in a
-`Column`, so a missing bound is a layout exception no unit test would catch.
+**Scaffolding.** `users.avatarImage` is the one thing written ahead of its UI: the
+planned camera feature.
+
+### Known limitations
+
+- Orientation is not locked, so a tablet not locked by the OS will rotate into a
+  landscape layout that is not designed for.
+- A reset that removes users or items removes their groups too and reseeds nothing: the
+  admin recreates a group before anyone can be added.
+- The launcher icons are still Flutter's defaults.
 
 ## Working preferences
 

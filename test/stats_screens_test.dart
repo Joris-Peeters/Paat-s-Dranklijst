@@ -15,6 +15,7 @@ import 'package:paats_dranklijst/widgets/ranked_bar_list.dart';
 import 'package:paats_dranklijst/widgets/trend_line_chart.dart';
 
 import 'support/harness.dart';
+import 'support/ledger.dart';
 
 const int seededGroup = 1;
 
@@ -94,7 +95,7 @@ void main() {
   ) async {
     tabletView(tester);
     for (final userId in users.take(2)) {
-      await db.transactionsDao.logConsumption(userId: userId, item: cola);
+      await db.logConsumption(userId: userId, item: cola);
     }
     await tester.pumpWidget(
       await settingsHarness(
@@ -106,7 +107,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(Podium), findsNothing);
 
-    await db.transactionsDao.logConsumption(userId: users[2], item: cola);
+    await db.logConsumption(userId: users[2], item: cola);
     await tester.pumpAndSettle();
     expect(find.byType(Podium), findsOneWidget);
   });
@@ -171,7 +172,7 @@ void main() {
   ) async {
     tabletView(tester);
     await seed(who: [users.first]);
-    final user = (await db.usersDao.readUser(users.first))!;
+    final user = (await db.readUser(users.first))!;
 
     await tester.pumpWidget(
       await settingsHarness(
