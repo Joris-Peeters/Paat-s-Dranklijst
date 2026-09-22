@@ -1,6 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+
+import 'idle_timer.dart';
 
 /// Calls [onTimeout] after a stretch without a single touch.
 ///
@@ -27,45 +27,11 @@ class InactivityGuard extends StatefulWidget {
 }
 
 class _InactivityGuardState extends State<InactivityGuard> {
-  Timer? _timer;
-
   /// A count rather than a bool, so overlapping pauses cannot release each
   /// other.
   int _pauses = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    if (widget.enabled) _restart();
-  }
-
-  @override
-  void didUpdateWidget(InactivityGuard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.enabled == oldWidget.enabled) return;
-    widget.enabled ? _restart() : _timer?.cancel();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _restart([Object? _]) {
-    if (!widget.enabled) return;
-    _timer?.cancel();
-    _timer = Timer(InactivityGuard.timeout, _expire);
-  }
-
-  void _expire() {
-    if (_pauses > 0 || _isTyping) {
-      _restart();
-      return;
-    }
-    // No new timer: nothing is left to return from until the next touch.
-    widget.onTimeout();
-  }
+  bool get _quiet => _pauses == 0 && !_isTyping;
 
   /// Every `TextField` builds an `EditableText` around its focus node.
   static bool get _isTyping =>
@@ -76,15 +42,11 @@ class _InactivityGuardState extends State<InactivityGuard> {
   @override
   Widget build(BuildContext context) => _InactivityScope(
     state: this,
-    // Translucent: sees every event without taking it from the widgets below.
-    child: Listener(
-      behavior: HitTestBehavior.translucent,
-      onPointerDown: _restart,
-      onPointerMove: _restart,
-      onPointerUp: _restart,
-      onPointerHover: _restart,
-      onPointerSignal: _restart,
-      onPointerPanZoomStart: _restart,
+    child: IdleTimer(
+      enabled: widget.enabled,
+      timeout: InactivityGuard.timeout,
+      canFire: () => _quiet,
+      onIdle: widget.onTimeout,
       child: widget.child,
     ),
   );

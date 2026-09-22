@@ -130,6 +130,8 @@ by GitHub Actions when a version tag is pushed.
   stores the ledger, users and items
 - **[shared_preferences](https://pub.dev/packages/shared_preferences)** —
   the app's settings
+- **[screen_brightness](https://pub.dev/packages/screen_brightness)** — dims
+  the backlight when the app has been idle
 - **[qr](https://pub.dev/packages/qr)** — encodes the payment and balances QR
   codes, drawn by the app itself
 - **[archive](https://pub.dev/packages/archive)** — compresses the balances

@@ -9,6 +9,7 @@ import '../data/database_reset.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
+import '../utils/screen_dimming.dart';
 import '../widgets/backup_actions.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/inactivity_guard.dart';
@@ -283,6 +284,44 @@ class _SectionHeader extends StatelessWidget {
 }
 
 /// Explanatory text belonging to a whole group rather than to one control.
+/// How long the screen waits before dimming. A handful of choices rather than
+/// a free number: every one of them is well past the return-to-Start minute.
+class _DimScreenDelayField extends StatelessWidget {
+  const _DimScreenDelayField({required this.settings, required this.write});
+
+  static const _choices = [1, 2, 5, 10, 30, 60, 90];
+
+  final AppSettingsData settings;
+  final WriteSettings write;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return DropdownMenu<int>(
+      initialSelection: settings.dimScreenDelayMinutes,
+      label: Text(l10n.dimScreenDelay),
+      leadingIcon: const Icon(Icons.brightness_low),
+      expandedInsets: EdgeInsets.zero,
+      inputDecorationTheme: const InputDecorationThemeData(
+        border: OutlineInputBorder(),
+      ),
+      onSelected: (minutes) {
+        if (minutes != null) {
+          write(settings.copyWith(dimScreenDelayMinutes: minutes));
+        }
+      },
+      dropdownMenuEntries: [
+        for (final minutes in _choices)
+          DropdownMenuEntry(
+            value: minutes,
+            label: l10n.dimScreenMinutes(minutes),
+          ),
+      ],
+    );
+  }
+}
+
 class _Note extends StatelessWidget {
   const _Note(this.text);
 
@@ -502,6 +541,7 @@ class _AdminCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final warning = settings.lowBalanceWarningEnabled;
+    final dimming = settings.dimScreenWhenIdle;
 
     return _SettingsCard(
       children: [
@@ -539,6 +579,29 @@ class _AdminCard extends StatelessWidget {
           onChanged: (value) =>
               write(settings.copyWith(returnToStartWhenIdle: value)),
         ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.dimScreenWhenIdle),
+          subtitle: Text(
+            dimming ? l10n.dimScreenWhenIdleOn : l10n.dimScreenWhenIdleOff,
+          ),
+          value: dimming && screenDimmingSupported,
+          // Null greys the switch out where the platform has no backlight to
+          // move; the stored value is left alone.
+          onChanged: screenDimmingSupported
+              ? (value) => write(settings.copyWith(dimScreenWhenIdle: value))
+              : null,
+        ),
+        if (!screenDimmingSupported)
+          _Note(l10n.dimScreenUnsupported)
+        else if (dimming)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: SizedBox(
+              width: 260,
+              child: _DimScreenDelayField(settings: settings, write: write),
+            ),
+          ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(l10n.lowBalanceWarning),

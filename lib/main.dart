@@ -11,7 +11,9 @@ import 'screens/users_screen.dart';
 import 'settings/app_settings.dart';
 import 'settings/settings_store.dart';
 import 'theme/app_theme.dart';
+import 'utils/screen_dimming.dart';
 import 'widgets/inactivity_guard.dart';
+import 'widgets/screen_dimmer.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,7 +68,14 @@ class _MainAppState extends State<MainApp> {
         enabled:
             settings.setupCompletedAt != null && settings.returnToStartWhenIdle,
         onTimeout: _goToStart,
-        child: child!,
+        // Inside the guard, so waking the screen is a touch like any other.
+        // Not gated on the wizard: an unfinished setup dims too.
+        child: ScreenDimmer(
+          // Without a backlight to move, dimming would only swallow a touch.
+          enabled: settings.dimScreenWhenIdle && screenDimmingSupported,
+          delay: Duration(minutes: settings.dimScreenDelayMinutes),
+          child: child!,
+        ),
       ),
       // Always one of `supportedLocales`, so Flutter resolves it to itself.
       locale: Locale(settings.languageCode),

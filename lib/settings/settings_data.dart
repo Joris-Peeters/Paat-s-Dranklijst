@@ -32,6 +32,8 @@ class AppSettingsData {
     this.lowBalanceWarningEnabled = false,
     this.lowBalanceThresholdMinorUnits = -1000,
     this.returnToStartWhenIdle = true,
+    this.dimScreenWhenIdle = true,
+    this.dimScreenDelayMinutes = 30,
     this.adminPin,
     this.payeeName,
     this.payeeIban,
@@ -73,6 +75,14 @@ class AppSettingsData {
   /// Whether a minute without a touch sends the app back to the Start page.
   final bool returnToStartWhenIdle;
 
+  /// Whether a long stretch without a touch dims the backlight, for a device
+  /// configured never to sleep on its own.
+  final bool dimScreenWhenIdle;
+
+  /// How long that stretch is. Minutes rather than a Duration: it is stored as
+  /// an int and picked from a handful of choices.
+  final int dimScreenDelayMinutes;
+
   /// Plaintext. Doesn't have to be secure.
   final String? adminPin;
 
@@ -99,6 +109,8 @@ class AppSettingsData {
     bool? lowBalanceWarningEnabled,
     int? lowBalanceThresholdMinorUnits,
     bool? returnToStartWhenIdle,
+    bool? dimScreenWhenIdle,
+    int? dimScreenDelayMinutes,
     Object? adminPin = _unset,
     Object? payeeName = _unset,
     Object? payeeIban = _unset,
@@ -119,6 +131,8 @@ class AppSettingsData {
     lowBalanceThresholdMinorUnits:
         lowBalanceThresholdMinorUnits ?? this.lowBalanceThresholdMinorUnits,
     returnToStartWhenIdle: returnToStartWhenIdle ?? this.returnToStartWhenIdle,
+    dimScreenWhenIdle: dimScreenWhenIdle ?? this.dimScreenWhenIdle,
+    dimScreenDelayMinutes: dimScreenDelayMinutes ?? this.dimScreenDelayMinutes,
     adminPin: identical(adminPin, _unset) ? this.adminPin : adminPin as String?,
     payeeName: identical(payeeName, _unset)
         ? this.payeeName
@@ -149,6 +163,8 @@ class AppSettingsData {
       other.lowBalanceWarningEnabled == lowBalanceWarningEnabled &&
       other.lowBalanceThresholdMinorUnits == lowBalanceThresholdMinorUnits &&
       other.returnToStartWhenIdle == returnToStartWhenIdle &&
+      other.dimScreenWhenIdle == dimScreenWhenIdle &&
+      other.dimScreenDelayMinutes == dimScreenDelayMinutes &&
       other.adminPin == adminPin &&
       other.payeeName == payeeName &&
       other.payeeIban == payeeIban &&
@@ -169,6 +185,8 @@ class AppSettingsData {
     lowBalanceWarningEnabled,
     lowBalanceThresholdMinorUnits,
     returnToStartWhenIdle,
+    dimScreenWhenIdle,
+    dimScreenDelayMinutes,
     adminPin,
     payeeName,
     payeeIban,

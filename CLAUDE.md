@@ -20,7 +20,8 @@ networked app. There is no server, no account system, no sync.
   (Surface with linux-surface kernel, mini PC, old laptop).
 - Expected to run **untouched for years**. Auto-restart on crash/reboot, keeping the
   screen awake and locking the orientation all come from device or OS configuration:
-  the app has no boot receiver, no wakelock and no orientation lock.
+  the app has no boot receiver, no wakelock and no orientation lock. It does dim its
+  own backlight after a long idle, for a device configured never to sleep.
 - Users are adults — leaders, ex-leaders and friends of the Chiro group — tapping
   with cold, wet fingers on a fridge door. Touch targets must be generous. UI must
   be obvious without instruction.
@@ -39,6 +40,7 @@ networked app. There is no server, no account system, no sync.
 | Navigation | `Navigator.push` / `Navigator.pop`. **No `go_router`** — a kiosk has no URLs and no deep links to route. |
 | Database | `drift` + `drift_flutter` |
 | Settings | `shared_preferences` |
+| Backlight | `screen_brightness` — dimming the idle screen, Android and iOS only |
 | Files | `path_provider` — the database and backup folders |
 | QR codes | `qr` for the matrix, drawn by `widgets/qr_matrix.dart` |
 | Compression | `archive` — bzip2 for the balances QR code |
@@ -504,6 +506,15 @@ group left behind.
   directory, which MTP shows without a permission. A freshly written file may not
   appear there until the media scanner catches up. On Linux the folder is
   `~/Documents/Paats Dranklijst`, since the documents directory is the user's own.
+- **`screen_brightness` has no Linux implementation**, so `screenDimmingSupported` gates
+  every call and `main.dart` gates the whole `ScreenDimmer` on it. Dimming with no
+  backlight to move would leave the screen bright while still swallowing a touch. On iOS
+  the plugin moves the **system** brightness, not a window attribute, so the dimmer gives
+  it back on wake, on any lifecycle state but `resumed`, and in `dispose` — an app that
+  went away dimmed would leave the iPad dark.
+- **The wake touch is absorbed on purpose.** `AbsorbPointer` takes the hit test while the
+  screen is dim, inside the `IdleTimer` so the touch still counts as activity. Hit-testing
+  happens on pointer-down, so the rest of that gesture cannot leak through either.
 - **The iOS bundle id is `xyz.jpsystems.paatsDranklijst`** (camelCase, as Xcode
   requires), while Android and Linux use `xyz.jpsystems.paats_dranklijst`.
 
@@ -533,6 +544,7 @@ lib/
     daos/                    # users_dao, items_dao, transactions_dao, stats_dao (read-only SQL)
   theme/app_theme.dart       # memoized ColorScheme.fromSeed / ThemeData helpers
   utils/                     # banking (IBAN + EPC), random_emoji, reorder, time_of_day
+    screen_dimming.dart      # the only file that talks to the brightness plugin
   screens/
     start_screen.dart, users_screen.dart, leaderboard_screen.dart, stats_screen.dart  # the four tabs
     consumption_screen.dart  # log items for one user, or the same order for a round
@@ -554,7 +566,9 @@ lib/
     user_theme_scope.dart    # puts a user's appTheme on a subtree
     user_header.dart         # avatar, name, live balance and the top-up button
     pin_dialog.dart          # keypad, and the enter/set dialogs around it
+    idle_timer.dart          # the pointer listener and timer both idle features share
     inactivity_guard.dart    # InactivityGuard (60 s idle) and InactivityPause
+    screen_dimmer.dart       # dims the backlight when idle; one touch wakes it
     top_up_sheet.dart        # amount presets, then the EPC payment QR when possible
     low_balance_dialog.dart  # warns, never blocks, a user under the threshold
     adjustment_dialog.dart   # posts a balance adjustment with a required note
@@ -600,11 +614,15 @@ consumption screen, the avatar opens the user page. A long press on an item buil
 basket; a long press on a user starts a round for several people. `InactivityGuard`
 wraps the navigator and, after 60 s without a touch, pops every route and selects Start;
 a focused text field or an `InactivityPause` (the top-up sheet, settings) holds it off.
+`ScreenDimmer` sits inside it on the same pointer stream and drops the backlight after a
+much longer idle. Both share `IdleTimer`, which owns the pointer listener and the timer;
+the guard adds the pauses, the dimmer the backlight and the absorbed wake touch.
 
 **Settings.** Beyond appearance, language and currency: the admin PIN (4 digits, asked
-every time settings open), `returnToStartWhenIdle`, the low-balance warning and its
-threshold, the payee name and IBAN, and four permissions — `allowSelfRegistration`,
-`allowUserEditing`, `allowGroupSwitching` and `allowAnyoneToUndo`. Management covers
+every time settings open), `returnToStartWhenIdle`, `dimScreenWhenIdle` and
+`dimScreenDelayMinutes`, the low-balance warning and its threshold, the payee name and
+IBAN, and four permissions — `allowSelfRegistration`, `allowUserEditing`,
+`allowGroupSwitching` and `allowAnyoneToUndo`. Management covers
 user groups, item categories, pending top-ups and debts.
 
 **The schema.** Five tables — `user_groups`/`users` and `item_groups`/`items` (each a
@@ -665,6 +683,7 @@ planned camera feature.
 
 - Orientation is not locked, so a tablet not locked by the OS will rotate into a
   landscape layout that is not designed for.
+- Idle dimming does nothing on Linux: the controls are shown greyed out with a note.
 - A reset that removes users or items removes their groups too and reseeds nothing: the
   admin recreates a group before anyone can be added.
 - The launcher icons are still Flutter's defaults.

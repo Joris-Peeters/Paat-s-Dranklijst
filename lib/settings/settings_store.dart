@@ -16,6 +16,8 @@ const _allowAnyoneToUndo = 'allowAnyoneToUndo';
 const _lowBalanceWarningEnabled = 'lowBalanceWarningEnabled';
 const _lowBalanceThresholdMinorUnits = 'lowBalanceThresholdMinorUnits';
 const _returnToStartWhenIdle = 'returnToStartWhenIdle';
+const _dimScreenWhenIdle = 'dimScreenWhenIdle';
+const _dimScreenDelayMinutes = 'dimScreenDelayMinutes';
 const _adminPin = 'adminPin';
 const _payeeName = 'payeeName';
 const _payeeIban = 'payeeIban';
@@ -38,6 +40,8 @@ const _keys = <String>{
   _lowBalanceWarningEnabled,
   _lowBalanceThresholdMinorUnits,
   _returnToStartWhenIdle,
+  _dimScreenWhenIdle,
+  _dimScreenDelayMinutes,
   _adminPin,
   _payeeName,
   _payeeIban,
@@ -95,6 +99,11 @@ class SettingsStore {
       returnToStartWhenIdle:
           _prefs.getBool(_returnToStartWhenIdle) ??
           defaults.returnToStartWhenIdle,
+      dimScreenWhenIdle:
+          _prefs.getBool(_dimScreenWhenIdle) ?? defaults.dimScreenWhenIdle,
+      dimScreenDelayMinutes:
+          _prefs.getInt(_dimScreenDelayMinutes) ??
+          defaults.dimScreenDelayMinutes,
       adminPin: _prefs.getString(_adminPin),
       payeeName: _prefs.getString(_payeeName),
       payeeIban: _prefs.getString(_payeeIban),
@@ -127,6 +136,8 @@ class SettingsStore {
         settings.lowBalanceThresholdMinorUnits,
       ),
       _prefs.setBool(_returnToStartWhenIdle, settings.returnToStartWhenIdle),
+      _prefs.setBool(_dimScreenWhenIdle, settings.dimScreenWhenIdle),
+      _prefs.setInt(_dimScreenDelayMinutes, settings.dimScreenDelayMinutes),
       _setStringOrRemove(_adminPin, settings.adminPin),
       _setStringOrRemove(_payeeName, settings.payeeName),
       _setStringOrRemove(_payeeIban, settings.payeeIban),

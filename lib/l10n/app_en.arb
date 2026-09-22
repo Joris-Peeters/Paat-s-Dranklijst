@@ -627,6 +627,27 @@
   "returnToStartWhenIdleOff": "The app stays wherever it was left",
   "@returnToStartWhenIdleOff": { "description": "Subtitle of the idle return setting while off" },
 
+  "dimScreenWhenIdle": "Dim the screen when idle",
+  "@dimScreenWhenIdle": { "description": "Setting controlling whether the backlight is lowered after a long stretch without a touch" },
+
+  "dimScreenWhenIdleOn": "The screen dims after the delay below, and a tap wakes it",
+  "@dimScreenWhenIdleOn": { "description": "Subtitle of the screen dimming setting while on" },
+
+  "dimScreenWhenIdleOff": "The screen stays as bright as the device makes it",
+  "@dimScreenWhenIdleOff": { "description": "Subtitle of the screen dimming setting while off" },
+
+  "dimScreenDelay": "Dim after",
+  "@dimScreenDelay": { "description": "Label of the dropdown picking how long the screen waits before dimming" },
+
+  "dimScreenMinutes": "{count, plural, =1{1 minute} other{{count} minutes}}",
+  "@dimScreenMinutes": {
+    "description": "An option in the dim delay dropdown",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "dimScreenUnsupported": "This device cannot dim its own screen.",
+  "@dimScreenUnsupported": { "description": "Note shown in place of the dimming controls on a platform the feature does not support" },
+
   "lowBalanceWarning": "Warn on a low balance",
   "@lowBalanceWarning": { "description": "Setting controlling whether opening the consumption screen warns a user who is in the red" },
 

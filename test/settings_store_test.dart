@@ -43,6 +43,8 @@ void main() {
       lowBalanceWarningEnabled: true,
       lowBalanceThresholdMinorUnits: -2500,
       returnToStartWhenIdle: false,
+      dimScreenWhenIdle: false,
+      dimScreenDelayMinutes: 90,
       adminPin: '1234',
       payeeName: 'Chiro Paat',
       payeeIban: 'BE68539007547034',
