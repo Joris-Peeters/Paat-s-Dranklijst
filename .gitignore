@@ -50,3 +50,7 @@ app.*.map.json
 # Generated localizations (gen-l10n output).
 /lib/l10n/app_localizations.dart
 /lib/l10n/app_localizations_*.dart
+
+# iPad supervision — the keybag is a private key, the profile is generated
+/iPad_setup/*.keybag
+/iPad_setup/*.mobileconfig

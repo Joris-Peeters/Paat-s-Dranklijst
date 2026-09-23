@@ -11,6 +11,8 @@ on an honor system and a scrap of paper. This replaces the paper.
 
 ---
 
+![The Start page, logging a drink, and the leaderboard](screenshot.png)
+
 ## What it does
 
 - **Tap your name, tap what you took.** No login, touch-only. Pick several
@@ -72,6 +74,10 @@ The `.ipa` is **unsigned**. Install it with
 [TrollStore](https://github.com/opa334/TrollStore). Running it in Single App
 Mode is recommended, so the tablet stays in the app.
 
+[`iPad_setup/installation.md`](iPad_setup/installation.md) walks through the
+whole thing from a Linux machine: wiping the iPad, supervising it with
+`pymobiledevice3`, installing the app and locking it into Single App Mode.
+
 ### Android
 
 Pick the APK for the tablet's processor:
@@ -105,6 +111,26 @@ TrollStore.
 
 Restoring a backup, importing balances and resetting the database each save a
 backup of the current state first.
+
+## Importing balances
+
+Balances can be brought in from a CSV file with three columns — `name`, `group`
+and `balance` — and a header line naming them:
+
+```csv
+name,group,balance
+Jonas,Leiding,12.50
+Marie,Oud-leiding,-3.75
+```
+
+Put the `.csv` file in the backup folder above, then in the app go to
+*Settings → Backup & restore → Import balances* and pick it from the list. The
+app shows what it would do before anything is written.
+
+**Importing merges, it never replaces.** A name that is already there has its
+balance corrected with a single adjustment in the ledger; a name that is not
+becomes a new user, with the group created if it does not exist yet.
+Names must be unique.
 
 ## Building from source
 
