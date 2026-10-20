@@ -20,6 +20,9 @@ import 'support/ledger.dart';
 
 const int seededGroup = 1;
 
+// By predicate: byType matches the exact runtime type, generic arguments included.
+final rankedBarLists = find.byWidgetPredicate((w) => w is RankedBarList);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -164,7 +167,7 @@ void main() {
     // 120 consumptions: enough for the hour of night and the weekday as well
     // as the volume.
     expect(find.byType(CountBarChart), findsNWidgets(3));
-    expect(find.byType(RankedBarList), findsOneWidget);
+    expect(rankedBarLists, findsOneWidget);
 
     for (final period in ['Year', 'All time']) {
       await tester.tap(find.text(period));
@@ -187,14 +190,14 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.byType(RankedBarList), findsNothing);
+    expect(rankedBarLists, findsNothing);
     expect(find.text('Not enough data yet'), findsOneWidget);
 
     await seed(who: [users[4]], days: 1);
     await tester.tap(find.text('Year'));
     await tester.pumpAndSettle();
     // Best day qualifies; loyalty needs 75 each in a year, not 20.
-    expect(find.byType(RankedBarList), findsNWidgets(3));
+    expect(rankedBarLists, findsNWidgets(3));
     expect(find.text('MOST LOYAL'), findsNothing);
   });
 
@@ -213,7 +216,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.byType(RankedBarList), findsNWidgets(4));
+    expect(rankedBarLists, findsNWidgets(4));
     expect(find.text('BEST DAY'), findsOneWidget);
     expect(find.text('100%'), findsNWidgets(5));
     // All items: each row names its favourite.
@@ -237,7 +240,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('SPENT'), findsOneWidget);
-    expect(find.byType(RankedBarList), findsOneWidget);
+    expect(rankedBarLists, findsOneWidget);
     expect(find.byType(TrendLineChart), findsOneWidget);
   });
 }

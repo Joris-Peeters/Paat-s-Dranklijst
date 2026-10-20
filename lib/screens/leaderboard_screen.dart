@@ -161,11 +161,62 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 );
               }
 
-              final consumers = data.consumers.length >= _minimumPeople;
-              final present = data.present.length >= _minimumPeople;
-              final bestDays = data.bestDays.length >= _minimumPeople;
-              final loyal = data.loyal.length >= _minimumPeople;
-              if (!consumers && !present && !bestDays && !loyal) {
+              bool enough(List<Object> ranking) =>
+                  ranking.length >= _minimumPeople;
+              final cards = [
+                if (enough(data.consumers))
+                  StatsCard(
+                    icon: Icons.local_drink_outlined,
+                    label: l10n.leaderboardTopConsumers,
+                    child: RankedBarList(
+                      entries: data.consumers,
+                      leading: (ranked) => _avatar(ranked.user),
+                      label: (ranked) => ranked.user.name,
+                      value: (ranked) => ranked.count,
+                    ),
+                  ),
+                if (enough(data.present))
+                  StatsCard(
+                    icon: Icons.event_available_outlined,
+                    label: l10n.leaderboardMostPresent,
+                    child: RankedBarList(
+                      entries: data.present,
+                      leading: (ranked) => _avatar(ranked.user),
+                      label: (ranked) => ranked.user.name,
+                      value: (ranked) => ranked.count,
+                    ),
+                  ),
+                if (enough(data.bestDays))
+                  StatsCard(
+                    icon: Icons.local_fire_department_outlined,
+                    label: l10n.leaderboardBestDay,
+                    child: RankedBarList(
+                      entries: data.bestDays,
+                      leading: (best) => _avatar(best.user),
+                      label: (best) => best.user.name,
+                      value: (best) => best.count,
+                      detail: (best) => settings.formatDate(best.day),
+                    ),
+                  ),
+                if (enough(data.loyal))
+                  StatsCard(
+                    icon: Icons.favorite_outline,
+                    label: l10n.leaderboardMostLoyal,
+                    child: RankedBarList(
+                      entries: data.loyal,
+                      leading: (loyal) => _avatar(loyal.user),
+                      label: (loyal) => loyal.user.name,
+                      value: (loyal) => loyal.share,
+                      valueLabel: (loyal) =>
+                          settings.formatPercent(loyal.share),
+                      outOf: 1,
+                      // One item selected: the same emoji on every row.
+                      detail: (loyal) =>
+                          _itemId == null ? loyal.item.emoji : null,
+                    ),
+                  ),
+              ];
+              if (cards.isEmpty) {
                 return EmptyState(
                   icon: Icons.emoji_events_outlined,
                   message: l10n.statsNotEnoughData,
@@ -175,55 +226,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 spacing: 16,
-                children: [
-                  if (consumers)
-                    _Ranking(
-                      icon: Icons.local_drink_outlined,
-                      label: l10n.leaderboardTopConsumers,
-                      entries: [
-                        for (final ranked in data.consumers)
-                          _bar(ranked.user, count: ranked.count),
-                      ],
-                    ),
-                  if (present)
-                    _Ranking(
-                      icon: Icons.event_available_outlined,
-                      label: l10n.leaderboardMostPresent,
-                      entries: [
-                        for (final ranked in data.present)
-                          _bar(ranked.user, count: ranked.count),
-                      ],
-                    ),
-                  if (bestDays)
-                    _Ranking(
-                      icon: Icons.local_fire_department_outlined,
-                      label: l10n.leaderboardBestDay,
-                      entries: [
-                        for (final best in data.bestDays)
-                          _bar(
-                            best.user,
-                            count: best.count,
-                            detail: settings.formatDate(best.day),
-                          ),
-                      ],
-                    ),
-                  if (loyal)
-                    _Ranking(
-                      icon: Icons.favorite_outline,
-                      label: l10n.leaderboardMostLoyal,
-                      outOf: 100,
-                      entries: [
-                        for (final loyal in data.loyal)
-                          _bar(
-                            loyal.user,
-                            count: (loyal.share * 100).round(),
-                            countLabel: settings.formatPercent(loyal.share),
-                            // One item selected: the same emoji on every row.
-                            detail: _itemId == null ? loyal.item.emoji : null,
-                          ),
-                      ],
-                    ),
-                ],
+                children: cards,
               );
             },
           ),
@@ -298,40 +301,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   );
 }
 
-RankedBar _bar(
-  UserRow user, {
-  required int count,
-  String? detail,
-  String? countLabel,
-}) => RankedBar(
-  leading: UserAvatar(
-    emoji: user.avatarEmoji,
-    seedColorArgb: user.seedColorArgb,
-    size: 40,
-  ),
-  label: user.name,
-  count: count,
-  detail: detail,
-  countLabel: countLabel,
+Widget _avatar(UserRow user) => UserAvatar(
+  emoji: user.avatarEmoji,
+  seedColorArgb: user.seedColorArgb,
+  size: 40,
 );
-
-class _Ranking extends StatelessWidget {
-  const _Ranking({
-    required this.icon,
-    required this.label,
-    required this.entries,
-    this.outOf,
-  });
-
-  final IconData icon;
-  final String label;
-  final List<RankedBar> entries;
-  final int? outOf;
-
-  @override
-  Widget build(BuildContext context) => StatsCard(
-    icon: icon,
-    label: label,
-    child: RankedBarList(entries: entries, outOf: outOf),
-  );
-}

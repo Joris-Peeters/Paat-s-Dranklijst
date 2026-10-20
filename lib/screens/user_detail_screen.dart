@@ -216,15 +216,12 @@ class _UserStatsState extends State<_UserStats> {
               icon: Icons.local_drink_outlined,
               label: l10n.statsTopItems,
               child: RankedBarList(
-                entries: [
-                  for (final ranked in items)
-                    RankedBar(
-                      // Already inside this user's theme, so only the circle.
-                      leading: AvatarCircle(emoji: ranked.item.emoji, size: 40),
-                      label: ranked.item.name,
-                      count: ranked.count,
-                    ),
-                ],
+                entries: items,
+                // Already inside this user's theme, so only the circle.
+                leading: (ranked) =>
+                    AvatarCircle(emoji: ranked.item.emoji, size: 40),
+                label: (ranked) => ranked.item.name,
+                value: (ranked) => ranked.count,
               ),
             );
           },

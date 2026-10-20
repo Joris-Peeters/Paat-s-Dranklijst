@@ -199,14 +199,11 @@ class _Sections extends StatelessWidget {
             icon: Icons.local_drink_outlined,
             label: l10n.statsTopItems,
             child: RankedBarList(
-              entries: [
-                for (final ranked in data.topItems)
-                  RankedBar(
-                    leading: AvatarCircle(emoji: ranked.item.emoji, size: 40),
-                    label: ranked.item.name,
-                    count: ranked.count,
-                  ),
-              ],
+              entries: data.topItems,
+              leading: (ranked) =>
+                  AvatarCircle(emoji: ranked.item.emoji, size: 40),
+              label: (ranked) => ranked.item.name,
+              value: (ranked) => ranked.count,
             ),
           ),
         if (hourTotal >= _breakdownMinimum)
