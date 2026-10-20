@@ -115,4 +115,23 @@ void main() {
 
     expect(brightness, [ScreenDimmer.dimLevel, null]);
   });
+
+  testWidgets('coming back to the foreground starts the delay over', (
+    tester,
+  ) async {
+    await tester.pumpWidget(dimmer());
+    await tester.pump(delay - const Duration(minutes: 1));
+
+    // A locked device must not wake up dark.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump(const Duration(hours: 2));
+    expect(brightness, isEmpty);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump(delay - const Duration(seconds: 1));
+    expect(brightness, isEmpty);
+
+    await tester.pump(const Duration(seconds: 1));
+    expect(brightness, [ScreenDimmer.dimLevel]);
+  });
 }

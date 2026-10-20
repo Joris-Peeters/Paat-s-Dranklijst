@@ -74,6 +74,24 @@ void main() {
     expect(timeouts, 1);
   });
 
+  testWidgets('coming back to the foreground starts the minute over', (
+    tester,
+  ) async {
+    await tester.pumpWidget(guard());
+    await tester.pump(const Duration(seconds: 50));
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump(const Duration(minutes: 5));
+    expect(timeouts, 0);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump(const Duration(seconds: 59));
+    expect(timeouts, 0);
+
+    await tester.pump(const Duration(seconds: 1));
+    expect(timeouts, 1);
+  });
+
   testWidgets('a focused text field holds it off', (tester) async {
     await tester.pumpWidget(guard(field: const TextField(autofocus: true)));
     await tester.pump();

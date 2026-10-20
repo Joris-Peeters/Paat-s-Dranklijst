@@ -9,8 +9,9 @@ import 'package:flutter/material.dart';
 /// app back to Start after a minute, the other dims the backlight after a much
 /// longer stretch, and both hang off the same pointer stream.
 ///
-/// Firing schedules nothing — the timer is dormant until the next touch, since
-/// whatever [onIdle] did stands until someone comes back.
+/// Firing schedules nothing — the timer is dormant until the next touch or
+/// return to the foreground, since whatever [onIdle] did stands until someone
+/// comes back.
 class IdleTimer extends StatefulWidget {
   const IdleTimer({
     super.key,
@@ -40,12 +41,13 @@ class IdleTimer extends StatefulWidget {
   State<IdleTimer> createState() => _IdleTimerState();
 }
 
-class _IdleTimerState extends State<IdleTimer> {
+class _IdleTimerState extends State<IdleTimer> with WidgetsBindingObserver {
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.enabled) _restart();
   }
 
@@ -61,8 +63,16 @@ class _IdleTimerState extends State<IdleTimer> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Unlocking or reopening counts as someone arriving; nothing fires while
+    // the app is not in front.
+    state == AppLifecycleState.resumed ? _restart() : _timer?.cancel();
   }
 
   /// Takes the event it is handed so it can be a pointer callback as well as a
