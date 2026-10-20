@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/screens/history_screen.dart';
+import 'package:paats_dranklijst/screens/user_detail_screen.dart';
+import 'package:paats_dranklijst/widgets/user_avatar.dart';
 
 import 'support/harness.dart';
 import 'support/ledger.dart';
@@ -76,5 +78,20 @@ void main() {
     // Filtered to one user, so rows drop the name and lead with the item.
     expect(find.text('Cola'), findsOneWidget);
     expect(find.widgetWithText(InputChip, 'Jonas'), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('an avatar opens that user\'s page', (tester) async {
+    await db.logConsumption(userId: jonas.id, item: cola);
+    await pump(tester);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(ListTile),
+        matching: find.byType(UserAvatar),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(UserDetailScreen), findsOneWidget);
   });
 }

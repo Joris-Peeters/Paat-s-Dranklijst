@@ -590,6 +590,21 @@ void main() {
       expect(users.last.avatarEmoji, '🐸');
     });
 
+    test('an appearance edit leaves the field it was not given', () async {
+      final a = await addUser(name: 'A');
+      final before = (await db.readUser(a))!;
+
+      await db.usersDao.updateUserAppearance(id: a, avatarEmoji: '🐸');
+      final emojiOnly = (await db.readUser(a))!;
+      expect(emojiOnly.avatarEmoji, '🐸');
+      expect(emojiOnly.seedColorArgb, before.seedColorArgb);
+
+      await db.usersDao.updateUserAppearance(id: a, seedColorArgb: 0xFFE91E63);
+      final colorOnly = (await db.readUser(a))!;
+      expect(colorOnly.avatarEmoji, '🐸');
+      expect(colorOnly.seedColorArgb, 0xFFE91E63);
+    });
+
     test('an item moved between categories behaves the same way', () async {
       final other = await db.itemsDao.createItemGroup(name: 'Snacks');
       final cola = await addItem(name: 'Cola');

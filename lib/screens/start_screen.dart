@@ -13,6 +13,7 @@ import '../widgets/podium.dart';
 import '../widgets/stat_tile.dart';
 import '../widgets/transaction_history.dart';
 import 'backup_screen.dart';
+import 'consumption_screen.dart';
 import 'settings_screen.dart';
 
 /// The screen the fridge sits on all day: how today is going, and one large
@@ -58,6 +59,14 @@ class _StartScreenState extends State<StartScreen> with WidgetsBindingObserver {
 
   Stream<List<PodiumEntry>> _watchPodium() =>
       _db.statsDao.watchPodium(at: DateTime.now());
+
+  /// The podium's and the recent history's shortcut to taking something.
+  void _openConsumption(UserRow user) => unawaited(
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => ConsumptionScreen(user: user)),
+    ),
+  );
 
   /// Re-subscribes only when the day has actually turned over.
   void _rollOver() {
@@ -151,13 +160,20 @@ class _StartScreenState extends State<StartScreen> with WidgetsBindingObserver {
                       if (entries == null || entries.length < 3) {
                         return const SizedBox.shrink();
                       }
-                      return Podium(entries: entries);
+                      return Podium(
+                        entries: entries,
+                        onUserTap: _openConsumption,
+                      );
                     },
                   ),
                 // No user, so the global form: avatars and names, and a footer that
                 // opens the unfiltered history.
-                const Expanded(
-                  child: RecentTransactionsCard(fill: true, limit: 30),
+                Expanded(
+                  child: RecentTransactionsCard(
+                    fill: true,
+                    limit: 30,
+                    onUserTap: _openConsumption,
+                  ),
                 ),
               ],
             ),

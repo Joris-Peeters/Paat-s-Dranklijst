@@ -52,7 +52,12 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
   bool _selecting = false;
 
   /// The one user, outside a round.
-  UserRow get _user => widget.users.single;
+  ///
+  /// Kept live rather than read from the widget: the header's avatar menu can
+  /// recolour this very user, and the page's palette has to follow.
+  UserRow get _user => _liveUser ?? widget.users.single;
+  UserRow? _liveUser;
+  StreamSubscription<UserRow?>? _userSubscription;
 
   List<int> get _userIds => [for (final user in widget.users) user.id];
 
@@ -67,6 +72,23 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_warnIfLow());
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Not initState: `Database.of` depends on an inherited widget. `??=` so a
+    // later dependency change does not open a second subscription.
+    if (widget._forGroup) return;
+    _userSubscription ??= _db.usersDao
+        .watchUser(widget.users.single.id)
+        .listen((user) => setState(() => _liveUser = user));
+  }
+
+  @override
+  void dispose() {
+    unawaited(_userSubscription?.cancel());
+    super.dispose();
   }
 
   /// Warns once, on the way in.

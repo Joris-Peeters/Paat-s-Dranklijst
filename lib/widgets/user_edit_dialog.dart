@@ -151,13 +151,20 @@ class _UserEditDialogState extends State<UserEditDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 24,
         children: [
-          Center(
-            child: UserAvatar(
-              emoji: _emoji,
-              seedColorArgb: _seedColorArgb,
-              size: 96,
-              onTap: () => unawaited(_pickEmoji()),
-            ),
+          Column(
+            spacing: 12,
+            children: [
+              UserAvatar(
+                emoji: _emoji,
+                seedColorArgb: _seedColorArgb,
+                size: 96,
+              ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.emoji_emotions_outlined),
+                label: Text(l10n.changeEmoji),
+                onPressed: () => unawaited(_pickEmoji()),
+              ),
+            ],
           ),
           TextField(
             controller: _controller,

@@ -2,7 +2,9 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/database.dart';
+import 'package:paats_dranklijst/screens/consumption_screen.dart';
 import 'package:paats_dranklijst/screens/start_screen.dart';
+import 'package:paats_dranklijst/widgets/transaction_detail_dialog.dart';
 
 import 'support/harness.dart';
 import 'support/ledger.dart';
@@ -102,5 +104,44 @@ void main() {
     await pump(tester);
 
     expect(find.byIcon(Icons.settings_rounded), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('a history avatar opens that user\'s page to take '
+      'something', (tester) async {
+    await db.logConsumption(userId: jonas, item: cola);
+    await pump(tester);
+
+    await tester.tap(find.text('🦊'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ConsumptionScreen), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('the rest of a history row still opens its detail', (
+    tester,
+  ) async {
+    await db.logConsumption(userId: jonas, item: cola);
+    await pump(tester);
+
+    await tester.tap(find.text('Jonas · 🥤 Cola'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TransactionDetailDialog), findsOneWidget);
+    expect(find.byType(ConsumptionScreen), findsNothing);
+  });
+
+  testWidgetsWithDatabase('an archived user\'s avatar opens nothing', (
+    tester,
+  ) async {
+    // Voided first, since only a settled user can be archived.
+    final id = await db.logConsumption(userId: jonas, item: cola);
+    await db.transactionsDao.voidTransaction(id, note: 'Wrong person');
+    await db.usersDao.archiveUser(jonas);
+    await pump(tester);
+
+    await tester.tap(find.text('🦊'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ConsumptionScreen), findsNothing);
   });
 }

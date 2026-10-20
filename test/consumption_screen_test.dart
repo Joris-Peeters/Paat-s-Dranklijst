@@ -1,9 +1,12 @@
 import 'package:drift/native.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/data/tables/transactions_table.dart';
 import 'package:paats_dranklijst/screens/consumption_screen.dart';
+import 'package:paats_dranklijst/widgets/palette_picker.dart';
+import 'package:paats_dranklijst/widgets/user_theme_scope.dart';
 
 import 'support/harness.dart';
 import 'support/ledger.dart';
@@ -412,5 +415,53 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Debt €12.00'), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('the avatar menu recolours the user in place', (
+    tester,
+  ) async {
+    await pump(tester);
+
+    await tester.tap(find.text('🦊'));
+    await tester.pumpAndSettle();
+    expect(find.text('Change emoji'), findsOneWidget);
+
+    await tester.tap(find.text('Change color'));
+    await tester.pumpAndSettle();
+    // The first swatch is the palette's first colour.
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byType(ColorPickerDialog),
+            matching: find.byType(InkWell),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+
+    final pink = seedColorPalette.first.toARGB32();
+    expect((await db.readUser(jonas.id))!.seedColorArgb, pink);
+    // The screen watches the user, so its palette follows without reopening.
+    expect(
+      tester.widget<UserThemeScope>(find.byType(UserThemeScope)).seedColorArgb,
+      pink,
+    );
+  });
+
+  testWidgetsWithDatabase('the avatar menu changes the emoji in place', (
+    tester,
+  ) async {
+    await pump(tester);
+
+    await tester.tap(find.text('🦊'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Change emoji'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(EmojiCell).first);
+    await tester.pumpAndSettle();
+
+    final emoji = (await db.readUser(jonas.id))!.avatarEmoji;
+    expect(emoji, isNot('🦊'));
+    expect(find.text(emoji), findsOneWidget);
   });
 }

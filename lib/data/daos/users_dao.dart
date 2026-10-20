@@ -260,6 +260,21 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     if (moved) await _renumberGroup(current.groupId);
   });
 
+  /// The avatar menu's quick edit: whichever of the two is given, the other
+  /// left as it is.
+  Future<void> updateUserAppearance({
+    required int id,
+    String? avatarEmoji,
+    int? seedColorArgb,
+  }) async {
+    await (update(users)..where((u) => u.id.equals(id))).write(
+      UsersCompanion(
+        avatarEmoji: Value.absentIfNull(avatarEmoji),
+        seedColorArgb: Value.absentIfNull(seedColorArgb),
+      ),
+    );
+  }
+
   /// Closes the gaps a departure left, so one group's numbers stay 0..n-1.
   Future<void> _renumberGroup(int groupId) async {
     final rows =

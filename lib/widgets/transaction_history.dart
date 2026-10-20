@@ -27,8 +27,12 @@ const _leadingSize = 44.0;
 /// and names what was taken instead.
 class TransactionListTile extends StatelessWidget {
   /// A row in a feed that mixes users: their avatar and name lead.
-  const TransactionListTile({super.key, required this.entry, this.onTap})
-    : _showUser = true;
+  const TransactionListTile({
+    super.key,
+    required this.entry,
+    this.onTap,
+    this.onUserTap,
+  }) : _showUser = true;
 
   /// A row on one user's own page. The name is the page they are looking at, so
   /// the line drops it and leads with the item's emoji.
@@ -36,10 +40,16 @@ class TransactionListTile extends StatelessWidget {
     super.key,
     required this.entry,
     this.onTap,
-  }) : _showUser = false;
+  }) : _showUser = false,
+       onUserTap = null;
 
   final TransactionEntry entry;
   final VoidCallback? onTap;
+
+  /// A tap on the avatar, separate from [onTap]: the avatar's own ink wins
+  /// over the row's. Never called for an archived user, who has nothing left
+  /// to open.
+  final ValueChanged<UserRow>? onUserTap;
 
   final bool _showUser;
 
@@ -89,6 +99,8 @@ class TransactionListTile extends StatelessWidget {
     // rather than set on an ancestor, because ListTile puts its own styles on
     // the title and subtitle and would drop an inherited one.
     final voided = transaction.voidedAt != null;
+    final onUserTap = this.onUserTap;
+    final user = entry.user;
     final struck = voided
         ? const TextStyle(decoration: TextDecoration.lineThrough)
         : null;
@@ -101,9 +113,12 @@ class TransactionListTile extends StatelessWidget {
             // A mixed feed runs on the app's theme, so each row's avatar has to
             // bring the user's own colour with it.
             ? UserAvatar(
-                emoji: entry.user.avatarEmoji,
-                seedColorArgb: entry.user.seedColorArgb,
+                emoji: user.avatarEmoji,
+                seedColorArgb: user.seedColorArgb,
                 size: _leadingSize,
+                onTap: onUserTap == null || user.archivedAt != null
+                    ? null
+                    : () => onUserTap(user),
               )
             : _ItemLeading(entry: entry),
         title: Text(
@@ -182,6 +197,7 @@ class RecentTransactionsCard extends StatefulWidget {
     this.user,
     this.limit = 4,
     this.fill = false,
+    this.onUserTap,
   });
 
   /// Whose rows to show, or null for everyone's — which also decides the form
@@ -194,6 +210,10 @@ class RecentTransactionsCard extends StatefulWidget {
   /// sizing to them. For a page that hands it the space left over rather than
   /// scrolling as a whole; the heading and the footer stay put either way.
   final bool fill;
+
+  /// A tap on a row's avatar. Only the form for everyone has avatars, so this
+  /// does nothing when [user] is set.
+  final ValueChanged<UserRow>? onUserTap;
 
   @override
   State<RecentTransactionsCard> createState() => _RecentTransactionsCardState();
@@ -289,7 +309,11 @@ class _Rows extends StatelessWidget {
 
           // Naming the user only when the card is not already about one.
           return card.user == null
-              ? TransactionListTile(entry: entry, onTap: open)
+              ? TransactionListTile(
+                  entry: entry,
+                  onTap: open,
+                  onUserTap: card.onUserTap,
+                )
               : TransactionListTile.forUser(entry: entry, onTap: open);
         }
 

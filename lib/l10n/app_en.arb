@@ -495,6 +495,12 @@
   "chooseEmoji": "Choose an emoji",
   "@chooseEmoji": { "description": "Title of the emoji picker dialog" },
 
+  "changeEmoji": "Change emoji",
+  "@changeEmoji": { "description": "Button in the user editor and item in the avatar menu that open the emoji picker" },
+
+  "changeColor": "Change color",
+  "@changeColor": { "description": "Item in the avatar menu that opens the colour picker" },
+
   "themeMode": "Theme",
   "@themeMode": { "description": "Setting choosing between light, dark and scheduled" },
 

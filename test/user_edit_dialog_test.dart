@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/database.dart';
+import 'package:paats_dranklijst/widgets/emoji_picker_dialog.dart';
 import 'package:paats_dranklijst/widgets/user_avatar.dart';
 import 'package:paats_dranklijst/widgets/user_edit_dialog.dart';
 
@@ -70,6 +71,18 @@ void main() {
     // handed values rather than being allowed to save without them.
     expect(avatar(tester).emoji, isNotEmpty);
     expect(avatar(tester).seedColorArgb, isNot(0));
+  });
+
+  testWidgetsWithDatabase('the emoji is changed by a button, not the avatar', (
+    tester,
+  ) async {
+    await pump(tester);
+    expect(avatar(tester).onTap, isNull);
+
+    await tester.tap(find.text('Change emoji'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EmojiPickerDialog), findsOneWidget);
   });
 
   testWidgetsWithDatabase('a blank name refuses the save', (tester) async {

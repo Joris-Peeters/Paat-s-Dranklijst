@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/data/logical_day.dart';
 import 'package:paats_dranklijst/data/tables/transactions_table.dart';
+import 'package:paats_dranklijst/screens/consumption_screen.dart';
 import 'package:paats_dranklijst/screens/leaderboard_screen.dart';
 import 'package:paats_dranklijst/screens/start_screen.dart';
 import 'package:paats_dranklijst/screens/stats_screen.dart';
@@ -110,6 +111,33 @@ void main() {
     await db.logConsumption(userId: users[2], item: cola);
     await tester.pumpAndSettle();
     expect(find.byType(Podium), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('a podium place opens that user\'s page to take '
+      'something', (tester) async {
+    tabletView(tester);
+    for (final userId in users.take(3)) {
+      await db.logConsumption(userId: userId, item: cola);
+    }
+    await tester.pumpWidget(
+      await settingsHarness(
+        null,
+        database: db,
+        screen: StartScreen(onOpenUsers: () {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The name, not the avatar: the whole place is the target.
+    await tester.tap(
+      find.descendant(of: find.byType(Podium), matching: find.text('Bob')),
+    );
+    await tester.pumpAndSettle();
+
+    final screen = tester.widget<ConsumptionScreen>(
+      find.byType(ConsumptionScreen),
+    );
+    expect(screen.users.single.name, 'Bob');
   });
 
   testWidgetsWithDatabase('stats loads only once its tab is active', (

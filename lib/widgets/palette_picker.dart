@@ -33,6 +33,15 @@ const seedColorPalette = <Color>[
 Color randomPaletteColor([Random? random]) =>
     seedColorPalette[(random ?? Random()).nextInt(seedColorPalette.length)];
 
+/// Asks for a colour. Resolves to the chosen one, or null if dismissed.
+Future<Color?> showColorPickerDialog(
+  BuildContext context, {
+  required Color selected,
+}) => showDialog<Color>(
+  context: context,
+  builder: (_) => ColorPickerDialog(selected: selected),
+);
+
 /// The small palette inline, plus an icon button opening [ColorPickerDialog].
 ///
 /// Nothing is highlighted when [selected] is not one of the four — same as the
@@ -48,10 +57,7 @@ class ColorPicker extends StatelessWidget {
   final ValueChanged<Color> onSelected;
 
   Future<void> _openDialog(BuildContext context) async {
-    final picked = await showDialog<Color>(
-      context: context,
-      builder: (_) => ColorPickerDialog(selected: selected),
-    );
+    final picked = await showColorPickerDialog(context, selected: selected);
     if (picked != null) onSelected(picked);
   }
 
