@@ -185,6 +185,12 @@
   "leaderboardMostPresent": "Most present",
   "@leaderboardMostPresent": { "description": "Heading of the ranking by number of days with at least one consumption" },
 
+  "leaderboardBestDay": "Best day",
+  "@leaderboardBestDay": { "description": "Heading of the ranking by each person's most consumptions on a single logical day, shown with that day's date" },
+
+  "leaderboardMostLoyal": "Most loyal",
+  "@leaderboardMostLoyal": { "description": "Heading of the ranking by the share of one item in each person's consumptions; with all items selected, each person's own favourite" },
+
   "filterItem": "Item",
   "@filterItem": { "description": "Label of the leaderboard dropdown that counts one item only" },
 

@@ -5,16 +5,23 @@ import '../data/database.dart';
 import '../data/database_provider.dart';
 import '../data/stat_period.dart';
 import '../l10n/app_localizations.dart';
+import '../settings/app_settings.dart';
+import '../settings/settings_data.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/period_chips.dart';
 import '../widgets/ranked_bar_list.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/user_avatar.dart';
 
-typedef _Rankings = ({List<RankedUser> consumers, List<RankedUser> present});
+typedef _Rankings = ({
+  List<RankedUser> consumers,
+  List<RankedUser> present,
+  List<BestDay> bestDays,
+  List<LoyalUser> loyal,
+});
 
-/// Who took the most and who was there the most, by count only — never by
-/// balance.
+/// Who took the most, was there the most, had the biggest day and sticks to
+/// one item — by count only, never by balance.
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key, required this.active});
 
@@ -45,6 +52,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   /// A ranking needs this many people before it is worth showing.
   static const _minimumPeople = 5;
 
+  /// Consumptions a user needs before a share of them means anything.
+  static int _loyaltyMinimum(StatPeriod period) =>
+      period == StatPeriod.month ? 20 : 75;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -64,7 +75,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final itemId = _itemId;
     final at = DateTime.now();
     _data = () async {
-      final (consumers, present) = await (
+      final (consumers, present, bestDays, loyal) = await (
         stats.readTopConsumers(
           period,
           at: at,
@@ -77,8 +88,26 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           userGroupId: userGroupId,
           itemId: itemId,
         ),
+        stats.readBestDays(
+          period,
+          at: at,
+          userGroupId: userGroupId,
+          itemId: itemId,
+        ),
+        stats.readMostLoyal(
+          period,
+          at: at,
+          minimumTotal: _loyaltyMinimum(period),
+          userGroupId: userGroupId,
+          itemId: itemId,
+        ),
       ).wait;
-      return (consumers: consumers, present: present);
+      return (
+        consumers: consumers,
+        present: present,
+        bestDays: bestDays,
+        loyal: loyal,
+      );
     }();
   }
 
@@ -90,6 +119,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final settings = AppSettings.of(context);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.navLeaderboard)),
@@ -133,7 +163,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
               final consumers = data.consumers.length >= _minimumPeople;
               final present = data.present.length >= _minimumPeople;
-              if (!consumers && !present) {
+              final bestDays = data.bestDays.length >= _minimumPeople;
+              final loyal = data.loyal.length >= _minimumPeople;
+              if (!consumers && !present && !bestDays && !loyal) {
                 return EmptyState(
                   icon: Icons.emoji_events_outlined,
                   message: l10n.statsNotEnoughData,
@@ -148,13 +180,48 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                     _Ranking(
                       icon: Icons.local_drink_outlined,
                       label: l10n.leaderboardTopConsumers,
-                      entries: data.consumers,
+                      entries: [
+                        for (final ranked in data.consumers)
+                          _bar(ranked.user, count: ranked.count),
+                      ],
                     ),
                   if (present)
                     _Ranking(
                       icon: Icons.event_available_outlined,
                       label: l10n.leaderboardMostPresent,
-                      entries: data.present,
+                      entries: [
+                        for (final ranked in data.present)
+                          _bar(ranked.user, count: ranked.count),
+                      ],
+                    ),
+                  if (bestDays)
+                    _Ranking(
+                      icon: Icons.local_fire_department_outlined,
+                      label: l10n.leaderboardBestDay,
+                      entries: [
+                        for (final best in data.bestDays)
+                          _bar(
+                            best.user,
+                            count: best.count,
+                            detail: settings.formatDate(best.day),
+                          ),
+                      ],
+                    ),
+                  if (loyal)
+                    _Ranking(
+                      icon: Icons.favorite_outline,
+                      label: l10n.leaderboardMostLoyal,
+                      outOf: 100,
+                      entries: [
+                        for (final loyal in data.loyal)
+                          _bar(
+                            loyal.user,
+                            count: (loyal.share * 100).round(),
+                            countLabel: settings.formatPercent(loyal.share),
+                            // One item selected: the same emoji on every row.
+                            detail: _itemId == null ? loyal.item.emoji : null,
+                          ),
+                      ],
                     ),
                 ],
               );
@@ -231,34 +298,40 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   );
 }
 
+RankedBar _bar(
+  UserRow user, {
+  required int count,
+  String? detail,
+  String? countLabel,
+}) => RankedBar(
+  leading: UserAvatar(
+    emoji: user.avatarEmoji,
+    seedColorArgb: user.seedColorArgb,
+    size: 40,
+  ),
+  label: user.name,
+  count: count,
+  detail: detail,
+  countLabel: countLabel,
+);
+
 class _Ranking extends StatelessWidget {
   const _Ranking({
     required this.icon,
     required this.label,
     required this.entries,
+    this.outOf,
   });
 
   final IconData icon;
   final String label;
-  final List<RankedUser> entries;
+  final List<RankedBar> entries;
+  final int? outOf;
 
   @override
   Widget build(BuildContext context) => StatsCard(
     icon: icon,
     label: label,
-    child: RankedBarList(
-      entries: [
-        for (final ranked in entries)
-          RankedBar(
-            leading: UserAvatar(
-              emoji: ranked.user.avatarEmoji,
-              seedColorArgb: ranked.user.seedColorArgb,
-              size: 40,
-            ),
-            label: ranked.user.name,
-            count: ranked.count,
-          ),
-      ],
-    ),
+    child: RankedBarList(entries: entries, outOf: outOf),
   );
 }

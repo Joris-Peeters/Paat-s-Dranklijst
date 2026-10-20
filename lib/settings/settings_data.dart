@@ -304,4 +304,8 @@ extension AppSettingsFormatting on AppSettingsData {
   String formatPercentChange(double? change) => change == null
       ? '–'
       : NumberFormat('+#,##0%;-#,##0%', languageCode).format(change);
+
+  /// A share of a whole, `0.85` as `85%`.
+  String formatPercent(double share) =>
+      NumberFormat.percentPattern(languageCode).format(share);
 }

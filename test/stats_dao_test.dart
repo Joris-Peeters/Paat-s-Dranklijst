@@ -314,6 +314,76 @@ void main() {
         ['Ann'],
       );
     });
+
+    test('best day counts a logical day, keeps the earlier of a tie', () async {
+      final cola = await addItem('Cola');
+      final water = await addItem('Water');
+      final ann = await addUser('Ann');
+      final bob = await addUser('Bob');
+      await consume(ann, cola, daysAgo(5), quantity: 2);
+      // 01:00 the next morning is still the same evening.
+      await consume(ann, cola, daysAgo(4, hour: 1));
+      await consume(ann, water, daysAgo(2), quantity: 3);
+      await consume(bob, water, now);
+
+      final best = await db.statsDao.readBestDays(StatPeriod.month, at: now);
+      expect(best.map((b) => (b.user.name, b.count, b.day)), [
+        ('Ann', 3, logicalDayOf(daysAgo(5))),
+        ('Bob', 1, logicalDayOf(now)),
+      ]);
+
+      final onWater = await db.statsDao.readBestDays(
+        StatPeriod.month,
+        at: now,
+        itemId: water.id,
+      );
+      expect(onWater.first.day, logicalDayOf(daysAgo(2)));
+    });
+
+    test(
+      'most loyal ranks a share of the full total, over a minimum',
+      () async {
+        final cola = await addItem('Cola');
+        final water = await addItem('Water');
+        final leaders = await db.usersDao.createUserGroup(name: 'Leiding');
+        final ann = await addUser('Ann');
+        final bob = await addUser('Bob');
+        final cas = await addUser('Cas');
+        final dirk = await addUser('Dirk', groupId: leaders);
+        await consume(ann, cola, now, quantity: 3);
+        await consume(ann, water, now);
+        await consume(bob, water, daysAgo(1), quantity: 4);
+        await consume(cas, cola, now);
+        await consume(dirk, cola, now, quantity: 2);
+        await consume(dirk, water, now, quantity: 2);
+
+        Future<List<(String, String, int, int)>> loyal({
+          int? itemId,
+          int? userGroupId,
+        }) async => [
+          for (final l in await db.statsDao.readMostLoyal(
+            StatPeriod.month,
+            at: now,
+            minimumTotal: 4,
+            itemId: itemId,
+            userGroupId: userGroupId,
+          ))
+            (l.user.name, l.item.name, l.count, l.total),
+        ];
+
+        // Cas is under the minimum; Dirk's tie goes to the lower item id.
+        expect(await loyal(), [
+          ('Bob', 'Water', 4, 4),
+          ('Ann', 'Cola', 3, 4),
+          ('Dirk', 'Cola', 2, 4),
+        ]);
+        expect(await loyal(itemId: cola.id), [
+          ('Ann', 'Cola', 3, 4),
+          ('Dirk', 'Cola', 2, 4),
+        ]);
+        expect(await loyal(userGroupId: leaders), [('Dirk', 'Cola', 2, 4)]);
+      },
+    );
   });
 
   group('group activity', () {
@@ -366,6 +436,21 @@ void main() {
         await stats.readWeekday(period, at: now);
         await stats.readTopConsumers(period, at: now);
         await stats.readMostPresent(period, at: now);
+        await stats.readBestDays(period, at: now);
+        await stats.readMostLoyal(period, at: now, minimumTotal: 1);
+        await stats.readBestDays(
+          period,
+          at: now,
+          userGroupId: seededGroup,
+          itemId: cola.id,
+        );
+        await stats.readMostLoyal(
+          period,
+          at: now,
+          minimumTotal: 1,
+          userGroupId: seededGroup,
+          itemId: cola.id,
+        );
         await stats.readTopConsumers(
           period,
           at: now,

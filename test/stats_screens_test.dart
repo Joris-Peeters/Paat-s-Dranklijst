@@ -193,7 +193,31 @@ void main() {
     await seed(who: [users[4]], days: 1);
     await tester.tap(find.text('Year'));
     await tester.pumpAndSettle();
-    expect(find.byType(RankedBarList), findsNWidgets(2));
+    // Best day qualifies; loyalty needs 75 each in a year, not 20.
+    expect(find.byType(RankedBarList), findsNWidgets(3));
+    expect(find.text('MOST LOYAL'), findsNothing);
+  });
+
+  testWidgetsWithDatabase('the leaderboard ranks best days and loyalty', (
+    tester,
+  ) async {
+    tabletView(tester);
+    // 30 each in the month, over loyalty's minimum of 20.
+    await seed(who: users.take(5).toList(), days: 30, every: 1);
+
+    await tester.pumpWidget(
+      await settingsHarness(
+        null,
+        database: db,
+        screen: const LeaderboardScreen(active: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(RankedBarList), findsNWidgets(4));
+    expect(find.text('BEST DAY'), findsOneWidget);
+    expect(find.text('100%'), findsNWidgets(5));
+    // All items: each row names its favourite.
+    expect(find.text('🥤'), findsNWidgets(5));
   });
 
   testWidgetsWithDatabase('a user page shows spend, favourites and a trend', (

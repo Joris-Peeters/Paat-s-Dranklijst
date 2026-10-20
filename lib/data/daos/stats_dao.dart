@@ -18,6 +18,32 @@ class RankedUser {
   final int count;
 }
 
+/// A user's single biggest logical day, and how many they took on it.
+class BestDay {
+  const BestDay({required this.user, required this.count, required this.day});
+
+  final UserRow user;
+  final int count;
+  final DateTime day;
+}
+
+/// How much of a user's total one item makes up.
+class LoyalUser {
+  const LoyalUser({
+    required this.user,
+    required this.item,
+    required this.count,
+    required this.total,
+  });
+
+  final UserRow user;
+  final ItemRow item;
+  final int count;
+  final int total;
+
+  double get share => count / total;
+}
+
 /// An item and how many of it were taken.
 class RankedItem {
   const RankedItem({required this.item, required this.count});
@@ -434,6 +460,120 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
     userGroupId: userGroupId,
     itemId: itemId,
   );
+
+  /// Top five by their single biggest logical day. A record matched on a
+  /// later day keeps the day it was first set.
+  Future<List<BestDay>> readBestDays(
+    StatPeriod period, {
+    required DateTime at,
+    int? userGroupId,
+    int? itemId,
+  }) async {
+    final window = statWindow(period, at: at);
+    final where = _where(
+      from: window.from,
+      to: window.to,
+      itemId: itemId,
+      userGroupId: userGroupId,
+    );
+    final rows = await customSelect(
+      '''
+      WITH per_day AS (
+        SELECT user_id, logical_date, SUM(quantity) AS n
+        FROM transactions ${where.sql}
+        GROUP BY user_id, logical_date
+      ), best AS (
+        SELECT user_id, logical_date, n,
+          ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY n DESC, logical_date)
+            AS place
+        FROM per_day
+      ), ranked AS (
+        SELECT user_id, logical_date, n FROM best
+        WHERE place = 1
+        ORDER BY n DESC, user_id
+        LIMIT 5
+      )
+      SELECT ranked.n AS n, ranked.logical_date AS day, ${_columns(users, 'u')}
+      FROM ranked JOIN users u ON u.id = ranked.user_id
+      ORDER BY ranked.n DESC, ranked.user_id
+      ''',
+      variables: where.variables,
+      readsFrom: {transactions, users},
+    ).get();
+    return [
+      for (final row in rows)
+        BestDay(
+          user: users.map(row.data, tablePrefix: 'u'),
+          count: row.read<int>('n'),
+          day: logicalDayFromKey(row.read<String>('day')),
+        ),
+    ];
+  }
+
+  /// Top five by the share of [itemId] in their total, or of their own
+  /// favourite when null. Only users with [minimumTotal] consumptions qualify.
+  Future<List<LoyalUser>> readMostLoyal(
+    StatPeriod period, {
+    required DateTime at,
+    required int minimumTotal,
+    int? userGroupId,
+    int? itemId,
+  }) async {
+    final window = statWindow(period, at: at);
+    // No item filter here: the total is over every item.
+    final where = _where(
+      from: window.from,
+      to: window.to,
+      userGroupId: userGroupId,
+    );
+    // Equal shares go to the larger total, then the lower id.
+    final rows = await customSelect(
+      '''
+      WITH per_item AS (
+        SELECT user_id, item_id, SUM(quantity) AS n
+        FROM transactions ${where.sql}
+        GROUP BY user_id, item_id
+      ), totals AS (
+        SELECT user_id, SUM(n) AS total FROM per_item
+        GROUP BY user_id
+        HAVING total >= ?
+      ), picked AS (
+        SELECT p.user_id, p.item_id, p.n, t.total,
+          ROW_NUMBER() OVER (PARTITION BY p.user_id ORDER BY p.n DESC, p.item_id)
+            AS place
+        FROM per_item p JOIN totals t ON t.user_id = p.user_id
+        ${itemId == null ? '' : 'WHERE p.item_id = ?'}
+      ), ranked AS (
+        SELECT user_id, item_id, n, total FROM picked
+        WHERE place = 1
+        ORDER BY CAST(n AS REAL) / total DESC, total DESC, user_id
+        LIMIT 5
+      )
+      SELECT ranked.n AS n, ranked.total AS total,
+        ${_columns(users, 'u')}, ${_columns(items, 'i')}
+      FROM ranked
+      JOIN users u ON u.id = ranked.user_id
+      JOIN items i ON i.id = ranked.item_id
+      ORDER BY CAST(ranked.n AS REAL) / ranked.total DESC, ranked.total DESC,
+        ranked.user_id
+      ''',
+      variables: [
+        ...where.variables,
+        Variable.withInt(minimumTotal),
+        if (itemId != null) Variable.withInt(itemId),
+      ],
+      readsFrom: {transactions, users, items},
+    ).get();
+    return [
+      for (final row in rows)
+        LoyalUser(
+          user: users.map(row.data, tablePrefix: 'u'),
+          item: items.map(row.data, tablePrefix: 'i'),
+          count: row.read<int>('n'),
+          total: row.read<int>('total'),
+        ),
+    ];
+  }
 
   Future<List<RankedUser>> _rankUsers(
     String score,
