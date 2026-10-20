@@ -294,6 +294,11 @@ extension AppSettingsFormatting on AppSettingsData {
   String formatHour(int hour) =>
       DateFormat.j(languageCode).format(DateTime(2000, 1, 1, hour));
 
+  /// A short weekday name, `Mon` or `ma`; [weekday] is `DateTime.monday`..`sunday`.
+  String formatWeekday(int weekday) =>
+      // 1 January 2024 was a Monday.
+      DateFormat.E(languageCode).format(DateTime(2024, 1, weekday));
+
   /// A relative change as a signed percentage, or a dash when there was
   /// nothing to compare against.
   String formatPercentChange(double? change) => change == null

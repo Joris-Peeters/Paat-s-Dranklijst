@@ -20,6 +20,7 @@ typedef _StatsData = ({
   Volume volume,
   List<RankedItem> topItems,
   List<({int hour, int count})> hours,
+  List<({int weekday, int count})> weekdays,
 });
 
 /// How the fridge is used: totals, volume over time, favourites, and when.
@@ -57,13 +58,20 @@ class _StatsScreenState extends State<StatsScreen> {
     final period = _period;
     final at = DateTime.now();
     _data = () async {
-      final (kpis, volume, topItems, hours) = await (
+      final (kpis, volume, topItems, hours, weekdays) = await (
         _stats.readKpis(period, at: at),
         _stats.readVolume(period, at: at),
         _stats.readTopItems(period, at: at),
         _stats.readHourOfNight(period, at: at),
+        _stats.readWeekday(period, at: at),
       ).wait;
-      return (kpis: kpis, volume: volume, topItems: topItems, hours: hours);
+      return (
+        kpis: kpis,
+        volume: volume,
+        topItems: topItems,
+        hours: hours,
+        weekdays: weekdays,
+      );
     }();
   }
 
@@ -121,8 +129,8 @@ class _Sections extends StatelessWidget {
 
   final _StatsData data;
 
-  /// Below this, an hour-by-hour split is a handful of lonely bars.
-  static const _hourOfNightMinimum = 50;
+  /// Below this, a split by hour or weekday is a handful of lonely bars.
+  static const _breakdownMinimum = 50;
 
   @override
   Widget build(BuildContext context) {
@@ -138,6 +146,7 @@ class _Sections extends StatelessWidget {
 
     final volume = data.volume.buckets;
     final hourTotal = data.hours.fold(0, (sum, h) => sum + h.count);
+    final weekdayTotal = data.weekdays.fold(0, (sum, d) => sum + d.count);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -200,13 +209,22 @@ class _Sections extends StatelessWidget {
               ],
             ),
           ),
-        if (hourTotal >= _hourOfNightMinimum)
+        if (hourTotal >= _breakdownMinimum)
           StatsCard(
             icon: Icons.nightlight_outlined,
             label: l10n.statsHourOfNight,
             child: CountBarChart(
               counts: [for (final hour in data.hours) hour.count],
               labelOf: (i) => settings.formatHour(data.hours[i].hour),
+            ),
+          ),
+        if (weekdayTotal >= _breakdownMinimum)
+          StatsCard(
+            icon: Icons.calendar_view_week_outlined,
+            label: l10n.statsWeekday,
+            child: CountBarChart(
+              counts: [for (final day in data.weekdays) day.count],
+              labelOf: (i) => settings.formatWeekday(data.weekdays[i].weekday),
             ),
           ),
       ],

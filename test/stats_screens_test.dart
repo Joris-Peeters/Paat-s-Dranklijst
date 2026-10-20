@@ -161,14 +161,15 @@ void main() {
     expect(find.byType(CountBarChart), findsNothing);
 
     await pump(active: true);
-    // 120 consumptions: enough for the hour of night as well as the volume.
-    expect(find.byType(CountBarChart), findsNWidgets(2));
+    // 120 consumptions: enough for the hour of night and the weekday as well
+    // as the volume.
+    expect(find.byType(CountBarChart), findsNWidgets(3));
     expect(find.byType(RankedBarList), findsOneWidget);
 
     for (final period in ['Year', 'All time']) {
       await tester.tap(find.text(period));
       await tester.pumpAndSettle();
-      expect(find.byType(CountBarChart), findsNWidgets(2));
+      expect(find.byType(CountBarChart), findsNWidgets(3));
     }
   });
 

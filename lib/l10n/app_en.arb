@@ -164,6 +164,9 @@
   "statsHourOfNight": "Time of night",
   "@statsHourOfNight": { "description": "Heading of the chart of consumptions per hour of the clock" },
 
+  "statsWeekday": "Day of the week",
+  "@statsWeekday": { "description": "Heading of the chart of consumptions per weekday, counted by logical day" },
+
   "statsNotEnoughData": "Not enough data yet",
   "@statsNotEnoughData": { "description": "Shown where a statistic needs more consumptions or more people before it means anything" },
 

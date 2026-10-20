@@ -106,3 +106,9 @@ List<({int hour, int count})> hourOfNightBuckets(Map<int, int> perHour) {
   final last = ordered.lastIndexWhere((h) => h.count > 0);
   return ordered.sublist(first, last + 1);
 }
+
+/// Consumptions per weekday, Monday first, all seven included.
+List<({int weekday, int count})> weekdayBuckets(Map<int, int> perWeekday) => [
+  for (var day = DateTime.monday; day <= DateTime.sunday; day++)
+    (weekday: day, count: perWeekday[day] ?? 0),
+];

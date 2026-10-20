@@ -60,7 +60,7 @@ typedef Volume = ({BucketSize size, List<StatBucket> buckets});
 ///
 /// Written as SQL rather than with the query builder: a ranking aggregates
 /// first and joins users or items to its five rows only, the hour of night
-/// needs `strftime`, and the predicate below matches the partial indexes as a
+/// and the weekday need `strftime`, and the predicate below matches the partial indexes as a
 /// literal rather than through SQLite re-preparing with a bound value.
 ///
 /// `test/stats_dao_test.dart` checks every query here is an index-only scan.
@@ -375,6 +375,32 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
     ).get();
     return hourOfNightBuckets({
       for (final row in rows) row.read<int>('hour'): row.read<int>('n'),
+    });
+  }
+
+  /// Consumptions per weekday of the logical day, so Saturday night after
+  /// midnight is still Saturday.
+  Future<List<({int weekday, int count})>> readWeekday(
+    StatPeriod period, {
+    required DateTime at,
+  }) async {
+    final window = statWindow(period, at: at);
+    final where = _where(from: window.from, to: window.to);
+    // `%w` counts from Sunday as 0; shifted to Dart's Monday 1 .. Sunday 7.
+    final rows = await customSelect(
+      '''
+      SELECT
+        (CAST(strftime('%w', logical_date) AS INTEGER) + 6) % 7 + 1
+          AS weekday,
+        SUM(quantity) AS n
+      FROM transactions ${where.sql}
+      GROUP BY weekday
+      ''',
+      variables: where.variables,
+      readsFrom: {transactions},
+    ).get();
+    return weekdayBuckets({
+      for (final row in rows) row.read<int>('weekday'): row.read<int>('n'),
     });
   }
 

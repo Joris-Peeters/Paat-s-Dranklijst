@@ -252,6 +252,20 @@ void main() {
       expect(hours.last, (hour: 1, count: 1));
       expect(hours, hasLength(4));
     });
+
+    test('weekday counts by logical day, Monday first', () async {
+      final cola = await addItem('Cola');
+      final ann = await addUser('Ann');
+      // Sunday 01:30 is still Saturday night.
+      await consume(ann, cola, DateTime(2026, 9, 13, 1, 30), quantity: 2);
+      await consume(ann, cola, DateTime(2026, 9, 13, 22));
+
+      final days = await db.statsDao.readWeekday(StatPeriod.month, at: now);
+      expect(days, hasLength(7));
+      expect(days.first, (weekday: DateTime.monday, count: 0));
+      expect(days[5], (weekday: DateTime.saturday, count: 2));
+      expect(days.last, (weekday: DateTime.sunday, count: 1));
+    });
   });
 
   group('leaderboard', () {
@@ -349,6 +363,7 @@ void main() {
         await stats.readVolume(period, at: now);
         await stats.readTopItems(period, at: now);
         await stats.readHourOfNight(period, at: now);
+        await stats.readWeekday(period, at: now);
         await stats.readTopConsumers(period, at: now);
         await stats.readMostPresent(period, at: now);
         await stats.readTopConsumers(

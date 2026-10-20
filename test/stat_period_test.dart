@@ -89,5 +89,12 @@ void main() {
       expect(hours, hasLength(7));
       expect(hourOfNightBuckets({}), isEmpty);
     });
+
+    test('weekdays run Monday to Sunday, zeros included', () {
+      final days = weekdayBuckets({6: 2, 7: 1});
+      expect(days.map((d) => d.weekday), [1, 2, 3, 4, 5, 6, 7]);
+      expect(days.map((d) => d.count), [0, 0, 0, 0, 0, 2, 1]);
+      expect(weekdayBuckets({}).every((d) => d.count == 0), isTrue);
+    });
   });
 }
