@@ -64,6 +64,8 @@ dart run build_runner build   # after ANY change to a drift table
 dart run build_runner watch   # leave running while working
 flutter gen-l10n              # forced; run/build does it automatically
 
+python3 tool/simulate_history.py  # replace the dev database with ~3 years of fake history
+
 flutter build linux --release
 flutter build apk --release --split-per-abi
 ```
@@ -589,6 +591,7 @@ lib/
     backup_actions.dart      # saveBackup, the folder note, the shared file list
     balances_qr_card.dart    # the balances CSV as a binary QR code, backup screen only
 test/support/                # harness.dart (widget harness), ledger.dart (test shorthands)
+tool/simulate_history.py     # fills a database with simulated history for testing; stdlib only
 build.yaml                   # drift codegen options (manager API off)
 .github/workflows/release.yml  # tag-triggered release builds for Android, Linux, iOS
 ```
