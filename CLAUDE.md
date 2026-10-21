@@ -654,9 +654,8 @@ build.yaml                   # drift codegen and make-migrations options
 
 ## Current state
 
-**v1.0.0 is the first release**, made right before the first real deployment. The
-group runs it on an iPad; Linux is the development platform and Android is the least
-tested.
+**v1.0.0 was the first release**, made right before the first real deployment, and
+**v1.1.0** followed with profile photos, more statistics and schema v2. 
 
 The tree is `Database` -> `AppSettings` -> `MaterialApp`. `MainApp.home` is the wizard
 while `setupCompletedAt` is null and `AppShell` afterwards, so finishing the wizard swaps

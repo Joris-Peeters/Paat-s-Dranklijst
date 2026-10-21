@@ -168,7 +168,7 @@ by GitHub Actions when a version tag is pushed.
 
 ## Status
 
-v1.0.0 is the first release, so expect some rough edges.
+v1.1.0 is the current release and the project is still young, so expect some rough edges.
 It is being put into real use at our group, so issues will get fixed when they pop up.
 Problems can be reported through [GitHub issues](https://github.com/Joris-Peeters/Paat-s-Dranklijst/issues).
 
