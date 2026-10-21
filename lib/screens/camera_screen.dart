@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
 import '../utils/avatar_photo.dart';
+import '../utils/screen_dimming.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_theme_scope.dart';
@@ -32,10 +33,34 @@ Future<Uint8List?> showCameraScreen(
 
 enum _CameraProblem { unavailable, permissionDenied }
 
+/// The self-timer's steps, in the order its button cycles through them.
+enum _SelfTimer {
+  off(0, Icons.timer_off_outlined),
+  three(3, Icons.timer_3_outlined),
+  ten(10, Icons.timer_10_outlined);
+
+  const _SelfTimer(this.seconds, this.icon);
+
+  final int seconds;
+  final IconData icon;
+
+  _SelfTimer get next => values[(index + 1) % values.length];
+}
+
 /// A live preview in the shape of the avatar it will become, then the result
 /// to retry or keep.
+///
+/// Timer and flash start off on every visit, so the next person at the fridge
+/// does not inherit someone else's 10 s timer.
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  const CameraScreen({super.key, this.applyBrightness = applyScreenBrightness});
+
+  /// How long the screen flash is lit before the shot, so exposure and white
+  /// balance settle on the new light.
+  static const screenFlashLead = Duration(seconds: 1);
+
+  /// Drives the screen flash. Injectable so tests need no plugin.
+  final ApplyBrightness applyBrightness;
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -59,6 +84,16 @@ class _CameraScreenState extends State<CameraScreen>
   /// Set when the app went to the background and took the camera with it.
   bool _released = false;
 
+  _SelfTimer _selfTimer = _SelfTimer.off;
+  bool _flashOn = false;
+
+  /// Seconds left on the self-timer, null when it is not running.
+  int? _countdown;
+  Timer? _ticker;
+
+  /// Whether the screen is lit white as the front camera's flash.
+  bool _screenFlash = false;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +105,13 @@ class _CameraScreenState extends State<CameraScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _generation++;
+    _ticker?.cancel();
+    // On iOS the brightness is the system's, so leaving lit would leave the
+    // iPad at full brightness.
+    if (_screenFlash) {
+      _screenFlash = false;
+      unawaited(widget.applyBrightness(null));
+    }
     unawaited(_controller?.dispose());
     super.dispose();
   }
@@ -80,6 +122,10 @@ class _CameraScreenState extends State<CameraScreen>
     // leaves a black preview on return, or blocks other apps on Android.
     // Skipped while still initializing, because the permission prompt itself
     // makes the app inactive.
+    if (state == AppLifecycleState.inactive) {
+      _cancelCountdown();
+      _endScreenFlash();
+    }
     final controller = _controller;
     if (state == AppLifecycleState.inactive &&
         controller != null &&
@@ -154,15 +200,80 @@ class _CameraScreenState extends State<CameraScreen>
     await _open();
   }
 
+  /// The shutter: straight to [_capture], or through the self-timer.
+  void _shoot() {
+    final seconds = _selfTimer.seconds;
+    if (seconds == 0) {
+      unawaited(_capture());
+      return;
+    }
+    setState(() => _countdown = seconds);
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      final left = _countdown! - 1;
+      if (left > 0) {
+        setState(() => _countdown = left);
+        return;
+      }
+      _cancelCountdown();
+      unawaited(_capture());
+    });
+  }
+
+  void _cancelCountdown() {
+    _ticker?.cancel();
+    _ticker = null;
+    if (_countdown != null) setState(() => _countdown = null);
+  }
+
+  void _endScreenFlash() {
+    if (!_screenFlash) return;
+    setState(() => _screenFlash = false);
+    unawaited(widget.applyBrightness(null));
+  }
+
+  /// Set on every shot, so a controller rebuilt by a switch or a resume never
+  /// keeps a stale mode, and the front camera never fires a flash of its own.
+  static Future<void> _setFlashMode(
+    CameraController controller, {
+    required bool on,
+  }) async {
+    try {
+      await controller.setFlashMode(on ? FlashMode.always : FlashMode.off);
+    } on CameraException {
+      // iOS refuses any flash mode on a camera without a flash; Android
+      // accepts it silently. Either way the shot goes ahead without one.
+    }
+  }
+
   Future<void> _capture() async {
     final controller = _controller;
     if (controller == null || controller.value.isTakingPicture) return;
     final messenger = ScaffoldMessenger.of(context);
     final failed = AppLocalizations.of(context).photoProcessingFailed;
+    // Front cameras on tablets almost never have a flash, and Android cannot
+    // say whether one does, so the front camera always lights the screen.
+    final front =
+        controller.description.lensDirection == CameraLensDirection.front;
+    final screenFlash = _flashOn && front;
 
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _screenFlash = screenFlash;
+    });
     try {
-      final file = await controller.takePicture();
+      final XFile file;
+      try {
+        await _setFlashMode(controller, on: _flashOn && !front);
+        if (screenFlash) {
+          await widget.applyBrightness(1.0);
+          await Future<void>.delayed(CameraScreen.screenFlashLead);
+          // Backgrounded while lit: the camera is gone and the shot with it.
+          if (!mounted || _controller != controller) return;
+        }
+        file = await controller.takePicture();
+      } finally {
+        if (mounted) _endScreenFlash();
+      }
       final captured = await file.readAsBytes();
       // The plugin leaves every capture in a temp folder, and a kiosk would
       // collect them for years.
@@ -188,9 +299,37 @@ class _CameraScreenState extends State<CameraScreen>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final problem = _problem;
+    // Settings for the next shot: locked while one is under way.
+    final adjustable = _countdown == null && !_busy;
+    final showSettings = problem == null && _photo == null;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.cameraTitle)),
+    final scaffold = Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.cameraTitle),
+        actions: [
+          if (showSettings) ...[
+            IconButton(
+              style: IconButton.styleFrom(minimumSize: const Size.square(56)),
+              tooltip: _flashOn ? l10n.flashOn : l10n.flashOff,
+              icon: Icon(
+                _flashOn ? Icons.flash_on_outlined : Icons.flash_off_outlined,
+              ),
+              onPressed: adjustable
+                  ? () => setState(() => _flashOn = !_flashOn)
+                  : null,
+            ),
+            IconButton(
+              style: IconButton.styleFrom(minimumSize: const Size.square(56)),
+              tooltip: l10n.selfTimer,
+              icon: Icon(_selfTimer.icon),
+              onPressed: adjustable
+                  ? () => setState(() => _selfTimer = _selfTimer.next)
+                  : null,
+            ),
+            const SizedBox(width: 8),
+          ],
+        ],
+      ),
       body: SafeArea(
         child: problem != null
             ? EmptyState(
@@ -212,7 +351,10 @@ class _CameraScreenState extends State<CameraScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     spacing: 32,
                     children: [
-                      _Circle(diameter: diameter, child: _circleContent()),
+                      _Circle(
+                        diameter: diameter,
+                        child: _circleContent(diameter),
+                      ),
                       SizedBox(height: 80, child: _controls(l10n)),
                     ],
                   );
@@ -220,9 +362,19 @@ class _CameraScreenState extends State<CameraScreen>
               ),
       ),
     );
+
+    return Stack(
+      children: [
+        scaffold,
+        // A light source rather than a surface, so plain white whatever the
+        // theme. Opaque to touches, so the shutter cannot be tapped twice.
+        if (_screenFlash)
+          const Positioned.fill(child: ColoredBox(color: Colors.white)),
+      ],
+    );
   }
 
-  Widget _circleContent() {
+  Widget _circleContent(double diameter) {
     final photo = _photo;
     if (photo != null) return Image.memory(photo, fit: BoxFit.cover);
 
@@ -250,6 +402,21 @@ class _CameraScreenState extends State<CameraScreen>
           ),
         if (controller == null || _busy)
           Center(child: CircularProgressIndicator(color: colors.primary)),
+        if (_countdown case final seconds?)
+          Center(
+            // White with a shadow rather than a theme colour: it sits on
+            // whatever the camera sees.
+            child: Text(
+              '$seconds',
+              style: TextStyle(
+                fontSize: diameter * 0.4,
+                fontWeight: FontWeight.w300,
+                color: Colors.white,
+                height: 1.0,
+                shadows: const [Shadow(blurRadius: 12)],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -278,13 +445,14 @@ class _CameraScreenState extends State<CameraScreen>
       );
     }
 
+    final counting = _countdown != null;
     final ready = _controller != null && !_busy;
     final switchButton = IconButton.filledTonal(
       iconSize: 28,
       style: IconButton.styleFrom(minimumSize: const Size.square(56)),
       tooltip: l10n.switchCamera,
       icon: const Icon(Icons.cameraswitch_outlined),
-      onPressed: ready ? () => unawaited(_switchCamera()) : null,
+      onPressed: ready && !counting ? () => unawaited(_switchCamera()) : null,
     );
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -295,9 +463,13 @@ class _CameraScreenState extends State<CameraScreen>
         IconButton.filled(
           iconSize: 40,
           style: IconButton.styleFrom(minimumSize: const Size.square(80)),
-          tooltip: l10n.takePhotoButton,
-          icon: const Icon(Icons.photo_camera),
-          onPressed: ready ? () => unawaited(_capture()) : null,
+          tooltip: counting ? l10n.cancelTimer : l10n.takePhotoButton,
+          icon: Icon(counting ? Icons.close : Icons.photo_camera),
+          onPressed: counting
+              ? _cancelCountdown
+              : ready
+              ? _shoot
+              : null,
         ),
         if (_cameras.length > 1)
           switchButton

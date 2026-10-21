@@ -525,6 +525,18 @@
   "switchCamera": "Switch camera",
   "@switchCamera": { "description": "Tooltip of the button that swaps between front and back camera" },
 
+  "flashOn": "Flash on",
+  "@flashOn": { "description": "Tooltip of the camera screen's flash button while the flash is on" },
+
+  "flashOff": "Flash off",
+  "@flashOff": { "description": "Tooltip of the camera screen's flash button while the flash is off" },
+
+  "selfTimer": "Self-timer",
+  "@selfTimer": { "description": "Tooltip of the camera screen's button that steps through off, 3 and 10 seconds" },
+
+  "cancelTimer": "Cancel timer",
+  "@cancelTimer": { "description": "Tooltip of the button that replaces the shutter while the self-timer counts down" },
+
   "retryPhoto": "Retry",
   "@retryPhoto": { "description": "Button after taking a photo that throws it away and goes back to the live camera" },
 

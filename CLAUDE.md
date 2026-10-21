@@ -341,6 +341,12 @@ plugin delivers them, mirrored or not. The review step shows the processed bytes
 so what is confirmed is what is stored. Photo items in the avatar menu are not behind
 `allowUserEditing`, like emoji and colour.
 
+The camera screen has a self-timer (off / 3 s / 10 s) and a flash toggle. Both start off
+on every visit, so the next person does not inherit a 10 s timer. **The front camera
+always uses a screen flash**: the whole screen goes white at full brightness for
+`CameraScreen.screenFlashLead` (1 s) before the shot, so exposure can settle. The back
+camera uses its own flash, set before every shot.
+
 **The create screen picks a random emoji and a random palette colour** for a new member,
 which is why both columns are non-null and neither has a schema default: a default would
 let an insert quietly give everyone the same face. `UsersDao.createUser` therefore takes
@@ -447,6 +453,15 @@ group left behind.
   the app goes `inactive` and opens it again on `resumed`. It skips that while still
   initializing, because the permission prompt itself makes the app inactive. Every
   capture also leaves a file in a temp folder, which the screen deletes.
+- **The screen flash moves the system brightness on iOS**, like the dimmer does, so
+  `CameraScreen` hands it back after the shot, on `inactive` and in `dispose`. It takes
+  `applyBrightness` as an argument, like `ScreenDimmer`, and the tests pass a recorder.
+- **`test/camera_screen_test.dart` runs the real screen over a fake `CameraPlatform`**,
+  which is why `camera_platform_interface` is a dev dependency. The fake implements only
+  what `CameraController` calls. The streams it hands back must never emit rather than
+  be empty: the controller takes `.first` of them, and `.first` of an empty stream is an
+  unhandled error. Photo processing runs in an isolate, so the tests stop at
+  `takePicture`.
 - **iOS kills the app the first time the camera opens without
   `NSCameraUsageDescription`** in Info.plist. The controller has `enableAudio: false`,
   so no microphone key is needed. Android's `CAMERA` permission merges in from the
@@ -722,6 +737,9 @@ async.
   landscape layout that is not designed for.
 - Idle dimming does nothing on Linux: the controls are shown greyed out with a note.
 - Profile photos cannot be taken on Linux, which has no camera plugin.
+- A back camera without a flash still shows the flash button, and it does nothing.
+  Android cannot report whether a flash exists, so neither platform checks; iOS's
+  refusal is caught.
 - A reset that removes users or items removes their groups too and reseeds nothing: the
   admin recreates a group before anyone can be added.
 - The launcher icons are still Flutter's defaults.

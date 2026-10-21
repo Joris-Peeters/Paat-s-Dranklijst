@@ -33,6 +33,8 @@ dev_dependencies:
   # Only for InMemorySharedPreferencesAsync, the sanctioned test double for
   # SharedPreferencesWithCache.
   shared_preferences_platform_interface: ^2.4.1
+  # Only for a fake CameraPlatform, so the camera screen is testable off-device.
+  camera_platform_interface: ^2.15.0
 
 flutter:
   uses-material-design: true
