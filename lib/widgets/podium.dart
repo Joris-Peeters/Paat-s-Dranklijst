@@ -80,7 +80,7 @@ class _Place extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           // The winner stands a step higher than the other two.
-          padding: EdgeInsets.fromLTRB(4, rank == 1 ? 20 : 8, 4, 8),
+          padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
           child: Column(
             spacing: 4,
             children: [
@@ -89,7 +89,7 @@ class _Place extends StatelessWidget {
                 emoji: entry.user.avatarEmoji,
                 seedColorArgb: entry.user.seedColorArgb,
                 image: entry.user.avatarImage,
-                size: rank == 1 ? 56 : 44,
+                size: rank == 1 ? 68 : 44,
               ),
               Text(
                 entry.user.name,
