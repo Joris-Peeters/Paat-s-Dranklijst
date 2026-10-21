@@ -678,6 +678,18 @@
   "allowAnyoneToUndoOff": "Undoing needs the admin PIN",
   "@allowAnyoneToUndoOff": { "description": "Subtitle when undoing is behind the PIN" },
 
+  "allowProfilePhotos": "Profile photos",
+  "@allowProfilePhotos": { "description": "Setting controlling whether new profile photos can be taken, everywhere in the app" },
+
+  "allowProfilePhotosOn": "Anyone can take a profile photo",
+  "@allowProfilePhotosOn": { "description": "Subtitle when taking profile photos is allowed" },
+
+  "allowProfilePhotosOff": "No new photos; existing ones still show",
+  "@allowProfilePhotosOff": { "description": "Subtitle when taking profile photos is turned off" },
+
+  "cameraUnsupported": "This device has no camera the app can use.",
+  "@cameraUnsupported": { "description": "Note under the profile photo setting on a platform the camera does not support" },
+
   "returnToStartWhenIdle": "Return to Start when idle",
   "@returnToStartWhenIdle": { "description": "Setting controlling whether the app goes back to the Start page after a minute without a touch" },
 

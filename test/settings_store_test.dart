@@ -40,6 +40,7 @@ void main() {
       allowUserEditing: false,
       allowGroupSwitching: false,
       allowAnyoneToUndo: true,
+      allowProfilePhotos: false,
       lowBalanceWarningEnabled: true,
       lowBalanceThresholdMinorUnits: -2500,
       returnToStartWhenIdle: false,

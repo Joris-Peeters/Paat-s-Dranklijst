@@ -9,6 +9,7 @@ import '../data/database_reset.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
+import '../utils/camera_support.dart';
 import '../utils/screen_dimming.dart';
 import '../widgets/backup_actions.dart';
 import '../widgets/confirm_dialog.dart';
@@ -670,8 +671,9 @@ class _LowBalanceThresholdField extends StatelessWidget {
 
 /// What anyone may do on the open kiosk, with no PIN in the way.
 ///
-/// None of these reach the management screens inside settings: an admin who has
-/// already passed the PIN can always edit and always move someone.
+/// Most of these do not reach the management screens inside settings: an admin
+/// who has already passed the PIN can always edit and always move someone.
+/// Profile photos are the exception, off everywhere when turned off.
 class _PermissionsCard extends StatelessWidget {
   const _PermissionsCard({required this.settings, required this.write});
 
@@ -685,6 +687,7 @@ class _PermissionsCard extends StatelessWidget {
     final editing = settings.allowUserEditing;
     final switching = settings.allowGroupSwitching;
     final undoing = settings.allowAnyoneToUndo;
+    final photos = settings.allowProfilePhotos;
 
     return _SettingsCard(
       children: [
@@ -735,6 +738,20 @@ class _PermissionsCard extends StatelessWidget {
           onChanged: (value) =>
               write(settings.copyWith(allowAnyoneToUndo: value)),
         ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.allowProfilePhotos),
+          subtitle: Text(
+            photos ? l10n.allowProfilePhotosOn : l10n.allowProfilePhotosOff,
+          ),
+          value: photos && cameraSupported,
+          // Greyed out where there is no camera; the stored value is left
+          // alone.
+          onChanged: cameraSupported
+              ? (value) => write(settings.copyWith(allowProfilePhotos: value))
+              : null,
+        ),
+        if (!cameraSupported) _Note(l10n.cameraUnsupported),
       ],
     );
   }

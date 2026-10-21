@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:paats_dranklijst/data/database.dart';
+import 'package:paats_dranklijst/utils/camera_support.dart';
 import 'package:paats_dranklijst/widgets/emoji_picker_dialog.dart';
 import 'package:paats_dranklijst/widgets/user_avatar.dart';
 import 'package:paats_dranklijst/widgets/user_edit_dialog.dart';
@@ -20,17 +21,22 @@ void main() {
   late AppDatabase db;
 
   setUp(() => db = AppDatabase(executor: NativeDatabase.memory()));
-  tearDown(() => db.close());
+  tearDown(() {
+    debugCameraSupportedOverride = null;
+    return db.close();
+  });
 
   Future<void> pump(
     WidgetTester tester, {
     UserRow? user,
     bool canChangeGroup = true,
+    Map<String, Object> preferences = const {},
   }) async {
     await tester.pumpWidget(
       await settingsHarness(
         null,
         database: db,
+        preferences: preferences,
         screen: UserEditDialog(
           user: user,
           presetGroupId: seededGroup,
@@ -270,5 +276,46 @@ void main() {
 
     // Tests run on the desktop host, which the camera plugin does not support.
     expect(find.text('Take photo'), findsNothing);
+  });
+
+  testWidgetsWithDatabase('a device with a camera offers a photo', (
+    tester,
+  ) async {
+    debugCameraSupportedOverride = true;
+    await pump(tester);
+
+    expect(find.text('Take photo'), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('with photos turned off, none can be taken', (
+    tester,
+  ) async {
+    debugCameraSupportedOverride = true;
+    await pump(tester, preferences: {'allowProfilePhotos': false});
+
+    expect(find.text('Take photo'), findsNothing);
+    expect(find.text('Change emoji'), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('turning photos off leaves an existing one alone', (
+    tester,
+  ) async {
+    debugCameraSupportedOverride = true;
+    final jonas = await addUser('Jonas');
+    final photo = img.encodeJpg(img.Image(width: 8, height: 8));
+    await db.usersDao.updateUserAppearance(
+      id: jonas.id,
+      avatarImage: Value(photo),
+    );
+    await pump(
+      tester,
+      user: (await db.readUser(jonas.id))!,
+      preferences: {'allowProfilePhotos': false},
+    );
+
+    expect(avatar(tester).image, photo);
+    expect(find.text('Retake photo'), findsNothing);
+    // The way back to an emoji stays open.
+    expect(find.text('Use emoji'), findsOneWidget);
   });
 }

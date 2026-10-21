@@ -13,6 +13,7 @@ const _allowSelfRegistration = 'allowSelfRegistration';
 const _allowUserEditing = 'allowUserEditing';
 const _allowGroupSwitching = 'allowGroupSwitching';
 const _allowAnyoneToUndo = 'allowAnyoneToUndo';
+const _allowProfilePhotos = 'allowProfilePhotos';
 const _lowBalanceWarningEnabled = 'lowBalanceWarningEnabled';
 const _lowBalanceThresholdMinorUnits = 'lowBalanceThresholdMinorUnits';
 const _returnToStartWhenIdle = 'returnToStartWhenIdle';
@@ -37,6 +38,7 @@ const _keys = <String>{
   _allowUserEditing,
   _allowGroupSwitching,
   _allowAnyoneToUndo,
+  _allowProfilePhotos,
   _lowBalanceWarningEnabled,
   _lowBalanceThresholdMinorUnits,
   _returnToStartWhenIdle,
@@ -90,6 +92,8 @@ class SettingsStore {
           _prefs.getBool(_allowGroupSwitching) ?? defaults.allowGroupSwitching,
       allowAnyoneToUndo:
           _prefs.getBool(_allowAnyoneToUndo) ?? defaults.allowAnyoneToUndo,
+      allowProfilePhotos:
+          _prefs.getBool(_allowProfilePhotos) ?? defaults.allowProfilePhotos,
       lowBalanceWarningEnabled:
           _prefs.getBool(_lowBalanceWarningEnabled) ??
           defaults.lowBalanceWarningEnabled,
@@ -127,6 +131,7 @@ class SettingsStore {
       _prefs.setBool(_allowUserEditing, settings.allowUserEditing),
       _prefs.setBool(_allowGroupSwitching, settings.allowGroupSwitching),
       _prefs.setBool(_allowAnyoneToUndo, settings.allowAnyoneToUndo),
+      _prefs.setBool(_allowProfilePhotos, settings.allowProfilePhotos),
       _prefs.setBool(
         _lowBalanceWarningEnabled,
         settings.lowBalanceWarningEnabled,

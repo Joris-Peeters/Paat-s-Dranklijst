@@ -26,6 +26,7 @@ void main() {
         base.copyWith(allowUserEditing: false),
         base.copyWith(allowGroupSwitching: false),
         base.copyWith(allowAnyoneToUndo: true),
+        base.copyWith(allowProfilePhotos: false),
         base.copyWith(lowBalanceWarningEnabled: true),
         base.copyWith(lowBalanceThresholdMinorUnits: -2500),
         base.copyWith(returnToStartWhenIdle: false),

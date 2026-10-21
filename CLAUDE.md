@@ -339,7 +339,10 @@ capture into what is stored, in an isolate: EXIF rotation baked in, the centre s
 (what the circle showed), 384 px, JPEG quality 85. Front-camera shots are stored as the
 plugin delivers them, mirrored or not. The review step shows the processed bytes,
 so what is confirmed is what is stored. Photo items in the avatar menu are not behind
-`allowUserEditing`, like emoji and colour.
+`allowUserEditing`, like emoji and colour, but every "Take photo" control checks
+`canTakePhotos(settings)`: a camera, and `allowProfilePhotos` on. That switch applies
+everywhere, settings included, and turning it off hides no photo already taken —
+"Use emoji" still removes one.
 
 The camera screen has a self-timer (off / 3 s / 10 s) and a flash toggle. Both start off
 on every visit, so the next person does not inherit a 10 s timer. **The front camera
@@ -447,8 +450,9 @@ group left behind.
   `withValues(alpha: ...)`, not the deprecated `withOpacity()`.
 - Plugins without Linux implementations throw `MissingPluginException` at runtime, not
   compile time. Guard with `Platform.isAndroid || Platform.isIOS`. For the camera that is
-  `cameraSupported`, and every "Take photo" control is hidden behind it. On Linux,
-  photos already stored still render, but none can be taken.
+  `cameraSupported`, folded into `canTakePhotos`, which every "Take photo" control
+  checks. On Linux, photos already stored still render, but none can be taken. Tests run
+  on the desktop host, so they set `debugCameraSupportedOverride` to see the controls.
 - **The camera is not released for you.** `CameraScreen` disposes its controller when
   the app goes `inactive` and opens it again on `resumed`. It skips that while still
   initializing, because the permission prompt itself makes the app inactive. Every
@@ -676,8 +680,10 @@ the guard adds the pauses, the dimmer the backlight and the absorbed wake touch.
 **Settings.** Beyond appearance, language and currency: the admin PIN (4 digits, asked
 every time settings open), `returnToStartWhenIdle`, `dimScreenWhenIdle` and
 `dimScreenDelayMinutes`, the low-balance warning and its threshold, the payee name and
-IBAN, and four permissions — `allowSelfRegistration`, `allowUserEditing`,
-`allowGroupSwitching` and `allowAnyoneToUndo`. Management covers
+IBAN, and five permissions — `allowSelfRegistration`, `allowUserEditing`,
+`allowGroupSwitching`, `allowAnyoneToUndo` and `allowProfilePhotos`. Only the last
+applies behind the PIN too. `AppSettingsData.hashCode` is now at `Object.hash`'s
+20-argument limit, so the next setting moves it to `Object.hashAll`. Management covers
 user groups, item categories, pending top-ups and debts.
 
 **The schema.** Five tables — `user_groups`/`users` and `item_groups`/`items` (each a

@@ -29,6 +29,7 @@ class AppSettingsData {
     this.allowUserEditing = true,
     this.allowGroupSwitching = true,
     this.allowAnyoneToUndo = false,
+    this.allowProfilePhotos = true,
     this.lowBalanceWarningEnabled = false,
     this.lowBalanceThresholdMinorUnits = -1000,
     this.returnToStartWhenIdle = true,
@@ -63,6 +64,10 @@ class AppSettingsData {
 
   /// Whether undoing a transaction skips the admin PIN.
   final bool allowAnyoneToUndo;
+
+  /// Whether a new profile photo may be taken. Unlike the other switches it
+  /// applies inside settings too; photos already taken keep showing.
+  final bool allowProfilePhotos;
 
   /// Whether opening the consumption screen warns a user who is in the red.
   final bool lowBalanceWarningEnabled;
@@ -106,6 +111,7 @@ class AppSettingsData {
     bool? allowUserEditing,
     bool? allowGroupSwitching,
     bool? allowAnyoneToUndo,
+    bool? allowProfilePhotos,
     bool? lowBalanceWarningEnabled,
     int? lowBalanceThresholdMinorUnits,
     bool? returnToStartWhenIdle,
@@ -126,6 +132,7 @@ class AppSettingsData {
     allowUserEditing: allowUserEditing ?? this.allowUserEditing,
     allowGroupSwitching: allowGroupSwitching ?? this.allowGroupSwitching,
     allowAnyoneToUndo: allowAnyoneToUndo ?? this.allowAnyoneToUndo,
+    allowProfilePhotos: allowProfilePhotos ?? this.allowProfilePhotos,
     lowBalanceWarningEnabled:
         lowBalanceWarningEnabled ?? this.lowBalanceWarningEnabled,
     lowBalanceThresholdMinorUnits:
@@ -160,6 +167,7 @@ class AppSettingsData {
       other.allowUserEditing == allowUserEditing &&
       other.allowGroupSwitching == allowGroupSwitching &&
       other.allowAnyoneToUndo == allowAnyoneToUndo &&
+      other.allowProfilePhotos == allowProfilePhotos &&
       other.lowBalanceWarningEnabled == lowBalanceWarningEnabled &&
       other.lowBalanceThresholdMinorUnits == lowBalanceThresholdMinorUnits &&
       other.returnToStartWhenIdle == returnToStartWhenIdle &&
@@ -182,6 +190,7 @@ class AppSettingsData {
     allowUserEditing,
     allowGroupSwitching,
     allowAnyoneToUndo,
+    allowProfilePhotos,
     lowBalanceWarningEnabled,
     lowBalanceThresholdMinorUnits,
     returnToStartWhenIdle,

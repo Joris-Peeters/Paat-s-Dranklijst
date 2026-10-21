@@ -7,6 +7,7 @@ import '../data/database.dart';
 import '../data/database_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../screens/camera_screen.dart';
+import '../settings/app_settings.dart';
 import '../utils/camera_support.dart';
 import '../utils/random_emoji.dart';
 import 'editor_dialog.dart';
@@ -164,6 +165,7 @@ class _UserEditDialogState extends State<UserEditDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final hasPhoto = _image != null;
+    final photos = canTakePhotos(AppSettings.of(context));
     final emojiButton = OutlinedButton.icon(
       icon: const Icon(Icons.emoji_emotions_outlined),
       label: Text(hasPhoto ? l10n.useEmoji : l10n.changeEmoji),
@@ -198,11 +200,11 @@ class _UserEditDialogState extends State<UserEditDialog> {
                 // Whatever is showing now comes first, as in the avatar menu.
                 children: [
                   if (hasPhoto) ...[
-                    if (cameraSupported) photoButton,
+                    if (photos) photoButton,
                     emojiButton,
                   ] else ...[
                     emojiButton,
-                    if (cameraSupported) photoButton,
+                    if (photos) photoButton,
                   ],
                 ],
               ),

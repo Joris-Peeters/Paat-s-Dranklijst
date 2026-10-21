@@ -7,6 +7,7 @@ import '../data/database.dart';
 import '../data/database_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../screens/camera_screen.dart';
+import '../settings/app_settings.dart';
 import '../utils/camera_support.dart';
 import 'emoji_picker_dialog.dart';
 import 'money_text.dart';
@@ -79,7 +80,7 @@ class _UserHeaderState extends State<UserHeader> {
 /// going through the full edit dialog.
 ///
 /// Deliberately not behind `allowUserEditing`: emoji, photo and colour are
-/// cosmetic.
+/// cosmetic. Taking a photo is behind `allowProfilePhotos`, though.
 class _AvatarMenu extends StatelessWidget {
   const _AvatarMenu({required this.user});
 
@@ -125,6 +126,7 @@ class _AvatarMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final hasPhoto = user.avatarImage != null;
+    final photos = canTakePhotos(AppSettings.of(context));
     // Taller than the default 48, for wet fingers.
     final itemStyle = MenuItemButton.styleFrom(minimumSize: const Size(0, 56));
 
@@ -147,11 +149,11 @@ class _AvatarMenu extends StatelessWidget {
       // Whatever is showing now comes first, so the item changing it is on top.
       menuChildren: [
         if (hasPhoto) ...[
-          if (cameraSupported) photoItem,
+          if (photos) photoItem,
           emojiItem,
         ] else ...[
           emojiItem,
-          if (cameraSupported) photoItem,
+          if (photos) photoItem,
         ],
         MenuItemButton(
           style: itemStyle,
