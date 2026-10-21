@@ -13,7 +13,6 @@ import 'package:paats_dranklijst/screens/user_detail_screen.dart';
 import 'package:paats_dranklijst/widgets/count_bar_chart.dart';
 import 'package:paats_dranklijst/widgets/podium.dart';
 import 'package:paats_dranklijst/widgets/ranked_bar_list.dart';
-import 'package:paats_dranklijst/widgets/trend_line_chart.dart';
 
 import 'support/harness.dart';
 import 'support/ledger.dart';
@@ -223,10 +222,11 @@ void main() {
     expect(find.text('🥤'), findsNWidgets(5));
   });
 
-  testWidgetsWithDatabase('a user page shows spend, favourites and a trend', (
+  testWidgetsWithDatabase('a user page shows spend, favourites and weeks', (
     tester,
   ) async {
     tabletView(tester);
+    // 20 consumptions: under the minimum for the hour and weekday charts.
     await seed(who: [users.first]);
     final user = (await db.readUser(users.first))!;
 
@@ -241,6 +241,29 @@ void main() {
 
     expect(find.text('SPENT'), findsOneWidget);
     expect(rankedBarLists, findsOneWidget);
-    expect(find.byType(TrendLineChart), findsOneWidget);
+    expect(find.byType(CountBarChart), findsOneWidget);
+    expect(find.text('TIME OF NIGHT'), findsNothing);
   });
+
+  testWidgetsWithDatabase(
+    'a user page splits 50 consumptions by hour and day',
+    (tester) async {
+      tabletView(tester);
+      await seed(who: [users.first], every: 1);
+      final user = (await db.readUser(users.first))!;
+
+      await tester.pumpWidget(
+        await settingsHarness(
+          null,
+          database: db,
+          screen: UserDetailScreen(user: user),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CountBarChart), findsNWidgets(3));
+      expect(find.text('TIME OF NIGHT'), findsOneWidget);
+      expect(find.text('DAY OF THE WEEK'), findsOneWidget);
+    },
+  );
 }

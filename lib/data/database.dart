@@ -8,6 +8,7 @@ import 'daos/items_dao.dart';
 import 'daos/stats_dao.dart';
 import 'daos/transactions_dao.dart';
 import 'daos/users_dao.dart';
+import 'database.steps.dart';
 import 'tables/item_groups_table.dart';
 import 'tables/items_table.dart';
 import 'tables/transactions_table.dart';
@@ -46,7 +47,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -60,6 +61,15 @@ class AppDatabase extends _$AppDatabase {
       await into(itemGroups)
           .insert(ItemGroupsCompanion.insert(name: 'General'));
     },
+    // Each step builds from drift's frozen copy of that version's schema, not
+    // the live tables, so it still means the same once the schema moves on.
+    onUpgrade: stepByStep(
+      // The user page's time-of-night chart reads created_at per user.
+      from1To2: (m, schema) async {
+        await m.drop(schema.transactionsConsumptionsByUser);
+        await m.create(schema.transactionsConsumptionsByUser);
+      },
+    ),
     // SQLite leaves foreign keys OFF by default, and drift only toggles it
     // around alterTable. Never wrap this in a transaction — the pragma is
     // silently ignored there.

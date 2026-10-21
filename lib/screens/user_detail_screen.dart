@@ -5,18 +5,18 @@ import 'package:flutter/material.dart';
 import '../data/daos/stats_dao.dart';
 import '../data/database.dart';
 import '../data/database_provider.dart';
-import '../data/logical_day.dart';
+import '../data/stat_buckets.dart';
 import '../data/stat_period.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
+import '../widgets/count_bar_chart.dart';
 import '../widgets/money_text.dart';
 import '../widgets/period_chips.dart';
 import '../widgets/ranked_bar_list.dart';
 import '../widgets/stat_tile.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/transaction_history.dart';
-import '../widgets/trend_line_chart.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_edit_dialog.dart';
 import '../widgets/user_header.dart';
@@ -120,7 +120,7 @@ class _Page extends StatelessWidget {
   }
 }
 
-/// Spend, favourites and the weekly trend. Live, because a row voided from the
+/// Spend, favourites, and when they drink. Live, because a row voided from the
 /// history card above has to leave these figures too.
 class _UserStats extends StatefulWidget {
   const _UserStats({required this.userId});
@@ -145,10 +145,14 @@ class _UserStatsState extends State<_UserStats> {
   late final Stream<List<RankedItem>> _topItems = _stats.watchUserTopItems(
     widget.userId,
   );
-  late final Stream<UserWeekly> _weekly = _stats.watchUserWeekly(
+  late final Stream<List<StatBucket>> _weekly = _stats.watchUserWeekly(
     widget.userId,
     at: _openedAt,
   );
+  late final Stream<List<({int hour, int count})>> _hours = _stats
+      .watchUserHourOfNight(widget.userId);
+  late final Stream<List<({int weekday, int count})>> _weekdays = _stats
+      .watchUserWeekday(widget.userId);
 
   @override
   Widget build(BuildContext context) {
@@ -226,24 +230,54 @@ class _UserStatsState extends State<_UserStats> {
             );
           },
         ),
-        StreamBuilder<UserWeekly>(
+        StreamBuilder<List<StatBucket>>(
           stream: _weekly,
           builder: (context, snapshot) {
-            final weekly = snapshot.data;
-            final firstDay = weekly?.firstDay;
-            // Under six weeks of history a trend is mostly empty weeks.
-            if (weekly == null ||
-                firstDay == null ||
-                daysBetween(firstDay, logicalDayOf(_openedAt)) < 42) {
+            final weeks = snapshot.data ?? const <StatBucket>[];
+            if (weeks.isEmpty) return const SizedBox.shrink();
+
+            return StatsCard(
+              icon: Icons.bar_chart_rounded,
+              label: l10n.userTrend,
+              child: CountBarChart(
+                counts: [for (final week in weeks) week.count],
+                labelOf: (i) => settings.formatDayMonth(weeks[i].start),
+              ),
+            );
+          },
+        ),
+        StreamBuilder<List<({int hour, int count})>>(
+          stream: _hours,
+          builder: (context, snapshot) {
+            final hours = snapshot.data ?? const <({int hour, int count})>[];
+            if (hours.fold(0, (sum, h) => sum + h.count) < breakdownMinimum) {
               return const SizedBox.shrink();
             }
 
             return StatsCard(
-              icon: Icons.show_chart,
-              label: l10n.userTrend,
-              child: TrendLineChart(
-                counts: [for (final week in weekly.weeks) week.count],
-                labelOf: (i) => settings.formatDayMonth(weekly.weeks[i].start),
+              icon: Icons.nightlight_outlined,
+              label: l10n.statsHourOfNight,
+              child: CountBarChart(
+                counts: [for (final hour in hours) hour.count],
+                labelOf: (i) => settings.formatHour(hours[i].hour),
+              ),
+            );
+          },
+        ),
+        StreamBuilder<List<({int weekday, int count})>>(
+          stream: _weekdays,
+          builder: (context, snapshot) {
+            final days = snapshot.data ?? const <({int weekday, int count})>[];
+            if (days.fold(0, (sum, d) => sum + d.count) < breakdownMinimum) {
+              return const SizedBox.shrink();
+            }
+
+            return StatsCard(
+              icon: Icons.calendar_view_week_outlined,
+              label: l10n.statsWeekday,
+              child: CountBarChart(
+                counts: [for (final day in days) day.count],
+                labelOf: (i) => settings.formatWeekday(days[i].weekday),
               ),
             );
           },

@@ -32,8 +32,8 @@ enum TransactionType { consumption, topUp, adjustment }
 ''')
 @TableIndex.sql('''
   CREATE INDEX transactions_consumptions_by_user ON transactions (
-    user_id, logical_date, item_id, quantity, amount_minor_units, type,
-    voided_at
+    user_id, logical_date, item_id, quantity, amount_minor_units, created_at,
+    type, voided_at
   ) WHERE type = 'consumption' AND voided_at IS NULL
 ''')
 // Partial, so it holds only the admin's backlog rather than every ledger row.

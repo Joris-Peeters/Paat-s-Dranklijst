@@ -2764,7 +2764,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final Index transactionsConsumptionsByUser = Index(
     'transactions_consumptions_by_user',
-    'CREATE INDEX transactions_consumptions_by_user ON transactions (user_id, logical_date, item_id, quantity, amount_minor_units, type, voided_at) WHERE type = \'consumption\' AND voided_at IS NULL',
+    'CREATE INDEX transactions_consumptions_by_user ON transactions (user_id, logical_date, item_id, quantity, amount_minor_units, created_at, type, voided_at) WHERE type = \'consumption\' AND voided_at IS NULL',
   );
   late final Index transactionsPendingTopUps = Index(
     'transactions_pending_top_ups',

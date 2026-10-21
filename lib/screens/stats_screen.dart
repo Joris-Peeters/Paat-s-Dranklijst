@@ -129,9 +129,6 @@ class _Sections extends StatelessWidget {
 
   final _StatsData data;
 
-  /// Below this, a split by hour or weekday is a handful of lonely bars.
-  static const _breakdownMinimum = 50;
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -206,7 +203,7 @@ class _Sections extends StatelessWidget {
               value: (ranked) => ranked.count,
             ),
           ),
-        if (hourTotal >= _breakdownMinimum)
+        if (hourTotal >= breakdownMinimum)
           StatsCard(
             icon: Icons.nightlight_outlined,
             label: l10n.statsHourOfNight,
@@ -215,7 +212,7 @@ class _Sections extends StatelessWidget {
               labelOf: (i) => settings.formatHour(data.hours[i].hour),
             ),
           ),
-        if (weekdayTotal >= _breakdownMinimum)
+        if (weekdayTotal >= breakdownMinimum)
           StatsCard(
             icon: Icons.calendar_view_week_outlined,
             label: l10n.statsWeekday,

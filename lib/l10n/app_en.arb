@@ -177,7 +177,7 @@
   "@userSpend": { "description": "Heading of a user's card showing what they spent on consumptions" },
 
   "userTrend": "Per week",
-  "@userTrend": { "description": "Heading of a user's line chart of consumptions per week" },
+  "@userTrend": { "description": "Heading of a user's bar chart of consumptions per week, over the past year" },
 
   "leaderboardTopConsumers": "Top consumers",
   "@leaderboardTopConsumers": { "description": "Heading of the ranking by number of consumptions" },

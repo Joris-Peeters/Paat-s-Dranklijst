@@ -162,35 +162,60 @@ void main() {
       ]);
     });
 
-    test('weekly trend is 12 calendar weeks with zeros filled', () async {
+    test('weekly bars cover the past year, from the first week', () async {
       final cola = await addItem('Cola');
       final ann = await addUser('Ann');
       await consume(ann, cola, daysAgo(400));
+      await consume(ann, cola, daysAgo(360));
       // Monday 02:00 still belongs to Sunday, so to last week.
       await consume(ann, cola, DateTime(2026, 9, 14, 2), quantity: 2);
       await consume(ann, cola, now);
 
-      final weekly = await db.statsDao.watchUserWeekly(ann, at: now).first;
-      expect(weekly.weeks, hasLength(12));
-      expect(weekly.weeks.first.start, DateTime(2026, 6, 29));
-      expect(weekly.weeks.last, StatBucket(DateTime(2026, 9, 14), 1));
-      expect(weekly.weeks[10], StatBucket(DateTime(2026, 9, 7), 2));
-      expect(weekly.firstDay, logicalDayOf(daysAgo(400)));
+      final weeks = await db.statsDao.watchUserWeekly(ann, at: now).first;
+      expect(weeks, hasLength(53));
+      expect(weeks.first, StatBucket(DateTime(2025, 9, 15), 1));
+      expect(weeks[51], StatBucket(DateTime(2026, 9, 7), 2));
+      expect(weeks.last, StatBucket(DateTime(2026, 9, 14), 1));
     });
 
-    test('the first day comes back even with an empty window', () async {
+    test('weekly bars start at a newer user\'s first week', () async {
+      final cola = await addItem('Cola');
+      final bob = await addUser('Bob');
+      final cas = await addUser('Cas');
+      final dirk = await addUser('Dirk');
+      // A Wednesday.
+      await consume(bob, cola, DateTime(2026, 8, 26, 21));
+      await consume(cas, cola, daysAgo(400));
+
+      final weeks = await db.statsDao.watchUserWeekly(bob, at: now).first;
+      expect(weeks, hasLength(4));
+      expect(weeks.first, StatBucket(DateTime(2026, 8, 24), 1));
+      // Nothing in the past year, or nothing ever: no weeks at all.
+      expect(await db.statsDao.watchUserWeekly(cas, at: now).first, isEmpty);
+      expect(await db.statsDao.watchUserWeekly(dirk, at: now).first, isEmpty);
+    });
+
+    test('hour of night and weekday cover one user, all time', () async {
       final cola = await addItem('Cola');
       final ann = await addUser('Ann');
       final bob = await addUser('Bob');
-      await consume(ann, cola, daysAgo(400));
+      await consume(ann, cola, daysAgo(400, hour: 23));
+      // Sunday 01:30 is still Saturday night.
+      await consume(ann, cola, DateTime(2026, 9, 13, 1, 30), quantity: 2);
+      final voided = await consume(ann, cola, daysAgo(2, hour: 18));
+      await db.transactionsDao.voidTransaction(voided);
+      await consume(bob, cola, daysAgo(1, hour: 18), quantity: 5);
 
-      final weekly = await db.statsDao.watchUserWeekly(ann, at: now).first;
-      expect(weekly.weeks.every((w) => w.count == 0), isTrue);
-      expect(weekly.firstDay, isNotNull);
-      expect(
-        (await db.statsDao.watchUserWeekly(bob, at: now).first).firstDay,
-        isNull,
-      );
+      final hours = await db.statsDao.watchUserHourOfNight(ann).first;
+      expect(hours, [
+        (hour: 23, count: 1),
+        (hour: 0, count: 0),
+        (hour: 1, count: 2),
+      ]);
+
+      final days = await db.statsDao.watchUserWeekday(ann).first;
+      expect(days.fold(0, (sum, d) => sum + d.count), 3);
+      expect(days[5], (weekday: DateTime.saturday, count: 2));
     });
   });
 
@@ -427,6 +452,8 @@ void main() {
       await stats.watchUserSpend(ann, at: now).first;
       await stats.watchUserTopItems(ann).first;
       await stats.watchUserWeekly(ann, at: now).first;
+      await stats.watchUserHourOfNight(ann).first;
+      await stats.watchUserWeekday(ann).first;
       await stats.readGroupActivity(seededGroup, at: now);
       for (final period in StatPeriod.values) {
         await stats.readKpis(period, at: now);
@@ -475,12 +502,13 @@ void main() {
             .map((row) => row.read<String>('detail'))
             .where((d) => RegExp(r'^(SCAN|SEARCH) transactions\b').hasMatch(d));
         expect(touches, isNotEmpty, reason: query.sql);
+        // One user's rows are found by seeking, not by scanning everyone's.
+        final index = query.sql.contains('user_id = ?')
+            ? 'SEARCH transactions USING COVERING INDEX '
+                  'transactions_consumptions_by_user'
+            : 'COVERING INDEX transactions_consumptions_by_';
         for (final detail in touches) {
-          expect(
-            detail,
-            contains('COVERING INDEX transactions_consumptions_by_'),
-            reason: query.sql,
-          );
+          expect(detail, contains(index), reason: query.sql);
         }
       }
     },

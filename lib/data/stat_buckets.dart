@@ -90,6 +90,10 @@ List<StatBucket> monthlyBuckets(
   return buckets.length > max ? buckets.sublist(buckets.length - max) : buckets;
 }
 
+/// Below this many consumptions, a split by hour or weekday is a handful of
+/// lonely bars.
+const breakdownMinimum = 50;
+
 /// Consumptions per hour of the clock, ordered from the start of the logical
 /// day so the night reads continuously, and trimmed to the first and last
 /// hour that has any.

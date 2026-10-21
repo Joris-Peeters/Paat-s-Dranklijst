@@ -7,3 +7,9 @@ targets:
       drift_dev:
         options:
           generate_manager: false
+          # For `drift_dev make-migrations`: one schema dump per version, the
+          # stepByStep helper beside the database, and the migration tests.
+          databases:
+            app_database: lib/data/database.dart
+          schema_dir: drift_schemas/
+          test_dir: test/drift/

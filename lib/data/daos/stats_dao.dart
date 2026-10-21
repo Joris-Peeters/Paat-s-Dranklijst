@@ -73,10 +73,6 @@ typedef StatsKpis = ({KpiFigures current, KpiFigures? previous});
 /// What a user spent on consumptions, as positive minor units.
 typedef UserSpend = ({int month, int year, int allTime});
 
-/// A user's consumptions per calendar week, and the logical day of their very
-/// first one — null if they never took anything.
-typedef UserWeekly = ({List<StatBucket> weeks, DateTime? firstDay});
-
 /// A user's consumptions and distinct logical days with one, over a window.
 typedef UserActivity = ({int consumptions, int days});
 
@@ -85,9 +81,10 @@ typedef Volume = ({BucketSize size, List<StatBucket> buckets});
 /// Read-only statistics over live consumptions.
 ///
 /// Written as SQL rather than with the query builder: a ranking aggregates
-/// first and joins users or items to its five rows only, the hour of night
-/// and the weekday need `strftime`, and the predicate below matches the partial indexes as a
-/// literal rather than through SQLite re-preparing with a bound value.
+/// first and joins users or items to its five rows only, the hour of night and
+/// the weekday need `strftime`, and the predicate below matches the partial
+/// indexes as a literal rather than through SQLite re-preparing with a bound
+/// value.
 ///
 /// `test/stats_dao_test.dart` checks every query here is an index-only scan.
 @DriftAccessor(tables: [Transactions, Users, Items])
@@ -219,45 +216,40 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
   Stream<List<RankedItem>> watchUserTopItems(int userId) =>
       _topItems(_where(userId: userId)).watch().map(_rankedItems);
 
-  /// The last 12 calendar weeks, the current one included.
-  Stream<UserWeekly> watchUserWeekly(int userId, {required DateTime at}) {
-    final today = logicalDayOf(at);
-    final from = logicalDayToKey(addDays(mondayOf(today), -7 * 11));
-    final to = logicalDayToKey(today);
-    final first = _where(userId: userId);
-    final window = _where(userId: userId, from: from, to: to);
-
-    // Joined to a one-row CTE so the first day comes back even when the
-    // window holds nothing.
+  /// Calendar weeks over the past year, from the first week in it the user
+  /// took something; empty when they took nothing in that year.
+  Stream<List<StatBucket>> watchUserWeekly(int userId, {required DateTime at}) {
+    final window = statWindow(StatPeriod.year, at: at);
+    final where = _where(userId: userId, from: window.from, to: window.to);
     return customSelect(
       '''
-      WITH first AS (
-        SELECT MIN(logical_date) AS day FROM transactions ${first.sql}
-      ), per_day AS (
-        SELECT logical_date AS day, SUM(quantity) AS n
-        FROM transactions ${window.sql}
-        GROUP BY logical_date
-      )
-      SELECT first.day AS first_day, per_day.day AS day, per_day.n AS n
-      FROM first LEFT JOIN per_day ON 1
+      SELECT logical_date AS day, SUM(quantity) AS n
+      FROM transactions ${where.sql}
+      GROUP BY logical_date
       ''',
-      variables: [...first.variables, ...window.variables],
+      variables: where.variables,
       readsFrom: {transactions},
     ).watch().map((rows) {
-      final firstDay = rows.first.readNullable<String>('first_day');
-      return (
-        weeks: weeklyBuckets(
-          {
-            for (final row in rows)
-              ?row.readNullable<String>('day'): row.readNullable<int>('n') ?? 0,
-          },
-          from: from,
-          to: to,
-        ),
-        firstDay: firstDay == null ? null : logicalDayFromKey(firstDay),
+      if (rows.isEmpty) return const <StatBucket>[];
+      final perDay = {
+        for (final row in rows) row.read<String>('day'): row.read<int>('n'),
+      };
+      // Keys are `YYYY-MM-DD`, so the smallest string is the earliest day.
+      return weeklyBuckets(
+        perDay,
+        from: perDay.keys.reduce((a, b) => a.compareTo(b) <= 0 ? a : b),
+        to: window.to,
       );
     });
   }
+
+  /// All time, like the favourites.
+  Stream<List<({int hour, int count})>> watchUserHourOfNight(int userId) =>
+      _hourOfNight(_where(userId: userId)).watch().map(_hours);
+
+  /// All time, like the favourites.
+  Stream<List<({int weekday, int count})>> watchUserWeekday(int userId) =>
+      _weekday(_where(userId: userId)).watch().map(_weekdays);
 
   // ---- Stats page ----
 
@@ -378,56 +370,24 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
         .then(_rankedItems);
   }
 
-  /// Consumptions per hour of the local clock, in night order and trimmed.
   Future<List<({int hour, int count})>> readHourOfNight(
     StatPeriod period, {
     required DateTime at,
-  }) async {
+  }) {
     final window = statWindow(period, at: at);
-    final where = _where(from: window.from, to: window.to);
-    // `created_at` is stored as unix seconds. `localtime` is fine here, in a
-    // query; it is only an index that cannot hold it.
-    final rows = await customSelect(
-      '''
-      SELECT
-        CAST(strftime('%H', created_at, 'unixepoch', 'localtime') AS INTEGER)
-          AS hour,
-        SUM(quantity) AS n
-      FROM transactions ${where.sql}
-      GROUP BY hour
-      ''',
-      variables: where.variables,
-      readsFrom: {transactions},
-    ).get();
-    return hourOfNightBuckets({
-      for (final row in rows) row.read<int>('hour'): row.read<int>('n'),
-    });
+    return _hourOfNight(_where(from: window.from, to: window.to))
+        .get()
+        .then(_hours);
   }
 
-  /// Consumptions per weekday of the logical day, so Saturday night after
-  /// midnight is still Saturday.
   Future<List<({int weekday, int count})>> readWeekday(
     StatPeriod period, {
     required DateTime at,
-  }) async {
+  }) {
     final window = statWindow(period, at: at);
-    final where = _where(from: window.from, to: window.to);
-    // `%w` counts from Sunday as 0; shifted to Dart's Monday 1 .. Sunday 7.
-    final rows = await customSelect(
-      '''
-      SELECT
-        (CAST(strftime('%w', logical_date) AS INTEGER) + 6) % 7 + 1
-          AS weekday,
-        SUM(quantity) AS n
-      FROM transactions ${where.sql}
-      GROUP BY weekday
-      ''',
-      variables: where.variables,
-      readsFrom: {transactions},
-    ).get();
-    return weekdayBuckets({
-      for (final row in rows) row.read<int>('weekday'): row.read<int>('n'),
-    });
+    return _weekday(_where(from: window.from, to: window.to))
+        .get()
+        .then(_weekdays);
   }
 
   // ---- Leaderboard ----
@@ -675,4 +635,49 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
         count: row.read<int>('n'),
       ),
   ];
+
+  /// Consumptions per hour of the local clock, in night order and trimmed.
+  Selectable<QueryRow> _hourOfNight(
+    ({String sql, List<Variable<Object>> variables}) where,
+  ) => customSelect(
+    // `created_at` is stored as unix seconds. `localtime` is fine here, in a
+    // query; it is only an index that cannot hold it.
+    '''
+    SELECT
+      CAST(strftime('%H', created_at, 'unixepoch', 'localtime') AS INTEGER)
+        AS hour,
+      SUM(quantity) AS n
+    FROM transactions ${where.sql}
+    GROUP BY hour
+    ''',
+    variables: where.variables,
+    readsFrom: {transactions},
+  );
+
+  List<({int hour, int count})> _hours(List<QueryRow> rows) =>
+      hourOfNightBuckets({
+        for (final row in rows) row.read<int>('hour'): row.read<int>('n'),
+      });
+
+  /// Consumptions per weekday of the logical day, so Saturday night after
+  /// midnight is still Saturday.
+  Selectable<QueryRow> _weekday(
+    ({String sql, List<Variable<Object>> variables}) where,
+  ) => customSelect(
+    // `%w` counts from Sunday as 0; shifted to Dart's Monday 1 .. Sunday 7.
+    '''
+    SELECT
+      (CAST(strftime('%w', logical_date) AS INTEGER) + 6) % 7 + 1 AS weekday,
+      SUM(quantity) AS n
+    FROM transactions ${where.sql}
+    GROUP BY weekday
+    ''',
+    variables: where.variables,
+    readsFrom: {transactions},
+  );
+
+  List<({int weekday, int count})> _weekdays(List<QueryRow> rows) =>
+      weekdayBuckets({
+        for (final row in rows) row.read<int>('weekday'): row.read<int>('n'),
+      });
 }
