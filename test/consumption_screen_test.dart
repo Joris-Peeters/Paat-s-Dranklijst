@@ -417,13 +417,15 @@ void main() {
     expect(find.text('Debt €12.00'), findsOneWidget);
   });
 
-  testWidgetsWithDatabase('the avatar menu recolours the user in place', (
+  testWidgetsWithDatabase('the avatar dialog recolours the user in place', (
     tester,
   ) async {
     await pump(tester);
 
     await tester.tap(find.text('🦊'));
     await tester.pumpAndSettle();
+    // The header's avatar, and the dialog's larger copy of it.
+    expect(find.text('🦊'), findsNWidgets(2));
     expect(find.text('Change emoji'), findsOneWidget);
 
     await tester.tap(find.text('Change color'));
@@ -438,6 +440,10 @@ void main() {
           .first,
     );
     await tester.pumpAndSettle();
+    // The dialog stays open until OK.
+    expect(find.text('Change color'), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
 
     final pink = seedColorPalette.first.toARGB32();
     expect((await db.readUser(jonas.id))!.seedColorArgb, pink);
@@ -448,7 +454,7 @@ void main() {
     );
   });
 
-  testWidgetsWithDatabase('the avatar menu changes the emoji in place', (
+  testWidgetsWithDatabase('the avatar dialog changes the emoji in place', (
     tester,
   ) async {
     await pump(tester);
@@ -462,6 +468,7 @@ void main() {
 
     final emoji = (await db.readUser(jonas.id))!.avatarEmoji;
     expect(emoji, isNot('🦊'));
-    expect(find.text(emoji), findsOneWidget);
+    // The header and the still-open dialog both show the new face.
+    expect(find.text(emoji), findsNWidgets(2));
   });
 }
