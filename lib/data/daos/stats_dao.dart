@@ -108,6 +108,7 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
     String? to,
     int? userId,
     int? itemId,
+    int? itemGroupId,
     int? userGroupId,
   }) {
     final sql = StringBuffer('WHERE $_live');
@@ -127,6 +128,10 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
     if (itemId != null) {
       sql.write(' AND item_id = ?');
       variables.add(Variable.withInt(itemId));
+    }
+    if (itemGroupId != null) {
+      sql.write(' AND item_id IN (SELECT id FROM items WHERE group_id = ?)');
+      variables.add(Variable.withInt(itemGroupId));
     }
     if (userGroupId != null) {
       sql.write(' AND user_id IN (SELECT id FROM users WHERE group_id = ?)');
@@ -399,12 +404,14 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
     required DateTime at,
     int? userGroupId,
     int? itemId,
+    int? itemGroupId,
   }) => _rankUsers(
     'SUM(quantity)',
     period,
     at: at,
     userGroupId: userGroupId,
     itemId: itemId,
+    itemGroupId: itemGroupId,
   );
 
   /// Top five by distinct logical days with at least one consumption.
@@ -413,12 +420,14 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
     required DateTime at,
     int? userGroupId,
     int? itemId,
+    int? itemGroupId,
   }) => _rankUsers(
     'COUNT(DISTINCT logical_date)',
     period,
     at: at,
     userGroupId: userGroupId,
     itemId: itemId,
+    itemGroupId: itemGroupId,
   );
 
   /// Top five by their single biggest logical day. A record matched on a
@@ -428,12 +437,14 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
     required DateTime at,
     int? userGroupId,
     int? itemId,
+    int? itemGroupId,
   }) async {
     final window = statWindow(period, at: at);
     final where = _where(
       from: window.from,
       to: window.to,
       itemId: itemId,
+      itemGroupId: itemGroupId,
       userGroupId: userGroupId,
     );
     final rows = await customSelect(
@@ -472,18 +483,23 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
 
   /// Top five by the share of [itemId] in their total, or of their own
   /// favourite when null. Only users with [minimumTotal] consumptions qualify.
+  ///
+  /// [itemGroupId] narrows everything to that category: the favourite is
+  /// picked inside it, and the total and minimum count only its items.
   Future<List<LoyalUser>> readMostLoyal(
     StatPeriod period, {
     required DateTime at,
     required int minimumTotal,
     int? userGroupId,
     int? itemId,
+    int? itemGroupId,
   }) async {
     final window = statWindow(period, at: at);
-    // No item filter here: the total is over every item.
+    // No item filter here: the total is over every item, or the category's.
     final where = _where(
       from: window.from,
       to: window.to,
+      itemGroupId: itemGroupId,
       userGroupId: userGroupId,
     );
     // Equal shares go to the larger total, then the lower id.
@@ -541,12 +557,14 @@ class StatsDao extends DatabaseAccessor<AppDatabase> with _$StatsDaoMixin {
     required DateTime at,
     int? userGroupId,
     int? itemId,
+    int? itemGroupId,
   }) async {
     final window = statWindow(period, at: at);
     final where = _where(
       from: window.from,
       to: window.to,
       itemId: itemId,
+      itemGroupId: itemGroupId,
       userGroupId: userGroupId,
     );
     final rows = await customSelect(

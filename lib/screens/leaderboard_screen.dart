@@ -20,6 +20,9 @@ typedef _Rankings = ({
   List<LoyalUser> loyal,
 });
 
+/// The item dropdown's choice: one item, or a whole category.
+typedef _ItemFilter = ({bool category, int id});
+
 /// Who took the most, was there the most, had the biggest day and sticks to
 /// one item — by count only, never by balance.
 class LeaderboardScreen extends StatefulWidget {
@@ -40,13 +43,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   // only, which a tap at the fridge never writes.
   late final Stream<List<UserGroupRow>> _groups = _db.usersDao
       .watchUserGroups();
-  late final Stream<List<ItemRow>> _items = _db.itemsDao.watchItems(
-    includeArchived: true,
-  );
+  late final Stream<List<({ItemGroupRow group, List<ItemRow> items})>> _items =
+      _db.itemsDao.watchItemsByCategory();
 
   StatPeriod _period = StatPeriod.month;
   int? _userGroupId;
-  int? _itemId;
+  _ItemFilter? _itemFilter;
   Future<_Rankings>? _data;
 
   /// A ranking needs this many people before it is worth showing.
@@ -72,7 +74,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final stats = _db.statsDao;
     final period = _period;
     final userGroupId = _userGroupId;
-    final itemId = _itemId;
+    final filter = _itemFilter;
+    final itemId = filter == null || filter.category ? null : filter.id;
+    final itemGroupId = filter != null && filter.category ? filter.id : null;
     final at = DateTime.now();
     _data = () async {
       final (consumers, present, bestDays, loyal) = await (
@@ -81,18 +85,21 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           at: at,
           userGroupId: userGroupId,
           itemId: itemId,
+          itemGroupId: itemGroupId,
         ),
         stats.readMostPresent(
           period,
           at: at,
           userGroupId: userGroupId,
           itemId: itemId,
+          itemGroupId: itemGroupId,
         ),
         stats.readBestDays(
           period,
           at: at,
           userGroupId: userGroupId,
           itemId: itemId,
+          itemGroupId: itemGroupId,
         ),
         stats.readMostLoyal(
           period,
@@ -100,6 +107,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           minimumTotal: _loyaltyMinimum(period),
           userGroupId: userGroupId,
           itemId: itemId,
+          itemGroupId: itemGroupId,
         ),
       ).wait;
       return (
@@ -140,7 +148,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   spacing: 12,
                   children: [
                     Expanded(child: _groupFilter(l10n)),
-                    Expanded(child: _itemFilter(l10n)),
+                    Expanded(child: _itemDropdown(l10n)),
                   ],
                 ),
               ],
@@ -211,8 +219,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                           settings.formatPercent(loyal.share),
                       outOf: 1,
                       // One item selected: the same emoji on every row.
-                      detail: (loyal) =>
-                          _itemId == null ? loyal.item.emoji : null,
+                      detail: (loyal) => _itemFilter?.category == false
+                          ? null
+                          : loyal.item.emoji,
                     ),
                   ),
               ];
@@ -271,34 +280,64 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         },
       );
 
-  Widget _itemFilter(AppLocalizations l10n) => StreamBuilder<List<ItemRow>>(
-    stream: _items,
-    builder: (context, snapshot) {
-      final items = snapshot.data ?? const <ItemRow>[];
-      final selected = items.any((i) => i.id == _itemId) ? _itemId : null;
-
-      return DropdownButtonFormField<int?>(
-        initialValue: selected,
-        isExpanded: true,
-        decoration: InputDecoration(
-          labelText: l10n.filterItem,
-          border: const OutlineInputBorder(),
-        ),
-        items: [
-          DropdownMenuItem(value: null, child: Text(l10n.filterAll)),
-          for (final item in items)
-            DropdownMenuItem(
-              value: item.id,
-              child: Text(
-                '${item.emoji}  ${item.name}',
-                overflow: TextOverflow.ellipsis,
+  Widget _itemDropdown(AppLocalizations l10n) =>
+      StreamBuilder<List<({ItemGroupRow group, List<ItemRow> items})>>(
+        stream: _items,
+        builder: (context, snapshot) {
+          final sections = snapshot.data ?? const [];
+          final options = <(_ItemFilter, String)>[
+            for (final (:group, :items) in sections) ...[
+              (
+                (category: true, id: group.id),
+                group.emoji == null
+                    ? group.name
+                    : '${group.emoji}  ${group.name}',
               ),
+              for (final item in items)
+                ((category: false, id: item.id), '${item.emoji}  ${item.name}'),
+            ],
+          ];
+          final selected = options.any((o) => o.$1 == _itemFilter)
+              ? _itemFilter
+              : null;
+          final categoryStyle = Theme.of(context).textTheme.bodyLarge
+              ?.copyWith(fontWeight: FontWeight.bold);
+
+          return DropdownButtonFormField<_ItemFilter?>(
+            initialValue: selected,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: l10n.filterItem,
+              border: const OutlineInputBorder(),
             ),
-        ],
-        onChanged: (id) => _update(() => _itemId = id),
+            items: [
+              DropdownMenuItem(value: null, child: Text(l10n.filterAll)),
+              for (final (filter, label) in options)
+                DropdownMenuItem(
+                  value: filter,
+                  child: Padding(
+                    // Items sit indented under their category.
+                    padding: EdgeInsetsDirectional.only(
+                      start: filter.category ? 0 : 24,
+                    ),
+                    child: Text(
+                      label,
+                      style: filter.category ? categoryStyle : null,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+            ],
+            // The closed field shows the choice plainly, without the indent.
+            selectedItemBuilder: (context) => [
+              Text(l10n.filterAll, overflow: TextOverflow.ellipsis),
+              for (final (_, label) in options)
+                Text(label, overflow: TextOverflow.ellipsis),
+            ],
+            onChanged: (filter) => _update(() => _itemFilter = filter),
+          );
+        },
       );
-    },
-  );
 }
 
 Widget _avatar(UserRow user) => UserAvatar(

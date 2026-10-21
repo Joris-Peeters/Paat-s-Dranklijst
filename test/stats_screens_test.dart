@@ -222,6 +222,38 @@ void main() {
     expect(find.text('🥤'), findsNWidgets(5));
   });
 
+  testWidgetsWithDatabase('the leaderboard filters on a category or an item', (
+    tester,
+  ) async {
+    tabletView(tester);
+    await seed(who: users.take(5).toList(), days: 30, every: 1);
+
+    await tester.pumpWidget(
+      await settingsHarness(
+        null,
+        database: db,
+        screen: const LeaderboardScreen(active: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('General').last);
+    await tester.pumpAndSettle();
+    expect(rankedBarLists, findsNWidgets(4));
+    // A category: each row still names its favourite inside it.
+    expect(find.text('🥤'), findsNWidgets(5));
+
+    await tester.tap(find.text('General'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('🥤  Cola').last);
+    await tester.pumpAndSettle();
+    expect(rankedBarLists, findsNWidgets(4));
+    // One item: the emoji would be the same on every row.
+    expect(find.text('🥤'), findsNothing);
+  });
+
   testWidgetsWithDatabase('a user page shows spend, favourites and weeks', (
     tester,
   ) async {

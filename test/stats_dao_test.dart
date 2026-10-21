@@ -46,10 +46,14 @@ void main() {
         seedColorArgb: 0xFF009688,
       );
 
-  Future<ItemRow> addItem(String name, {int price = 150}) async {
+  Future<ItemRow> addItem(
+    String name, {
+    int price = 150,
+    int groupId = seededGroup,
+  }) async {
     final id = await db.itemsDao.createItem(
       name: name,
-      groupId: seededGroup,
+      groupId: groupId,
       priceMinorUnits: price,
       emoji: '🥤',
     );
@@ -340,6 +344,36 @@ void main() {
       );
     });
 
+    test('a category filter counts every item in it, and only those', () async {
+      final beer = await db.itemsDao.createItemGroup(name: 'Bier');
+      final cola = await addItem('Cola');
+      final pils = await addItem('Pils', groupId: beer);
+      final duvel = await addItem('Duvel', groupId: beer);
+      final ann = await addUser('Ann');
+      final bob = await addUser('Bob');
+      await consume(ann, cola, now, quantity: 5);
+      await consume(ann, pils, now);
+      await consume(bob, pils, now, quantity: 2);
+      await consume(bob, duvel, daysAgo(1));
+
+      final consumers = await db.statsDao.readTopConsumers(
+        StatPeriod.month,
+        at: now,
+        itemGroupId: beer,
+      );
+      expect(consumers.map((r) => (r.user.name, r.count)), [
+        ('Bob', 3),
+        ('Ann', 1),
+      ]);
+
+      final best = await db.statsDao.readBestDays(
+        StatPeriod.month,
+        at: now,
+        itemGroupId: beer,
+      );
+      expect(best.map((b) => (b.user.name, b.count)), [('Bob', 2), ('Ann', 1)]);
+    });
+
     test('best day counts a logical day, keeps the earlier of a tie', () async {
       final cola = await addItem('Cola');
       final water = await addItem('Water');
@@ -407,6 +441,37 @@ void main() {
           ('Dirk', 'Cola', 2, 4),
         ]);
         expect(await loyal(userGroupId: leaders), [('Dirk', 'Cola', 2, 4)]);
+      },
+    );
+
+    test(
+      'most loyal in a category picks a favourite out of the category total',
+      () async {
+        final beer = await db.itemsDao.createItemGroup(name: 'Bier');
+        final cola = await addItem('Cola');
+        final pils = await addItem('Pils', groupId: beer);
+        final duvel = await addItem('Duvel', groupId: beer);
+        final ann = await addUser('Ann');
+        final bob = await addUser('Bob');
+        final cas = await addUser('Cas');
+        await consume(ann, pils, now, quantity: 3);
+        await consume(ann, duvel, now);
+        await consume(ann, cola, now, quantity: 6);
+        await consume(bob, duvel, now, quantity: 4);
+        // Over the minimum overall, but not within the category.
+        await consume(cas, cola, now, quantity: 10);
+        await consume(cas, pils, now, quantity: 2);
+
+        final loyal = await db.statsDao.readMostLoyal(
+          StatPeriod.month,
+          at: now,
+          minimumTotal: 4,
+          itemGroupId: beer,
+        );
+        expect(loyal.map((l) => (l.user.name, l.item.name, l.count, l.total)), [
+          ('Bob', 'Duvel', 4, 4),
+          ('Ann', 'Pils', 3, 4),
+        ]);
       },
     );
   });
@@ -477,6 +542,19 @@ void main() {
           minimumTotal: 1,
           userGroupId: seededGroup,
           itemId: cola.id,
+        );
+        await stats.readBestDays(period, at: now, itemGroupId: seededGroup);
+        await stats.readMostLoyal(
+          period,
+          at: now,
+          minimumTotal: 1,
+          itemGroupId: seededGroup,
+        );
+        await stats.readTopConsumers(
+          period,
+          at: now,
+          userGroupId: seededGroup,
+          itemGroupId: seededGroup,
         );
         await stats.readTopConsumers(
           period,

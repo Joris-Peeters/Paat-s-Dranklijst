@@ -192,7 +192,7 @@
   "@leaderboardMostLoyal": { "description": "Heading of the ranking by the share of one item in each person's consumptions; with all items selected, each person's own favourite" },
 
   "filterItem": "Item",
-  "@filterItem": { "description": "Label of the leaderboard dropdown that counts one item only" },
+  "@filterItem": { "description": "Label of the leaderboard dropdown that counts one item or one category only" },
 
   "addUser": "Add user",
   "@addUser": { "description": "Tooltip on the button that adds a new user" },
