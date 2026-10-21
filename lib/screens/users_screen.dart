@@ -415,6 +415,7 @@ class _UserTile extends StatelessWidget {
               UserAvatar(
                 emoji: user.avatarEmoji,
                 seedColorArgb: user.seedColorArgb,
+                image: user.avatarImage,
                 size: 48,
                 // The avatar ticks too while selecting: a tap that opened
                 // someone's page instead would lose the whole selection.

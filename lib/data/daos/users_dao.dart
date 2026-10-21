@@ -205,6 +205,7 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     required int groupId,
     required String avatarEmoji,
     required int seedColorArgb,
+    Uint8List? avatarImage,
   }) => transaction(() async {
     final order = await _nextSortOrder(groupId);
     return into(users).insert(
@@ -212,6 +213,7 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
         name: name,
         groupId: groupId,
         avatarEmoji: avatarEmoji,
+        avatarImage: Value(avatarImage),
         seedColorArgb: seedColorArgb,
         sortOrder: Value(order),
       ),
@@ -235,6 +237,7 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     required int id,
     required String name,
     required String avatarEmoji,
+    required Uint8List? avatarImage,
     required int seedColorArgb,
     required int groupId,
   }) => transaction(() async {
@@ -248,6 +251,7 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
       UsersCompanion(
         name: Value(name),
         avatarEmoji: Value(avatarEmoji),
+        avatarImage: Value(avatarImage),
         seedColorArgb: Value(seedColorArgb),
         groupId: Value(groupId),
         // Untouched unless the group changed: a rename must not reshuffle the
@@ -260,16 +264,20 @@ class UsersDao extends DatabaseAccessor<AppDatabase> with _$UsersDaoMixin {
     if (moved) await _renumberGroup(current.groupId);
   });
 
-  /// The avatar menu's quick edit: whichever of the two is given, the other
-  /// left as it is.
+  /// The avatar menu's quick edit: whatever is given, the rest left as it is.
+  ///
+  /// [avatarImage] is a `Value` because null is a real choice there: it
+  /// removes the photo, which a plain nullable could not tell from "omitted".
   Future<void> updateUserAppearance({
     required int id,
     String? avatarEmoji,
+    Value<Uint8List?> avatarImage = const Value.absent(),
     int? seedColorArgb,
   }) async {
     await (update(users)..where((u) => u.id.equals(id))).write(
       UsersCompanion(
         avatarEmoji: Value.absentIfNull(avatarEmoji),
+        avatarImage: avatarImage,
         seedColorArgb: Value.absentIfNull(seedColorArgb),
       ),
     );

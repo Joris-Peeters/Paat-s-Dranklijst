@@ -84,6 +84,7 @@ class TransactionDetailDialog extends StatelessWidget {
                   UserAvatar(
                     emoji: entry.user.avatarEmoji,
                     seedColorArgb: entry.user.seedColorArgb,
+                    image: entry.user.avatarImage,
                     size: 32,
                   ),
                   Flexible(child: Text(entry.user.name)),

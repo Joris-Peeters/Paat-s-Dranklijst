@@ -196,6 +196,7 @@ class _DebtRow extends StatelessWidget {
           UserAvatar(
             emoji: user.avatarEmoji,
             seedColorArgb: user.seedColorArgb,
+            image: user.avatarImage,
             size: 28,
           ),
           Expanded(

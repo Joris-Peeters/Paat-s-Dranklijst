@@ -1,10 +1,13 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 
 import '../data/database.dart';
 import '../data/database_provider.dart';
 import '../l10n/app_localizations.dart';
+import '../screens/camera_screen.dart';
+import '../utils/camera_support.dart';
 import 'emoji_picker_dialog.dart';
 import 'money_text.dart';
 import 'palette_picker.dart';
@@ -72,20 +75,37 @@ class _UserHeaderState extends State<UserHeader> {
   }
 }
 
-/// The big avatar, opening a menu to change the emoji or the colour without
+/// The big avatar, opening a menu to change the face or the colour without
 /// going through the full edit dialog.
 ///
-/// Deliberately not behind `allowUserEditing`: emoji and colour are cosmetic.
+/// Deliberately not behind `allowUserEditing`: emoji, photo and colour are
+/// cosmetic.
 class _AvatarMenu extends StatelessWidget {
   const _AvatarMenu({required this.user});
 
   final UserRow user;
 
+  /// Also how a photo is dropped: picking an emoji clears it in the same
+  /// write, and backing out of the picker keeps it.
   Future<void> _changeEmoji(BuildContext context) async {
     final dao = Database.of(context).usersDao;
     final picked = await showEmojiPickerDialog(context);
     if (picked == null) return;
-    await dao.updateUserAppearance(id: user.id, avatarEmoji: picked);
+    await dao.updateUserAppearance(
+      id: user.id,
+      avatarEmoji: picked,
+      avatarImage: const Value(null),
+    );
+  }
+
+  Future<void> _takePhoto(BuildContext context) async {
+    final dao = Database.of(context).usersDao;
+    final photo = await showCameraScreen(
+      context,
+      seedColorArgb: user.seedColorArgb,
+    );
+    if (photo == null) return;
+    await dao.updateUserAppearance(id: user.id, avatarImage: Value(photo));
   }
 
   Future<void> _changeColor(BuildContext context) async {
@@ -104,19 +124,35 @@ class _AvatarMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final hasPhoto = user.avatarImage != null;
     // Taller than the default 48, for wet fingers.
     final itemStyle = MenuItemButton.styleFrom(minimumSize: const Size(0, 56));
+
+    final emojiItem = MenuItemButton(
+      style: itemStyle,
+      leadingIcon: const Icon(Icons.emoji_emotions_outlined),
+      onPressed: () => unawaited(_changeEmoji(context)),
+      child: Text(hasPhoto ? l10n.useEmoji : l10n.changeEmoji),
+    );
+    final photoItem = MenuItemButton(
+      style: itemStyle,
+      leadingIcon: const Icon(Icons.photo_camera_outlined),
+      onPressed: () => unawaited(_takePhoto(context)),
+      child: Text(hasPhoto ? l10n.retakePhoto : l10n.takePhoto),
+    );
 
     // Each item uses this widget's context for its dialog, not its own: the
     // menu closes on the tap, taking the items' contexts with it.
     return MenuAnchor(
+      // Whatever is showing now comes first, so the item changing it is on top.
       menuChildren: [
-        MenuItemButton(
-          style: itemStyle,
-          leadingIcon: const Icon(Icons.emoji_emotions_outlined),
-          onPressed: () => unawaited(_changeEmoji(context)),
-          child: Text(l10n.changeEmoji),
-        ),
+        if (hasPhoto) ...[
+          if (cameraSupported) photoItem,
+          emojiItem,
+        ] else ...[
+          emojiItem,
+          if (cameraSupported) photoItem,
+        ],
         MenuItemButton(
           style: itemStyle,
           leadingIcon: const Icon(Icons.palette_outlined),
@@ -128,6 +164,7 @@ class _AvatarMenu extends StatelessWidget {
       // theme, so the circle only has to read it.
       builder: (context, controller, _) => AvatarCircle(
         emoji: user.avatarEmoji,
+        image: user.avatarImage,
         size: 88,
         onTap: () => controller.isOpen ? controller.close() : controller.open(),
       ),

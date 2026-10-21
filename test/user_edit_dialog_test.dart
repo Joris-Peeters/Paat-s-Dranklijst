@@ -1,6 +1,9 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/widgets/emoji_picker_dialog.dart';
 import 'package:paats_dranklijst/widgets/user_avatar.dart';
@@ -229,5 +232,43 @@ void main() {
     await tester.enterText(find.byType(TextField), 'Wout');
     await tester.pumpAndSettle();
     expect(saveEnabled(tester), isTrue);
+  });
+
+  testWidgetsWithDatabase('a photo is shown, and picking an emoji drops it', (
+    tester,
+  ) async {
+    final jonas = await addUser('Jonas');
+    final photo = img.encodeJpg(img.Image(width: 8, height: 8));
+    await db.usersDao.updateUserAppearance(
+      id: jonas.id,
+      avatarImage: Value(photo),
+    );
+    await pump(tester, user: (await db.readUser(jonas.id))!);
+
+    expect(avatar(tester).image, photo);
+    expect(find.text('Use emoji'), findsOneWidget);
+    expect(find.text('Change emoji'), findsNothing);
+
+    await tester.tap(find.text('Use emoji'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(EmojiCell).first);
+    await tester.pumpAndSettle();
+
+    expect(avatar(tester).image, isNull);
+    expect(find.text('Change emoji'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    expect((await db.readUser(jonas.id))!.avatarImage, isNull);
+  });
+
+  testWidgetsWithDatabase('no camera button where there is no camera', (
+    tester,
+  ) async {
+    await pump(tester);
+
+    // Tests run on the desktop host, which the camera plugin does not support.
+    expect(find.text('Take photo'), findsNothing);
   });
 }

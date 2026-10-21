@@ -342,6 +342,7 @@ class _PeopleHeader extends StatelessWidget {
                 UserAvatar(
                   emoji: user.avatarEmoji,
                   seedColorArgb: user.seedColorArgb,
+                  image: user.avatarImage,
                   size: 40,
                 ),
                 Text(user.name, style: theme.textTheme.titleMedium),

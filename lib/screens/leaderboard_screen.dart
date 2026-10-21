@@ -304,5 +304,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 Widget _avatar(UserRow user) => UserAvatar(
   emoji: user.avatarEmoji,
   seedColorArgb: user.seedColorArgb,
+  image: user.avatarImage,
   size: 40,
 );

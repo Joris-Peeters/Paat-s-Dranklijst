@@ -88,6 +88,7 @@ class _Place extends StatelessWidget {
               UserAvatar(
                 emoji: entry.user.avatarEmoji,
                 seedColorArgb: entry.user.seedColorArgb,
+                image: entry.user.avatarImage,
                 size: rank == 1 ? 56 : 44,
               ),
               Text(

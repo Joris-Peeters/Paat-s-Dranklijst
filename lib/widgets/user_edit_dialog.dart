@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../data/database.dart';
 import '../data/database_provider.dart';
 import '../l10n/app_localizations.dart';
+import '../screens/camera_screen.dart';
+import '../utils/camera_support.dart';
 import '../utils/random_emoji.dart';
 import 'emoji_picker_dialog.dart';
 import 'full_screen_editor.dart';
@@ -62,6 +65,7 @@ class _UserEditDialogState extends State<UserEditDialog> {
   late String _emoji = widget.user?.avatarEmoji ?? randomAvatarEmoji();
   late int _seedColorArgb =
       widget.user?.seedColorArgb ?? randomPaletteColor().toARGB32();
+  late Uint8List? _image = widget.user?.avatarImage;
   late int? _groupId = widget.user?.groupId ?? widget.presetGroupId;
 
   /// Every other active user's name, lowercased.
@@ -102,9 +106,23 @@ class _UserEditDialogState extends State<UserEditDialog> {
   /// move, so creating is never locked.
   bool get _groupIsLocked => widget.user != null && !widget.canChangeGroup;
 
+  /// Picking an emoji also drops the photo; backing out keeps it.
   Future<void> _pickEmoji() async {
     final picked = await showEmojiPickerDialog(context);
-    if (picked != null && mounted) setState(() => _emoji = picked);
+    if (picked != null && mounted) {
+      setState(() {
+        _emoji = picked;
+        _image = null;
+      });
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    final photo = await showCameraScreen(
+      context,
+      seedColorArgb: _seedColorArgb,
+    );
+    if (photo != null && mounted) setState(() => _image = photo);
   }
 
   Future<void> _save() async {
@@ -119,6 +137,7 @@ class _UserEditDialogState extends State<UserEditDialog> {
         name: name,
         groupId: groupId,
         avatarEmoji: _emoji,
+        avatarImage: _image,
         seedColorArgb: _seedColorArgb,
       );
     } else {
@@ -126,6 +145,7 @@ class _UserEditDialogState extends State<UserEditDialog> {
         id: user.id,
         name: name,
         avatarEmoji: _emoji,
+        avatarImage: _image,
         seedColorArgb: _seedColorArgb,
         groupId: groupId,
       );
@@ -143,6 +163,17 @@ class _UserEditDialogState extends State<UserEditDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final hasPhoto = _image != null;
+    final emojiButton = OutlinedButton.icon(
+      icon: const Icon(Icons.emoji_emotions_outlined),
+      label: Text(hasPhoto ? l10n.useEmoji : l10n.changeEmoji),
+      onPressed: () => unawaited(_pickEmoji()),
+    );
+    final photoButton = OutlinedButton.icon(
+      icon: const Icon(Icons.photo_camera_outlined),
+      label: Text(hasPhoto ? l10n.retakePhoto : l10n.takePhoto),
+      onPressed: () => unawaited(_takePhoto()),
+    );
 
     return FullScreenEditor(
       title: widget.user == null ? l10n.newUser : l10n.editUser,
@@ -156,13 +187,24 @@ class _UserEditDialogState extends State<UserEditDialog> {
             children: [
               UserAvatar(
                 emoji: _emoji,
+                image: _image,
                 seedColorArgb: _seedColorArgb,
                 size: 96,
               ),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.emoji_emotions_outlined),
-                label: Text(l10n.changeEmoji),
-                onPressed: () => unawaited(_pickEmoji()),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                // Whatever is showing now comes first, as in the avatar menu.
+                children: [
+                  if (hasPhoto) ...[
+                    if (cameraSupported) photoButton,
+                    emojiButton,
+                  ] else ...[
+                    emojiButton,
+                    if (cameraSupported) photoButton,
+                  ],
+                ],
               ),
             ],
           ),

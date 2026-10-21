@@ -556,6 +556,7 @@ void main() {
           id: a,
           name: 'A',
           avatarEmoji: '🦊',
+          avatarImage: null,
           seedColorArgb: 0xFF009688,
           groupId: other,
         );
@@ -580,6 +581,7 @@ void main() {
         id: b,
         name: 'Bea',
         avatarEmoji: '🐸',
+        avatarImage: Uint8List.fromList([1, 2, 3]),
         seedColorArgb: 0xFFE91E63,
         groupId: seededGroup,
       );
@@ -588,6 +590,7 @@ void main() {
       expect(users.map((u) => u.name), ['A', 'Bea']);
       expect(users.last.sortOrder, 1);
       expect(users.last.avatarEmoji, '🐸');
+      expect(users.last.avatarImage, [1, 2, 3]);
     });
 
     test('an appearance edit leaves the field it was not given', () async {
@@ -603,6 +606,27 @@ void main() {
       final colorOnly = (await db.readUser(a))!;
       expect(colorOnly.avatarEmoji, '🐸');
       expect(colorOnly.seedColorArgb, 0xFFE91E63);
+      expect(colorOnly.avatarImage, isNull);
+    });
+
+    test('a photo is set, kept by other edits, and cleared by null', () async {
+      final a = await addUser(name: 'A');
+
+      await db.usersDao.updateUserAppearance(
+        id: a,
+        avatarImage: Value(Uint8List.fromList([1, 2, 3])),
+      );
+      await db.usersDao.updateUserAppearance(id: a, seedColorArgb: 0xFFE91E63);
+      expect((await db.readUser(a))!.avatarImage, [1, 2, 3]);
+
+      await db.usersDao.updateUserAppearance(
+        id: a,
+        avatarEmoji: '🐸',
+        avatarImage: const Value(null),
+      );
+      final cleared = (await db.readUser(a))!;
+      expect(cleared.avatarImage, isNull);
+      expect(cleared.avatarEmoji, '🐸');
     });
 
     test('an item moved between categories behaves the same way', () async {

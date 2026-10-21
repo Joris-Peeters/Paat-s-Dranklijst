@@ -505,7 +505,40 @@
   "@chooseEmoji": { "description": "Title of the emoji picker dialog" },
 
   "changeEmoji": "Change emoji",
-  "@changeEmoji": { "description": "Button in the user editor and item in the avatar menu that open the emoji picker" },
+  "@changeEmoji": { "description": "Button in the user editor and item in the avatar menu that open the emoji picker, shown while the user has no photo" },
+
+  "takePhoto": "Take photo",
+  "@takePhoto": { "description": "Button in the user editor and item in the avatar menu that open the camera, shown while the user has no photo" },
+
+  "retakePhoto": "Retake photo",
+  "@retakePhoto": { "description": "Button in the user editor and item in the avatar menu that open the camera to replace the current photo" },
+
+  "useEmoji": "Use emoji",
+  "@useEmoji": { "description": "Button in the user editor and item in the avatar menu that open the emoji picker; picking one replaces the photo" },
+
+  "cameraTitle": "Profile photo",
+  "@cameraTitle": { "description": "App bar title of the camera screen" },
+
+  "takePhotoButton": "Take photo",
+  "@takePhotoButton": { "description": "Tooltip of the round shutter button on the camera screen" },
+
+  "switchCamera": "Switch camera",
+  "@switchCamera": { "description": "Tooltip of the button that swaps between front and back camera" },
+
+  "retryPhoto": "Retry",
+  "@retryPhoto": { "description": "Button after taking a photo that throws it away and goes back to the live camera" },
+
+  "usePhoto": "Use photo",
+  "@usePhoto": { "description": "Button after taking a photo that keeps it as the profile photo" },
+
+  "cameraUnavailable": "No camera available on this device.",
+  "@cameraUnavailable": { "description": "Camera screen message when the device has no camera or it failed to start" },
+
+  "cameraPermissionDenied": "The app is not allowed to use the camera. Allow camera access in the device settings.",
+  "@cameraPermissionDenied": { "description": "Camera screen message when camera permission was refused" },
+
+  "photoProcessingFailed": "The photo could not be processed. Try again.",
+  "@photoProcessingFailed": { "description": "Snackbar on the camera screen when a taken photo could not be decoded or shrunk" },
 
   "changeColor": "Change color",
   "@changeColor": { "description": "Item in the avatar menu that opens the colour picker" },

@@ -115,6 +115,7 @@ class TransactionListTile extends StatelessWidget {
             ? UserAvatar(
                 emoji: user.avatarEmoji,
                 seedColorArgb: user.seedColorArgb,
+                image: user.avatarImage,
                 size: _leadingSize,
                 onTap: onUserTap == null || user.archivedAt != null
                     ? null

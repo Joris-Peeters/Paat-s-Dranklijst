@@ -629,6 +629,7 @@ class _UserPickerSheetState extends State<_UserPickerSheet> {
                       leading: UserAvatar(
                         emoji: user.avatarEmoji,
                         seedColorArgb: user.seedColorArgb,
+                        image: user.avatarImage,
                         size: 40,
                       ),
                       title: Text(user.name),

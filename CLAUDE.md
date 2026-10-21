@@ -28,7 +28,7 @@ networked app. There is no server, no account system, no sync.
 - **Portrait-first**, and a **tablet** is the primary form factor — a phone is a
   secondary one that must still work, not a size the layout is designed around.
   Landscape is not a target: the tablet is bolted to a fridge door one way up.
-- **No networking.** No audio. No device integrations beyond (eventually) the camera.
+- **No networking.** No audio. No device integrations beyond the camera, for profile photos.
 
 ## Stack
 
@@ -47,7 +47,8 @@ networked app. There is no server, no account system, no sync.
 | Emoji picker | `emoji_picker_flutter` |
 | i18n | `flutter_localizations` + `intl` + ARB / `gen-l10n` |
 | Charts | `fl_chart` — vertical bars; ranked lists are plain widgets |
-| Camera (planned, low priority) | `image_picker` (not `camera`) |
+| Camera | `camera`, not `image_picker`: a custom screen previews in the avatar's circle. Android and iOS only |
+| Photos | `image` — crop and shrink a capture before it is stored |
 
 **Target platforms:** Android, iOS, Linux. **Development happens exclusively on Arch
 Linux.** iOS builds require macOS/Xcode and are done via CI or a borrowed Mac — never
@@ -315,18 +316,30 @@ and never assume symbol placement, spacing, or decimal-digit count.
 
 ### 6. Avatars
 
-Render order: uploaded image if present → emoji. **There is no initials fallback** —
+Render order: photo if present → emoji. **There is no initials fallback** —
 `avatarEmoji` is non-null, so every member always has something to draw.
 
 ```dart
 TextColumn get avatarEmoji => text()();              // TEXT — emoji are multi-codepoint
-BlobColumn get avatarImage => blob().nullable()();   // reserved; feature not built yet
+BlobColumn get avatarImage => blob().nullable()();   // a 384 px square JPEG
 ```
 
 `avatarEmoji` is TEXT because emoji use skin-tone modifiers and ZWJ sequences and
-cannot be stored as a single int codepoint. The blob column exists now specifically so
-the future camera feature needs no migration — **avatar images go in the database, not
-into a directory beside it.**
+cannot be stored as a single int codepoint. **Avatar photos go in the database, not
+into a directory beside it**, so a backup carries them.
+
+An emoji sits on `primaryContainer`; a photo fills the circle with a ring in `primary`,
+both from the member's own scheme. The emoji is kept while a photo shows, but there is
+no "remove photo": switching back goes through the emoji picker, and picking one clears
+the photo in the same write. Backing out of the picker keeps the photo.
+
+`screens/camera_screen.dart` previews in the avatar's circle, opens on the front camera
+and returns the photo only after Retry / Use photo. `utils/avatar_photo.dart` turns the
+capture into what is stored, in an isolate: EXIF rotation baked in, the centre square
+(what the circle showed), 384 px, JPEG quality 85. Front-camera shots are stored as the
+plugin delivers them, mirrored or not. The review step shows the processed bytes,
+so what is confirmed is what is stored. Photo items in the avatar menu are not behind
+`allowUserEditing`, like emoji and colour.
 
 **The create screen picks a random emoji and a random palette colour** for a new member,
 which is why both columns are non-null and neither has a schema default: a default would
@@ -426,9 +439,22 @@ group left behind.
   version and any other constraint causes a resolution conflict.
 - Use `Color.toARGB32()`, not the deprecated `Color.value`. Use
   `withValues(alpha: ...)`, not the deprecated `withOpacity()`.
-- Plugins without Linux implementations (e.g. `image_picker`'s camera path) throw
-  `MissingPluginException` at runtime, not compile time. Guard with
-  `Platform.isAndroid || Platform.isIOS`.
+- Plugins without Linux implementations throw `MissingPluginException` at runtime, not
+  compile time. Guard with `Platform.isAndroid || Platform.isIOS`. For the camera that is
+  `cameraSupported`, and every "Take photo" control is hidden behind it. On Linux,
+  photos already stored still render, but none can be taken.
+- **The camera is not released for you.** `CameraScreen` disposes its controller when
+  the app goes `inactive` and opens it again on `resumed`. It skips that while still
+  initializing, because the permission prompt itself makes the app inactive. Every
+  capture also leaves a file in a temp folder, which the screen deletes.
+- **iOS kills the app the first time the camera opens without
+  `NSCameraUsageDescription`** in Info.plist. The controller has `enableAudio: false`,
+  so no microphone key is needed. Android's `CAMERA` permission merges in from the
+  plugin's manifest.
+- **Avatar photos use `AvatarPhotoImage`, not `MemoryImage`.** User lists re-emit on
+  every ledger write with fresh byte arrays, and `MemoryImage` compares by identity, so
+  every avatar on screen would be decoded again on every tap. The subclass compares by
+  content. A photo is also decoded at its drawn size through `ResizeImage`.
 - **A new preference key must be added to the store's allow-list.**
   `SharedPreferencesWithCache` preloads exactly the declared keys; one that is missing
   reads as absent forever, which silently looks like "the default".
@@ -553,6 +579,8 @@ lib/
   theme/app_theme.dart       # memoized ColorScheme.fromSeed / ThemeData helpers
   utils/                     # banking (IBAN + EPC), random_emoji, reorder, time_of_day
     screen_dimming.dart      # the only file that talks to the brightness plugin
+    avatar_photo.dart        # capture -> stored square JPEG; pure
+    camera_support.dart      # cameraSupported
   screens/
     start_screen.dart, users_screen.dart, leaderboard_screen.dart, stats_screen.dart  # the four tabs
     consumption_screen.dart  # log items for one user, or the same order for a round
@@ -567,10 +595,11 @@ lib/
     backup_screen.dart       # PIN-free backup from the Start page
     restore_backup_screen.dart, import_balances_screen.dart  # pick a file from the backup folder
     setup_wizard.dart        # first-run wizard
+    camera_screen.dart       # circular live preview, then retry or use the photo
   widgets/
     palette_picker.dart      # curated color lists, inline picker + swatch grid dialog
     emoji_picker_dialog.dart # emoji_picker_flutter's grid in a dialog, themed by hand
-    user_avatar.dart         # a member's emoji in a circle from their own seed color
+    user_avatar.dart         # a member's emoji or photo in a circle from their own seed color
     user_theme_scope.dart    # puts a user's appTheme on a subtree
     user_header.dart         # avatar, name, live balance and the top-up button
     pin_dialog.dart          # keypad, and the enter/set dialogs around it
@@ -687,14 +716,12 @@ part in import or export.**
 plain `Future` inside `testWidgets`, never a stream's `.first` — it deadlocks under fake
 async.
 
-**Scaffolding.** `users.avatarImage` is the one thing written ahead of its UI: the
-planned camera feature.
-
 ### Known limitations
 
 - Orientation is not locked, so a tablet not locked by the OS will rotate into a
   landscape layout that is not designed for.
 - Idle dimming does nothing on Linux: the controls are shown greyed out with a note.
+- Profile photos cannot be taken on Linux, which has no camera plugin.
 - A reset that removes users or items removes their groups too and reseeds nothing: the
   admin recreates a group before anyone can be added.
 - The launcher icons are still Flutter's defaults.

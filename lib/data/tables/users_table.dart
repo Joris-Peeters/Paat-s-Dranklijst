@@ -16,7 +16,7 @@ class Users extends Table {
   // Always set: the create screen picks a random one.
   TextColumn get avatarEmoji => text()();
 
-  // Reserved for the camera feature; here now so it needs no migration later.
+  // A square JPEG from the camera screen, drawn instead of the emoji.
   BlobColumn get avatarImage => blob().nullable()();
 
   // Resolved ARGB.

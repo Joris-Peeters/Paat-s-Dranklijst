@@ -175,6 +175,7 @@ class _PendingRow extends StatelessWidget {
         leading: UserAvatar(
           emoji: user.avatarEmoji,
           seedColorArgb: user.seedColorArgb,
+          image: user.avatarImage,
           size: 40,
         ),
         title: Text(user.name),
