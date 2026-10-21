@@ -9,8 +9,8 @@ import '../l10n/app_localizations.dart';
 import '../screens/camera_screen.dart';
 import '../utils/camera_support.dart';
 import '../utils/random_emoji.dart';
+import 'editor_dialog.dart';
 import 'emoji_picker_dialog.dart';
-import 'full_screen_editor.dart';
 import 'palette_picker.dart';
 import 'user_avatar.dart';
 
@@ -175,7 +175,7 @@ class _UserEditDialogState extends State<UserEditDialog> {
       onPressed: () => unawaited(_takePhoto()),
     );
 
-    return FullScreenEditor(
+    return EditorDialog(
       title: widget.user == null ? l10n.newUser : l10n.editUser,
       onSave: _canSave ? () => unawaited(_save()) : null,
       child: Column(

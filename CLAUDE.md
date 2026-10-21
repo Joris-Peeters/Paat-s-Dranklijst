@@ -611,7 +611,7 @@ lib/
     adjustment_dialog.dart   # posts a balance adjustment with a required note
     transaction_history.dart # TransactionListTile and RecentTransactionsCard
     transaction_detail_dialog.dart  # one ledger row in full, and voiding it
-    user_edit_dialog.dart, item_edit_dialog.dart, full_screen_editor.dart
+    user_edit_dialog.dart, item_edit_dialog.dart, editor_dialog.dart
     group_management_view.dart   # shared list for user groups and item categories
     reorderable_sliver_section.dart  # holds a dropped order until the write lands
     responsive_tile_grid.dart    # column count measured from a minimum tile width

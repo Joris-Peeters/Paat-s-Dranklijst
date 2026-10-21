@@ -7,8 +7,8 @@ import '../data/database_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_data.dart';
+import 'editor_dialog.dart';
 import 'emoji_picker_dialog.dart';
-import 'full_screen_editor.dart';
 
 /// Creates or edits one item. Closes on save; the caller's stream updates.
 Future<void> showItemEditDialog(
@@ -110,7 +110,7 @@ class _ItemEditDialogState extends State<ItemEditDialog> {
     final settings = AppSettings.of(context);
     final typed = _price.text.trim();
 
-    return FullScreenEditor(
+    return EditorDialog(
       title: widget.item == null ? l10n.newItem : l10n.editItem,
       onSave: _canSave ? () => unawaited(_save()) : null,
       child: Column(
