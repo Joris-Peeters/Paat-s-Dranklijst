@@ -69,7 +69,7 @@ class AppSettingsData {
   /// applies inside settings too; photos already taken keep showing.
   final bool allowProfilePhotos;
 
-  /// Whether opening the consumption screen warns a user who is in the red.
+  /// Whether a user under the threshold sees a warning in their header.
   final bool lowBalanceWarningEnabled;
 
   /// The balance to warn below, signed: a group that wants a nudge before the

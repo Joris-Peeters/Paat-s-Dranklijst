@@ -620,13 +620,12 @@ lib/
     emoji_picker_dialog.dart # emoji_picker_flutter's grid in a dialog, themed by hand
     user_avatar.dart         # a member's emoji or photo in a circle from their own seed color
     user_theme_scope.dart    # puts a user's appTheme on a subtree
-    user_header.dart         # avatar, name, live balance and the top-up button
+    user_header.dart         # avatar, name, live balance, low-balance warning, top-up button
     pin_dialog.dart          # keypad, and the enter/set dialogs around it
     idle_timer.dart          # the pointer listener and timer both idle features share
     inactivity_guard.dart    # InactivityGuard (60 s idle) and InactivityPause
     screen_dimmer.dart       # dims the backlight when idle; one touch wakes it
     top_up_sheet.dart        # amount presets, then the EPC payment QR when possible
-    low_balance_dialog.dart  # warns, never blocks, a user under the threshold
     adjustment_dialog.dart   # posts a balance adjustment with a required note
     transaction_history.dart # TransactionListTile and RecentTransactionsCard
     transaction_detail_dialog.dart  # one ledger row in full, and voiding it

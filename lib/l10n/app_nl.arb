@@ -210,9 +210,7 @@
   "lowBalanceWarningOff": "Niemand wordt gewaarschuwd, hoeveel die ook openstaat",
   "lowBalanceThreshold": "Waarschuwen onder",
   "lowBalanceThresholdHelp": "Mag negatief zijn, om enkel bij echte schuld te waarschuwen.",
-  "lowBalanceTitle": "Opgelet",
-  "lowBalanceBody": "{name} staat op {amount}. Reken binnenkort af.",
-  "continueAnyway": "Verder",
+  "lowBalanceBanner": "Je saldo is laag. Waardeer binnenkort op.",
   "nameTaken": "Er heet al iemand zo",
   "restoreBlockedNameTaken": "Er heet al iemand anders {name}. Geef eerst een van beiden een andere naam.",
 

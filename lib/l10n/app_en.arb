@@ -721,9 +721,9 @@
   "@dimScreenUnsupported": { "description": "Note shown in place of the dimming controls on a platform the feature does not support" },
 
   "lowBalanceWarning": "Warn on a low balance",
-  "@lowBalanceWarning": { "description": "Setting controlling whether opening the consumption screen warns a user who is in the red" },
+  "@lowBalanceWarning": { "description": "Setting controlling whether a user under the threshold sees a warning on their own pages" },
 
-  "lowBalanceWarningOn": "A user below the amount is warned before ordering",
+  "lowBalanceWarningOn": "A user below the amount sees a warning on their page",
   "@lowBalanceWarningOn": { "description": "Subtitle when the low balance warning is enabled" },
 
   "lowBalanceWarningOff": "Nobody is warned, whatever they owe",
@@ -735,20 +735,8 @@
   "lowBalanceThresholdHelp": "May be negative, to warn only on a real debt.",
   "@lowBalanceThresholdHelp": { "description": "Helper text under the low balance threshold field, making it plain that a minus sign is allowed" },
 
-  "lowBalanceTitle": "Careful",
-  "@lowBalanceTitle": { "description": "Title of the dialog warning a user that their balance is low" },
-
-  "lowBalanceBody": "{name} is at {amount}. Please settle up soon.",
-  "@lowBalanceBody": {
-    "description": "Body of the low balance warning, naming the user and what they stand at",
-    "placeholders": {
-      "name": { "type": "String" },
-      "amount": { "type": "String" }
-    }
-  },
-
-  "continueAnyway": "Continue",
-  "@continueAnyway": { "description": "Dismisses the low balance warning and carries on. The fridge cannot take payment, so nothing is blocked" },
+  "lowBalanceBanner": "Your balance is low. Please top up soon.",
+  "@lowBalanceBanner": { "description": "Warning strip in a user's header while their balance is under the threshold. The balance itself is shown large right above it, so it is not repeated" },
 
   "nameTaken": "Someone is already called this",
   "@nameTaken": { "description": "Error under the name field when another active user has the same name. Save stays disabled until the name is changed" },

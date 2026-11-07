@@ -18,8 +18,8 @@ import 'top_up_sheet.dart';
 import 'user_avatar.dart';
 import 'user_theme_scope.dart';
 
-/// Who this is, what they are up or down, the way to add money, and the way to
-/// their other page.
+/// Who this is, what they are up or down, a warning when that is too low, the
+/// way to add money, and the way to their other page.
 ///
 /// Shared by the consumption screen and the user's own page, which show the
 /// same things and must not drift apart. Owns its balance query rather than
@@ -46,6 +46,7 @@ class _UserHeaderState extends State<UserHeader> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final settings = AppSettings.of(context);
     final theme = Theme.of(context);
 
     return Padding(
@@ -71,16 +72,31 @@ class _UserHeaderState extends State<UserHeader> {
             stream: _balance,
             builder: (context, snapshot) {
               final balance = snapshot.data;
-              // The query takes a frame or two to come back, and a zero shown
-              // in the meantime is a wrong number, not a missing one — someone
-              // reads it as their balance. Hidden rather than absent so the
-              // header does not resize underneath the button when it lands.
-              return Opacity(
-                opacity: balance == null ? 0 : 1,
-                child: MoneyText(
-                  amountMinorUnits: balance ?? 0,
-                  style: theme.textTheme.headlineMedium,
-                ),
+              // Strict, so a threshold of zero warns on a debt and not on a
+              // settled tab. Warns, never blocks: the fridge cannot take
+              // payment, so a recorded debt beats a drink left unlogged.
+              final low =
+                  settings.lowBalanceWarningEnabled &&
+                  balance != null &&
+                  balance < settings.lowBalanceThresholdMinorUnits;
+
+              return Column(
+                spacing: 8,
+                children: [
+                  // The query takes a frame or two to come back, and a zero
+                  // shown in the meantime is a wrong number, not a missing one
+                  // — someone reads it as their balance. Hidden rather than
+                  // absent so the header does not resize underneath the
+                  // button when it lands.
+                  Opacity(
+                    opacity: balance == null ? 0 : 1,
+                    child: MoneyText(
+                      amountMinorUnits: balance ?? 0,
+                      style: theme.textTheme.headlineMedium,
+                    ),
+                  ),
+                  if (low) const _LowBalanceStrip(),
+                ],
               );
             },
           ),
@@ -100,6 +116,42 @@ class _UserHeaderState extends State<UserHeader> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Tells a user under the threshold to top up. The amount is the large number
+/// right above it, so it is not repeated.
+class _LowBalanceStrip extends StatelessWidget {
+  const _LowBalanceStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        // Hugs its text, centred under the balance; wraps only when the line
+        // is wider than the screen.
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 12,
+          children: [
+            Icon(Icons.warning_amber_rounded, color: colors.onErrorContainer),
+            Flexible(
+              child: Text(
+                AppLocalizations.of(context).lowBalanceBanner,
+                style: TextStyle(color: colors.onErrorContainer),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -14,6 +14,13 @@ import 'support/ledger.dart';
 
 const int seededGroup = 1;
 
+const lowBalanceBanner = 'Your balance is low. Please top up soon.';
+
+const warnBelowMinusTen = <String, Object>{
+  'lowBalanceWarningEnabled': true,
+  'lowBalanceThresholdMinorUnits': -1000,
+};
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -251,16 +258,9 @@ void main() {
       amountMinorUnits: -1200,
       note: 'Opening',
     );
-    await pump(
-      tester,
-      users: [jonas, fien],
-      preferences: {
-        'lowBalanceWarningEnabled': true,
-        'lowBalanceThresholdMinorUnits': -1000,
-      },
-    );
+    await pump(tester, users: [jonas, fien], preferences: warnBelowMinusTen);
 
-    expect(find.text('Careful'), findsNothing);
+    expect(find.text(lowBalanceBanner), findsNothing);
     expect(find.text('My overview'), findsNothing);
   });
 
@@ -322,27 +322,16 @@ void main() {
     note: 'Opening',
   );
 
-  testWidgetsWithDatabase('a low balance is warned about on the way in', (
+  testWidgetsWithDatabase('a low balance is warned about in the header', (
     tester,
   ) async {
     await addItem(name: 'Cola');
     await owe(1200);
-    await pump(
-      tester,
-      preferences: {
-        'lowBalanceWarningEnabled': true,
-        'lowBalanceThresholdMinorUnits': -1000,
-      },
-    );
+    await pump(tester, preferences: warnBelowMinusTen);
 
-    expect(find.text('Careful'), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.textContaining('-€12.00'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.text(lowBalanceBanner), findsOneWidget);
+    // A strip, not a dialog in the way.
+    expect(find.byType(AlertDialog), findsNothing);
   });
 
   testWidgetsWithDatabase('a balance above the threshold is left alone', (
@@ -350,15 +339,9 @@ void main() {
   ) async {
     await addItem(name: 'Cola');
     await owe(500);
-    await pump(
-      tester,
-      preferences: {
-        'lowBalanceWarningEnabled': true,
-        'lowBalanceThresholdMinorUnits': -1000,
-      },
-    );
+    await pump(tester, preferences: warnBelowMinusTen);
 
-    expect(find.text('Careful'), findsNothing);
+    expect(find.text(lowBalanceBanner), findsNothing);
   });
 
   testWidgetsWithDatabase(
@@ -378,7 +361,7 @@ void main() {
       );
 
       // Still in credit, but under what the admin asked to be warned below.
-      expect(find.text('Careful'), findsOneWidget);
+      expect(find.text(lowBalanceBanner), findsOneWidget);
     },
   );
 
@@ -389,54 +372,58 @@ void main() {
     await owe(5000);
     await pump(tester);
 
-    expect(find.text('Careful'), findsNothing);
+    expect(find.text(lowBalanceBanner), findsNothing);
   });
 
-  testWidgetsWithDatabase('continuing dismisses and logs nothing', (
-    tester,
-  ) async {
+  testWidgetsWithDatabase('the warning blocks nothing', (tester) async {
     await addItem(name: 'Cola');
     await owe(1200);
-    await pump(
-      tester,
-      preferences: {
-        'lowBalanceWarningEnabled': true,
-        'lowBalanceThresholdMinorUnits': -1000,
-      },
-    );
+    await pump(tester, preferences: warnBelowMinusTen);
 
-    await tester.tap(find.widgetWithText(TextButton, 'Continue'));
+    await tester.tap(find.text('Cola'));
     await tester.pumpAndSettle();
 
-    // Nothing blocked and nothing written: the fridge cannot take payment.
-    expect(find.text('Careful'), findsNothing);
-    expect(find.text('Cola'), findsOneWidget);
+    // The fridge cannot take payment, so a recorded debt beats none.
     expect(
       (await history()).where((r) => r.type == TransactionType.consumption),
-      isEmpty,
+      hasLength(1),
     );
   });
 
   testWidgetsWithDatabase('the top-up button opens the sheet', (tester) async {
     await addItem(name: 'Cola');
     await owe(1200);
-    await pump(
-      tester,
-      preferences: {
-        'lowBalanceWarningEnabled': true,
-        'lowBalanceThresholdMinorUnits': -1000,
-      },
-    );
+    await pump(tester, preferences: warnBelowMinusTen);
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.widgetWithText(FilledButton, 'Top up'),
-      ),
-    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Top up'));
     await tester.pumpAndSettle();
 
     expect(find.text('Debt €12.00'), findsOneWidget);
+  });
+
+  testWidgetsWithDatabase('a top-up clears the warning while on screen', (
+    tester,
+  ) async {
+    await addItem(name: 'Cola');
+    await owe(1200);
+    await pump(tester, preferences: warnBelowMinusTen);
+    expect(find.text(lowBalanceBanner), findsOneWidget);
+
+    await db.transactionsDao.logTopUp(userId: jonas.id, amountMinorUnits: 2000);
+    await tester.pumpAndSettle();
+
+    expect(find.text(lowBalanceBanner), findsNothing);
+  });
+
+  testWidgetsWithDatabase('the user page warns too', (tester) async {
+    await owe(1200);
+    await pump(tester, preferences: warnBelowMinusTen);
+
+    await tester.tap(find.text('My overview'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(UserDetailScreen), findsOneWidget);
+    expect(find.text(lowBalanceBanner), findsOneWidget);
   });
 
   testWidgetsWithDatabase('the avatar dialog recolours the user in place', (
