@@ -18,17 +18,22 @@ import 'top_up_sheet.dart';
 import 'user_avatar.dart';
 import 'user_theme_scope.dart';
 
-/// Who this is, what they are up or down, and the way to add money.
+/// Who this is, what they are up or down, the way to add money, and the way to
+/// their other page.
 ///
 /// Shared by the consumption screen and the user's own page, which show the
-/// same four things and must not drift apart. Owns its balance query rather
-/// than taking one, so a page drops it in and nothing else has to know.
+/// same things and must not drift apart. Owns its balance query rather than
+/// taking one, so a page drops it in and nothing else has to know.
 ///
 /// Belongs inside a `UserThemeScope` — both callers are one.
 class UserHeader extends StatefulWidget {
-  const UserHeader({super.key, required this.user});
+  const UserHeader({super.key, required this.user, required this.otherPage});
 
   final UserRow user;
+
+  /// The button to the user's other page, beside Top up. Built by the caller,
+  /// which knows where it is and so where the other page is.
+  final Widget otherPage;
 
   @override
   State<UserHeader> createState() => _UserHeaderState();
@@ -79,11 +84,20 @@ class _UserHeaderState extends State<UserHeader> {
               );
             },
           ),
-          FilledButton.tonalIcon(
-            icon: const Icon(Icons.add_card),
-            label: Text(l10n.topUp),
-            onPressed: () =>
-                unawaited(showTopUpSheet(context, user: widget.user)),
+          // A Wrap, so a phone too narrow for both puts one under the other.
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonalIcon(
+                icon: const Icon(Icons.add_card),
+                label: Text(l10n.topUp),
+                onPressed: () =>
+                    unawaited(showTopUpSheet(context, user: widget.user)),
+              ),
+              widget.otherPage,
+            ],
           ),
         ],
       ),

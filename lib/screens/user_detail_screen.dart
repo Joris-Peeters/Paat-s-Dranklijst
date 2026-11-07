@@ -73,21 +73,6 @@ class _Page extends StatelessWidget {
         // it, and repeating it in the bar says nothing twice.
         title: Text(l10n.userOverview),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.local_cafe),
-            tooltip: l10n.takeSomething,
-            // Replaces rather than pushes: this page and that one are two views
-            // of the same user, and both were opened from the user list, so
-            // hopping between them must not stack up routes to back out of.
-            onPressed: () => unawaited(
-              Navigator.pushReplacement<void, void>(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ConsumptionScreen(user: user),
-                ),
-              ),
-            ),
-          ),
           // The one editing surface with no PIN in front of it, so it is the
           // one an admin can close off. The management screens ignore this.
           if (settings.allowUserEditing)
@@ -110,7 +95,23 @@ class _Page extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: 16,
           children: [
-            UserHeader(user: user),
+            UserHeader(
+              user: user,
+              otherPage: FilledButton.tonalIcon(
+                icon: const Icon(Icons.local_cafe),
+                label: Text(l10n.takeSomething),
+                // Replaces rather than pushes, as on the way here: two views of
+                // one user must not stack up routes to back out of.
+                onPressed: () => unawaited(
+                  Navigator.pushReplacement<void, void>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ConsumptionScreen(user: user),
+                    ),
+                  ),
+                ),
+              ),
+            ),
             RecentTransactionsCard(user: user),
             _UserStats(userId: user.id),
           ],

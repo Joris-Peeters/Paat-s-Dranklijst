@@ -802,7 +802,10 @@
   "@setupNext": { "description": "Advances to the next wizard step" },
 
   "userOverview": "User overview",
-  "@userOverview": { "description": "App bar title of one user's own page, and the tooltip of the button that opens it. The name is already large in the header below, so the bar says what the page is" },
+  "@userOverview": { "description": "App bar title of one user's own page. The name is already large in the header below, so the bar says what the page is" },
+
+  "myOverview": "My overview",
+  "@myOverview": { "description": "Button beside Top up on the screen where a user taps what they took. Opens their own page: history and statistics" },
 
   "takeSomething": "Add to your tab",
   "@takeSomething": { "description": "App bar title of the screen where a user taps what they took. Names the consequence rather than the tap, so the cost is not a surprise" },

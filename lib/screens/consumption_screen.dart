@@ -239,22 +239,6 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
                     : l10n.takeSomething,
               ),
               actions: [
-                if (!forGroup)
-                  IconButton(
-                    icon: const Icon(Icons.account_circle_outlined),
-                    tooltip: l10n.userOverview,
-                    // Replaces rather than pushes: two views of one user, both
-                    // opened from the user list, so hopping between them must
-                    // not stack up routes to back out of.
-                    onPressed: () => unawaited(
-                      Navigator.pushReplacement<void, void>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => UserDetailScreen(user: _user),
-                        ),
-                      ),
-                    ),
-                  ),
                 IconButton(
                   icon: const Icon(Icons.playlist_add),
                   tooltip: l10n.selectMultiple,
@@ -283,7 +267,24 @@ class _ConsumptionScreenState extends State<ConsumptionScreen> {
                   if (forGroup)
                     _PeopleHeader(users: widget.users)
                   else
-                    UserHeader(user: _user),
+                    UserHeader(
+                      user: _user,
+                      otherPage: FilledButton.tonalIcon(
+                        icon: const Icon(Icons.account_circle_outlined),
+                        label: Text(l10n.myOverview),
+                        // Replaces rather than pushes: two views of one user,
+                        // both opened from the user list, so hopping between
+                        // them must not stack up routes to back out of.
+                        onPressed: () => unawaited(
+                          Navigator.pushReplacement<void, void>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => UserDetailScreen(user: _user),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   if (loaded == null)
                     const SizedBox.shrink()
                   else if (sections.isEmpty)

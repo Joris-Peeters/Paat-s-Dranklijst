@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:paats_dranklijst/data/database.dart';
 import 'package:paats_dranklijst/data/tables/transactions_table.dart';
 import 'package:paats_dranklijst/screens/consumption_screen.dart';
+import 'package:paats_dranklijst/screens/user_detail_screen.dart';
 import 'package:paats_dranklijst/widgets/palette_picker.dart';
 import 'package:paats_dranklijst/widgets/user_theme_scope.dart';
 
@@ -260,7 +261,28 @@ void main() {
     );
 
     expect(find.text('Careful'), findsNothing);
-    expect(find.byTooltip('User overview'), findsNothing);
+    expect(find.text('My overview'), findsNothing);
+  });
+
+  testWidgetsWithDatabase('my overview swaps in the user page', (tester) async {
+    await pump(tester);
+
+    await tester.tap(find.text('My overview'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(UserDetailScreen), findsOneWidget);
+    expect(find.byType(ConsumptionScreen), findsNothing);
+
+    // And back the same way: replaced again, never stacked.
+    await tester.tap(find.text('Add to your tab'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ConsumptionScreen), findsOneWidget);
+    expect(find.byType(UserDetailScreen), findsNothing);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('open'), findsOneWidget);
   });
 
   testWidgetsWithDatabase('a category with nothing on offer is not drawn', (
