@@ -82,11 +82,8 @@ void main() {
     expect(avatar(tester).seedColorArgb, isNot(0));
   });
 
-  testWidgetsWithDatabase('the emoji is changed by a button, not the avatar', (
-    tester,
-  ) async {
+  testWidgetsWithDatabase('the emoji is changed by a button', (tester) async {
     await pump(tester);
-    expect(avatar(tester).onTap, isNull);
 
     await tester.tap(find.text('Change emoji'));
     await tester.pumpAndSettle();

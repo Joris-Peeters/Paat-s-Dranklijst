@@ -78,26 +78,20 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('UserAvatar renders its emoji and stays tappable', (
+  testWidgets('UserAvatar renders its emoji in the user\'s own colours', (
     tester,
   ) async {
-    var taps = 0;
-
     await tester.pumpWidget(
       harness(
         UserAvatar(
           emoji: '🦊',
           seedColorArgb: Colors.green.toARGB32(),
           size: 128,
-          onTap: () => taps++,
         ),
       ),
     );
 
     expect(find.text('🦊'), findsOneWidget);
-
-    await tester.tap(find.byType(UserAvatar));
-    expect(taps, 1);
 
     // The circle is painted from the user's own scheme, not the app's.
     final avatarTheme = Theme.of(tester.element(find.text('🦊'))).colorScheme;

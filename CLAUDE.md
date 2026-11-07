@@ -668,7 +668,7 @@ chosen in place.
 Stats. Start shows today's totals, a button to the Users tab, the podium and recent
 transactions, and its app bar holds the Backup button and the settings `IconButton` —
 the only route into settings. Users filters by group and searches; a tile opens the
-consumption screen, the avatar opens the user page. A long press on an item builds a
+consumption screen, which links on to the user page. A long press on an item builds a
 basket; a long press on a user starts a round for several people. `InactivityGuard`
 wraps the navigator and, after 60 s without a touch, pops every route and selects Start;
 a focused text field or an `InactivityPause` (the top-up sheet, settings) holds it off.

@@ -126,23 +126,15 @@ void main() {
     expect(find.byType(ChoiceChip), findsOneWidget);
   });
 
-  testWidgetsWithDatabase('opening a user page closes the search', (
-    tester,
-  ) async {
+  testWidgetsWithDatabase('the avatar opens the drink screen like the rest '
+      'of the tile', (tester) async {
     await addUser(name: 'Bea');
     await pump(tester);
 
-    await tester.tap(find.byIcon(Icons.search));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'be');
-    await tester.pumpAndSettle();
     await tester.tap(find.byType(UserAvatar));
     await tester.pumpAndSettle();
-    await tester.pageBack();
-    await tester.pumpAndSettle();
 
-    expect(find.byType(TextField), findsNothing);
-    expect(find.byType(ChoiceChip), findsOneWidget);
+    expect(find.text('Add to your tab'), findsOneWidget);
   });
 
   testWidgetsWithDatabase('a search matching nobody says so', (tester) async {

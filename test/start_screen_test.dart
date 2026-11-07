@@ -106,20 +106,7 @@ void main() {
     expect(find.byIcon(Icons.settings_rounded), findsOneWidget);
   });
 
-  testWidgetsWithDatabase('a history avatar opens that user\'s page to take '
-      'something', (tester) async {
-    await db.logConsumption(userId: jonas, item: cola);
-    await pump(tester);
-
-    await tester.tap(find.text('🦊'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(ConsumptionScreen), findsOneWidget);
-  });
-
-  testWidgetsWithDatabase('the rest of a history row still opens its detail', (
-    tester,
-  ) async {
+  testWidgetsWithDatabase('a history row opens its detail', (tester) async {
     await db.logConsumption(userId: jonas, item: cola);
     await pump(tester);
 
@@ -127,21 +114,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(TransactionDetailDialog), findsOneWidget);
-    expect(find.byType(ConsumptionScreen), findsNothing);
   });
 
-  testWidgetsWithDatabase('an archived user\'s avatar opens nothing', (
+  testWidgetsWithDatabase('a history avatar opens the row\'s detail too', (
     tester,
   ) async {
-    // Voided first, since only a settled user can be archived.
-    final id = await db.logConsumption(userId: jonas, item: cola);
-    await db.transactionsDao.voidTransaction(id, note: 'Wrong person');
-    await db.usersDao.archiveUser(jonas);
+    await db.logConsumption(userId: jonas, item: cola);
     await pump(tester);
 
     await tester.tap(find.text('🦊'));
     await tester.pumpAndSettle();
 
+    expect(find.byType(TransactionDetailDialog), findsOneWidget);
     expect(find.byType(ConsumptionScreen), findsNothing);
   });
 }

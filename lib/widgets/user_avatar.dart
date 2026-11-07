@@ -141,18 +141,16 @@ class UserAvatar extends StatelessWidget {
     required this.seedColorArgb,
     this.image,
     this.size = 56,
-    this.onTap,
   });
 
   final String emoji;
   final int seedColorArgb;
   final Uint8List? image;
   final double size;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => UserThemeScope(
     seedColorArgb: seedColorArgb,
-    child: AvatarCircle(emoji: emoji, image: image, size: size, onTap: onTap),
+    child: AvatarCircle(emoji: emoji, image: image, size: size),
   );
 }

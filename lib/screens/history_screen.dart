@@ -15,7 +15,6 @@ import '../widgets/empty_state.dart';
 import '../widgets/transaction_detail_dialog.dart';
 import '../widgets/transaction_history.dart';
 import '../widgets/user_avatar.dart';
-import 'user_detail_screen.dart';
 
 /// What the history is narrowed to. All four are single-select, and null on
 /// each means "everything".
@@ -290,19 +289,7 @@ class _HistoryList extends StatelessWidget {
                       );
 
                       return showUser
-                          ? TransactionListTile(
-                              entry: entry,
-                              onTap: open,
-                              onUserTap: (user) => unawaited(
-                                Navigator.push<void>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        UserDetailScreen(user: user),
-                                  ),
-                                ),
-                              ),
-                            )
+                          ? TransactionListTile(entry: entry, onTap: open)
                           : TransactionListTile.forUser(
                               entry: entry,
                               onTap: open,

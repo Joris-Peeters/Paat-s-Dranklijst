@@ -13,7 +13,6 @@ import '../widgets/responsive_tile_grid.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_edit_dialog.dart';
 import 'consumption_screen.dart';
-import 'user_detail_screen.dart';
 
 /// A row of avatar, name and balance stays this tall however wide the window gets.
 const _tileHeight = 88.0;
@@ -95,12 +94,6 @@ class _UsersScreenState extends State<UsersScreen> {
   void _openConsumption(UserRow user) => unawaited(
     _push(
       MaterialPageRoute<void>(builder: (_) => ConsumptionScreen(user: user)),
-    ),
-  );
-
-  void _openDetail(UserRow user) => unawaited(
-    _push(
-      MaterialPageRoute<void>(builder: (_) => UserDetailScreen(user: user)),
     ),
   );
 
@@ -232,7 +225,6 @@ class _UsersScreenState extends State<UsersScreen> {
                             : l10n.noSearchResults,
                         picked: _selecting ? _picked : null,
                         onOpen: _openConsumption,
-                        onOpenDetail: _openDetail,
                         onToggle: _toggle,
                         onLongPress: _selecting ? _toggle : _startSelecting,
                       ),
@@ -333,7 +325,6 @@ class _UserGrid extends StatelessWidget {
     required this.emptyMessage,
     required this.picked,
     required this.onOpen,
-    required this.onOpenDetail,
     required this.onToggle,
     required this.onLongPress,
   });
@@ -345,7 +336,6 @@ class _UserGrid extends StatelessWidget {
   final Set<int>? picked;
 
   final ValueChanged<UserRow> onOpen;
-  final ValueChanged<UserRow> onOpenDetail;
   final ValueChanged<UserRow> onToggle;
   final ValueChanged<UserRow> onLongPress;
 
@@ -364,7 +354,6 @@ class _UserGrid extends StatelessWidget {
             entry: entry,
             picked: picked?.contains(entry.user.id),
             onOpen: () => onOpen(entry.user),
-            onOpenDetail: () => onOpenDetail(entry.user),
             onToggle: () => onToggle(entry.user),
             onLongPress: () => onLongPress(entry.user),
           ),
@@ -378,7 +367,6 @@ class _UserTile extends StatelessWidget {
     required this.entry,
     required this.picked,
     required this.onOpen,
-    required this.onOpenDetail,
     required this.onToggle,
     required this.onLongPress,
   });
@@ -389,7 +377,6 @@ class _UserTile extends StatelessWidget {
   final bool? picked;
 
   final VoidCallback onOpen;
-  final VoidCallback onOpenDetail;
   final VoidCallback onToggle;
   final VoidCallback onLongPress;
 
@@ -417,9 +404,6 @@ class _UserTile extends StatelessWidget {
                 seedColorArgb: user.seedColorArgb,
                 image: user.avatarImage,
                 size: 48,
-                // The avatar ticks too while selecting: a tap that opened
-                // someone's page instead would lose the whole selection.
-                onTap: selecting ? onToggle : onOpenDetail,
               ),
               Expanded(
                 child: Text(

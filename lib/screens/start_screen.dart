@@ -60,7 +60,7 @@ class _StartScreenState extends State<StartScreen> with WidgetsBindingObserver {
   Stream<List<PodiumEntry>> _watchPodium() =>
       _db.statsDao.watchPodium(at: DateTime.now());
 
-  /// The podium's and the recent history's shortcut to taking something.
+  /// The podium's shortcut to taking something.
   void _openConsumption(UserRow user) => unawaited(
     Navigator.push<void>(
       context,
@@ -168,12 +168,8 @@ class _StartScreenState extends State<StartScreen> with WidgetsBindingObserver {
                   ),
                 // No user, so the global form: avatars and names, and a footer that
                 // opens the unfiltered history.
-                Expanded(
-                  child: RecentTransactionsCard(
-                    fill: true,
-                    limit: 30,
-                    onUserTap: _openConsumption,
-                  ),
+                const Expanded(
+                  child: RecentTransactionsCard(fill: true, limit: 30),
                 ),
               ],
             ),
