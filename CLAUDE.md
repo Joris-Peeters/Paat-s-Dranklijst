@@ -654,7 +654,8 @@ build.yaml                   # drift codegen and make-migrations options
 ## Current state
 
 **v1.0.0 was the first release**, made right before the first real deployment, and
-**v1.1.0** followed with profile photos, more statistics and schema v2. 
+**v1.1.0** followed with profile photos, more statistics and schema v2, and **v1.2.0**
+with a simpler UX: a large avatar preview, single-action rows and a low-balance banner.
 
 The tree is `Database` -> `AppSettings` -> `MaterialApp`. `MainApp.home` is the wizard
 while `setupCompletedAt` is null and `AppShell` afterwards, so finishing the wizard swaps
