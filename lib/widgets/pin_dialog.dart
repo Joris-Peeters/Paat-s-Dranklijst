@@ -31,6 +31,17 @@ Future<bool> requireAdminPin(BuildContext context) async {
   return unlocked ?? false;
 }
 
+/// Pops the dialog [context] belongs to, and only that one.
+///
+/// `Navigator.pop` closes whatever is on top. A dialog that is already on its
+/// way out still answers taps until the next frame, and popping then would
+/// close the screen underneath it instead.
+void _popIfCurrent<T>(BuildContext context, T result) {
+  if (ModalRoute.of(context)?.isCurrent ?? false) {
+    Navigator.pop(context, result);
+  }
+}
+
 /// Asks for the admin PIN. Pops `true` on a match, `null` if dismissed.
 ///
 /// The comparison is a plain string equality against the stored plaintext PIN.
@@ -53,14 +64,8 @@ class _PinEnterDialogState extends State<PinEnterDialog> {
       setState(() => _error = AppLocalizations.of(context).pinIncorrect);
       return false;
     }
-    unawaited(_close());
+    _popIfCurrent(context, true);
     return true;
-  }
-
-  /// Long enough for the fourth dot to paint before the dialog leaves.
-  Future<void> _close() async {
-    await Future<void>.delayed(const Duration(milliseconds: 120));
-    if (mounted) Navigator.pop(context, true);
   }
 
   @override
@@ -115,7 +120,7 @@ class _PinSetDialogState extends State<_PinSetDialog> {
       return false;
     }
 
-    Navigator.pop(context, pin);
+    _popIfCurrent(context, pin);
     return true;
   }
 
